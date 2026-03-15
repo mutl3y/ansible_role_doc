@@ -24,7 +24,7 @@ dev = [
   "pytest",
   "pytest-cov",
   "tox",
-  "ruff",
+  "ruff==0.15.6",
   "black==25.1.0",
   "pre-commit",
   "markdown",
