@@ -1,16 +1,16 @@
 ---
 name: git-flow-branch-creator
-description: 'Intelligent Git Flow branch creator that analyzes git status/diff and creates appropriate branches following the nvie Git Flow branching model.'
+description: 'Intelligent branch creator that analyzes git status/diff and creates appropriate branches following this repository''s documented main-based branching conventions.'
 ---
 
 ### Instructions
 
 ```xml
 <instructions>
-	<title>Git Flow Branch Creator</title>
-	<description>This prompt analyzes your current git changes using git status and git diff (or git diff --cached), then intelligently determines the appropriate branch type according to the Git Flow branching model and creates a semantic branch name.</description>
+	<title>Repository Branch Creator</title>
+	<description>This prompt analyzes your current git changes using git status and git diff (or git diff --cached), then determines an appropriate descriptive branch name based on this repository's documented conventions and creates it from main.</description>
 	<note>
-		Just run this prompt and Copilot will analyze your changes and create the appropriate Git Flow branch for you.
+		Just run this prompt and Copilot will analyze your changes and create an appropriate working branch for you.
 	</note>
 </instructions>
 ```
@@ -21,21 +21,21 @@ description: 'Intelligent Git Flow branch creator that analyzes git status/diff 
 
 1. Run `git status` to review the current repository state and changed files.
 2. Run `git diff` (for unstaged changes) or `git diff --cached` (for staged changes) to analyze the nature of changes.
-3. Analyze the changes using the Git Flow Branch Analysis Framework below.
-4. Determine the appropriate branch type based on the analysis.
-5. Generate a semantic branch name following Git Flow conventions.
+3. Analyze the changes using the Repository Branch Analysis Framework below.
+4. Determine the appropriate branch prefix based on the analysis.
+5. Generate a semantic branch name following repository conventions.
 6. Create the branch and switch to it automatically.
 7. Provide a summary of the analysis and next steps.
 
-### Git Flow Branch Analysis Framework
+### Repository Branch Analysis Framework
 
 ```xml
 <analysis-framework>
 	<branch-types>
 		<feature>
 			<purpose>New features, enhancements, non-critical improvements</purpose>
-			<branch-from>develop</branch-from>
-			<merge-to>develop</merge-to>
+			<branch-from>main</branch-from>
+			<merge-to>main via pull request</merge-to>
 			<naming>feature/descriptive-name or feature/ticket-number-description</naming>
 			<indicators>
 				<indicator>New functionality being added</indicator>
@@ -49,8 +49,8 @@ description: 'Intelligent Git Flow branch creator that analyzes git status/diff 
 
 		<release>
 			<purpose>Release preparation, version bumps, final testing</purpose>
-			<branch-from>develop</branch-from>
-			<merge-to>develop AND master</merge-to>
+			<branch-from>main</branch-from>
+			<merge-to>main via pull request</merge-to>
 			<naming>release-X.Y.Z</naming>
 			<indicators>
 				<indicator>Version number changes</indicator>
@@ -64,8 +64,8 @@ description: 'Intelligent Git Flow branch creator that analyzes git status/diff 
 
 		<hotfix>
 			<purpose>Critical production bug fixes requiring immediate deployment</purpose>
-			<branch-from>master</branch-from>
-			<merge-to>develop AND master</merge-to>
+			<branch-from>main</branch-from>
+			<merge-to>main via pull request</merge-to>
 			<naming>hotfix-X.Y.Z or hotfix/critical-issue-description</naming>
 			<indicators>
 				<indicator>Security vulnerability fixes</indicator>
@@ -129,8 +129,8 @@ description: 'Intelligent Git Flow branch creator that analyzes git status/diff 
 	</step-1>
 
 	<step-2>
-		<title>Git Flow Classification</title>
-		<description>Map the changes to appropriate Git Flow branch type</description>
+		<title>Repository Branch Classification</title>
+		<description>Map the changes to an appropriate repository branch prefix</description>
 		<decision-tree>
 			<question>Are these critical fixes for production issues?</question>
 			<if-yes>Consider hotfix branch</if-yes>
@@ -150,6 +150,7 @@ description: 'Intelligent Git Flow branch creator that analyzes git status/diff 
 			<be-descriptive>Name should clearly indicate the purpose</be-descriptive>
 			<include-context>Add ticket numbers or project context when available</include-context>
 			<keep-concise>Avoid overly long names</keep-concise>
+			<follow-repo-guidance>Prefer prefixes like feature, fix, chore, or docs when they better match the repository's documented conventions</follow-repo-guidance>
 		</guidelines>
 	</step-3>
 </analysis-process>
@@ -190,7 +191,7 @@ description: 'Intelligent Git Flow branch creator that analyzes git status/diff 
 		<analysis>New functionality, additive changes, not critical</analysis>
 		<branch-type>feature</branch-type>
 		<branch-name>feature/user-registration-api</branch-name>
-		<command>git checkout -b feature/user-registration-api develop</command>
+		<command>git checkout -b feature/user-registration-api main</command>
 	</example-1>
 
 	<example-2>
@@ -198,7 +199,7 @@ description: 'Intelligent Git Flow branch creator that analyzes git status/diff 
 		<analysis>Security fix, critical for production, immediate deployment needed</analysis>
 		<branch-type>hotfix</branch-type>
 		<branch-name>hotfix/auth-security-patch</branch-name>
-		<command>git checkout -b hotfix/auth-security-patch master</command>
+		<command>git checkout -b hotfix/auth-security-patch main</command>
 	</example-2>
 
 	<example-3>
@@ -206,7 +207,7 @@ description: 'Intelligent Git Flow branch creator that analyzes git status/diff 
 		<analysis>Release preparation, version bump, documentation</analysis>
 		<branch-type>release</branch-type>
 		<branch-name>release-2.1.0</branch-name>
-		<command>git checkout -b release-2.1.0 develop</command>
+		<command>git checkout -b release-2.1.0 main</command>
 	</example-3>
 
 	<example-4>
@@ -214,7 +215,7 @@ description: 'Intelligent Git Flow branch creator that analyzes git status/diff 
 		<analysis>Performance improvement, non-critical enhancement</analysis>
 		<branch-type>feature</branch-type>
 		<branch-name>feature/database-performance-optimization</branch-name>
-		<command>git checkout -b feature/database-performance-optimization develop</command>
+		<command>git checkout -b feature/database-performance-optimization main</command>
 	</example-4>
 </examples>
 ```
@@ -225,19 +226,19 @@ description: 'Intelligent Git Flow branch creator that analyzes git status/diff 
 <validation>
 	<pre-analysis>
 		<check>Repository is in a clean state (no uncommitted changes that would conflict)</check>
-		<check>Current branch is appropriate starting point (develop for features/releases, master for hotfixes)</check>
+		<check>Current branch is the repository default branch (`main`) before creating the working branch</check>
 		<check>Remote repository is up to date</check>
 	</pre-analysis>
 
 	<analysis-quality>
 		<check>Change analysis covers all modified files</check>
-		<check>Branch type selection follows Git Flow principles</check>
+		<check>Branch type selection follows repository contribution guidance</check>
 		<check>Branch name is semantic and follows conventions</check>
 		<check>Edge cases are considered and handled</check>
 	</analysis-quality>
 
 	<execution-safety>
-		<check>Target branch (develop/master) exists and is accessible</check>
+		<check>Target branch (`main`) exists and is accessible</check>
 		<check>Proposed branch name doesn't conflict with existing branches</check>
 		<check>User has appropriate permissions to create branches</check>
 	</execution-safety>
@@ -258,7 +259,7 @@ description: 'Intelligent Git Flow branch creator that analyzes git status/diff 
 	<branch-creation>
 		<command>git checkout -b [branch-name] [source-branch]</command>
 		<confirmation>Verify branch creation and current branch status</confirmation>
-		<next-steps>Provide guidance on next actions (commit changes, push branch, etc.)</next-steps>
+		<next-steps>Provide guidance on next actions (commit changes, push branch, open a pull request, etc.)</next-steps>
 	</branch-creation>
 
 	<fallback-options>
@@ -268,25 +269,25 @@ description: 'Intelligent Git Flow branch creator that analyzes git status/diff 
 </execution-protocol>
 ```
 
-### Git Flow Reference
+### Repository Branch Reference
 
 ```xml
-<gitflow-reference>
+<repo-branch-reference>
 	<main-branches>
-		<master>Production-ready code, every commit is a release</master>
-		<develop>Integration branch for features, latest development changes</develop>
+		<main>Default branch for the repository and the required starting point for new work branches</main>
 	</main-branches>
 
 	<supporting-branches>
-		<feature>Branch from develop, merge back to develop</feature>
-		<release>Branch from develop, merge to both develop and master</release>
-		<hotfix>Branch from master, merge to both develop and master</hotfix>
+		<feature>Branch from main, merge back to main via pull request</feature>
+		<release>Branch from main, merge back to main via pull request</release>
+		<hotfix>Branch from main, merge back to main via pull request</hotfix>
+		<docs>Use when changes are documentation-only and the repository guidance favors a docs-prefixed branch name</docs>
+		<chore>Use when changes are maintenance or tooling updates and the repository guidance favors a chore-prefixed branch name</chore>
 	</supporting-branches>
 
 	<merge-strategy>
-		<flag>Always use --no-ff flag to preserve branch history</flag>
-		<tagging>Tag releases on master branch</tagging>
-		<cleanup>Delete branches after successful merge</cleanup>
+		<pull-request>Open a pull request instead of merging directly to main</pull-request>
+		<cleanup>Delete branches after successful merge when appropriate</cleanup>
 	</merge-strategy>
-</gitflow-reference>
+</repo-branch-reference>
 ```

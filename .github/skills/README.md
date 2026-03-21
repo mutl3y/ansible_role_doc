@@ -14,8 +14,8 @@ This folder contains project-level Copilot skills for repeatable workflows.
   from repository structure and documentation.
 - `git-commit`: Use when you want help staging logical changes and writing a
   conventional commit message from the actual diff.
-- `git-flow-branch-creator`: Use when you need a branch name and branch type
-  chosen from current changes using Git Flow conventions.
+- `git-flow-branch-creator`: Use when you need a descriptive working branch
+  name chosen from current changes using this repository's branch conventions.
 - `make-repo-contribution`: Use before creating issues, branches, commits, or
   PRs so contribution workflow and templates are checked first.
 - `pytest-coverage`: Use when you need to find Python lines missing test
@@ -43,8 +43,8 @@ together well in this order:
   steps.
 2. `make-repo-contribution`: Check local contribution guidance before creating
   issues, branches, commits, or PRs.
-3. `git-flow-branch-creator`: Create a descriptive working branch from the
-  current changes.
+3. `git-flow-branch-creator`: Create a descriptive working branch from `main`
+  using the repository's naming conventions.
 4. `structured-autonomy-implement`: Execute the approved plan without scope
   drift.
 5. `pytest-coverage`: Close Python test coverage gaps where the change needs
