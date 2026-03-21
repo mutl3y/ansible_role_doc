@@ -34,6 +34,24 @@ This folder contains project-level Copilot skills for repeatable workflows.
   for additional skills from `github/awesome-copilot`, including overlap and
   outdated-skill detection.
 
+## Recommended Workflow
+
+For repo changes that should go through a branch and PR flow, the skills fit
+together well in this order:
+
+1. `structured-autonomy-plan`: Research the request and break it into testable
+  steps.
+2. `make-repo-contribution`: Check local contribution guidance before creating
+  issues, branches, commits, or PRs.
+3. `git-flow-branch-creator`: Create a descriptive working branch from the
+  current changes.
+4. `structured-autonomy-implement`: Execute the approved plan without scope
+  drift.
+5. `pytest-coverage`: Close Python test coverage gaps where the change needs
+  stronger validation.
+6. `git-commit`: Group the final changes and write a conventional commit
+  message.
+
 ## Notes
 
 - Some skills assume specific tools or integrations are available. If a skill
