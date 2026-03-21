@@ -22,6 +22,12 @@ This folder contains project-level custom agents installed from
 - `gem-documentation-writer.agent.md`: documentation generation with
   code-to-doc parity focus.
 
+## Related Skills
+
+For reusable task workflows such as planning, contribution checks, branching,
+commits, and coverage work, see the skills index in
+`.github/skills/README.md`.
+
 ## Source
 
 Installed from:
