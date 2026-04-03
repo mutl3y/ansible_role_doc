@@ -11,7 +11,6 @@
 # All lists are sorted alphabetically.
 
 sensitivity:
-
   # Variable name substrings that suggest a secret value (case-insensitive match)
   name_tokens:
     - api_key
