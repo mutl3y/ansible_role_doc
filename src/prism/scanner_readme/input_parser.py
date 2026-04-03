@@ -10,7 +10,7 @@ import re
 from pathlib import Path
 from typing import Callable
 
-from ..scanner_extract.variable_extractor import IGNORED_IDENTIFIERS
+from ..scanner_extract import IGNORED_IDENTIFIERS
 from .style import get_style_section_aliases_snapshot, normalize_style_heading
 
 MARKDOWN_VAR_BACKTICK_RE = re.compile(r"`([A-Za-z_][A-Za-z0-9_]*)`")
@@ -120,7 +120,7 @@ def extract_readme_variable_names_from_line(line: str) -> set[str]:
     for pattern in patterns:
         for match in pattern.findall(line):
             lowered = match.lower()
-            if lowered in IGNORED_IDENTIFIERS:
+            if lowered in IGNORED_IDENTIFIERS():
                 continue
             names.add(match)
     return names

@@ -18,6 +18,7 @@ from prism.scanner_readme import input_parser as readme_input_parser
 from prism.scanner_extract import task_parser
 from prism.scanner_extract import variable_extractor
 from prism.scanner_extract.variable_extractor import _extract_default_target_var
+from prism.scanner_config.patterns import load_pattern_config
 from types import SimpleNamespace
 
 
@@ -1104,36 +1105,27 @@ def test_reload_pattern_config_synchronizes_ansible_builtin_variables_into_ignor
     """After reload_pattern_config, IGNORED_IDENTIFIERS must reflect changes to
     the ansible_builtin_variables policy key.
 
-    This guards the contract that _refresh_policy_derived_state propagates
-    ansible_builtin_variables into the module-level IGNORED_IDENTIFIERS in
-    variable_extractor and that scanner.reload_pattern_config keeps its own
-    IGNORED_IDENTIFIERS in sync.
+    This guards the contract that policy_override_scope propagates
+    ansible_builtin_variables into the active ignored identifiers.
     """
     sentinel = "ansible_prism_test_sentinel_do_not_use"
     # Patch a minimal policy that adds the sentinel to ansible_builtin_variables
-    original_policy = (
-        scanner._POLICY.copy()
-        if hasattr(scanner._POLICY, "copy")
-        else dict(scanner._POLICY)
-    )
+    original_policy = load_pattern_config()
     patched_policy = dict(original_policy)
     existing_builtins = list(patched_policy.get("ansible_builtin_variables", []))
     patched_policy["ansible_builtin_variables"] = existing_builtins + [sentinel]
 
-    # Drive _refresh_policy_derived_state directly via the variable_extractor
+    # Use policy_override_scope to test the scoped behavior
     from prism.scanner_extract import variable_extractor as _ve
 
-    _ve._refresh_policy_derived_state(patched_policy)
-
-    try:
-        assert sentinel in _ve.IGNORED_IDENTIFIERS, (
-            "reload must propagate new ansible_builtin_variables entries "
-            "into variable_extractor.IGNORED_IDENTIFIERS"
+    with _ve.policy_override_scope(patched_policy):
+        assert sentinel in _ve.IGNORED_IDENTIFIERS(), (
+            "policy_override_scope must propagate new ansible_builtin_variables entries "
+            "into active ignored identifiers"
         )
-    finally:
-        # Always restore original state
-        _ve._refresh_policy_derived_state(original_policy)
-        assert sentinel not in _ve.IGNORED_IDENTIFIERS
+
+    # Outside scope, should not contain sentinel
+    assert sentinel not in _ve.IGNORED_IDENTIFIERS()
 
 
 def test_variable_extractor_wrapper_re_exports_canonical_implementation():
@@ -1188,56 +1180,23 @@ def test_runbook_bridge_wrappers_re_export_canonical_implementations():
     assert not hasattr(scanner, "render_runbook_csv")
 
 
-def test_scanner_refresh_policy_keeps_wrapper_and_canonical_ignored_in_sync(
-    monkeypatch,
-):
-    """scanner._refresh_policy must keep wrapper and canonical states aligned."""
+def test_scanner_refresh_policy_keeps_wrapper_and_canonical_ignored_in_sync():
+    """Policy override scope must keep wrapper and canonical states aligned."""
     from prism.scanner_extract import variable_extractor as canonical
     from prism.scanner_extract import variable_extractor as compat
 
     sentinel = "ansible_prism_sync_test_sentinel"
-    base_policy = dict(scanner._POLICY)
+    base_policy = load_pattern_config()
     patched_policy = dict(base_policy)
     builtins = list(patched_policy.get("ansible_builtin_variables", []))
     patched_policy["ansible_builtin_variables"] = builtins + [sentinel]
 
-    def _fake_refresh_policy(override_path=None):
-        sensitivity = patched_policy["sensitivity"]
-        return (
-            patched_policy,
-            patched_policy["section_aliases"],
-            tuple(sensitivity["name_tokens"]),
-            tuple(sensitivity["vault_markers"]),
-            tuple(sensitivity["credential_prefixes"]),
-            tuple(sensitivity["url_prefixes"]),
-            tuple(patched_policy["variable_guidance"]["priority_keywords"]),
-            patched_policy["ignored_identifiers"],
-        )
-
-    monkeypatch.setattr(scanner, "_config_refresh_policy", _fake_refresh_policy)
-
-    scanner._refresh_policy()
-
-    try:
-        assert sentinel in canonical.IGNORED_IDENTIFIERS
+    with canonical.policy_override_scope(patched_policy):
+        assert sentinel in canonical.IGNORED_IDENTIFIERS()
         assert compat.IGNORED_IDENTIFIERS == canonical.IGNORED_IDENTIFIERS
-    finally:
 
-        def _restore_refresh_policy(override_path=None):
-            sensitivity = base_policy["sensitivity"]
-            return (
-                base_policy,
-                base_policy["section_aliases"],
-                tuple(sensitivity["name_tokens"]),
-                tuple(sensitivity["vault_markers"]),
-                tuple(sensitivity["credential_prefixes"]),
-                tuple(sensitivity["url_prefixes"]),
-                tuple(base_policy["variable_guidance"]["priority_keywords"]),
-                base_policy["ignored_identifiers"],
-            )
-
-        monkeypatch.setattr(scanner, "_config_refresh_policy", _restore_refresh_policy)
-        scanner._refresh_policy()
+    # Outside scope, should not contain sentinel
+    assert sentinel not in canonical.IGNORED_IDENTIFIERS()
 
 
 def test_collect_referenced_variable_names_ignores_explicit_ansible_connection_vars(
@@ -1278,7 +1237,7 @@ def test_custom_ansible_prefixed_var_not_filtered_by_ignored_identifiers():
     """A custom `ansible_`-prefixed token must pass through IGNORED_IDENTIFIERS
     filtering unchanged — the prefix alone is not sufficient for suppression."""
     sentinel = "ansible_my_role_specific_setting"
-    assert sentinel not in variable_extractor.IGNORED_IDENTIFIERS, (
+    assert sentinel not in variable_extractor.IGNORED_IDENTIFIERS(), (
         f"{sentinel!r} should NOT be in IGNORED_IDENTIFIERS; "
         "only known builtins belong there"
     )

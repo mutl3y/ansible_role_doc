@@ -517,7 +517,7 @@ def test_ignored_identifiers_include_task_parser_keywords_and_builtin_vars():
         "playbook_dir",
         "inventory_hostname",
         "ansible_play_hosts_all",
-    }.issubset(IGNORED_IDENTIFIERS)
+    }.issubset(IGNORED_IDENTIFIERS())
 
 
 def test_custom_ansible_prefixed_variable_is_not_ignored(tmp_path):
@@ -2129,50 +2129,6 @@ def test_style_section_aliases_public_compat_mapping_is_read_only():
         scanner.STYLE_SECTION_ALIASES["runtime inputs"] = "role_variables"
 
 
-def test_get_style_section_aliases_snapshot_isolated_from_future_refresh():
-    original_policy = scanner._POLICY
-    snapshot_before = scanner.get_style_section_aliases_snapshot()
-    assert isinstance(snapshot_before, dict)
-
-    patched_policy = dict(original_policy)
-    patched_aliases = dict(original_policy["section_aliases"])
-    patched_aliases["bertrum policy alias"] = "role_variables"
-    patched_policy["section_aliases"] = patched_aliases
-
-    def _refresh_return_for(policy: dict):
-        sensitivity = policy["sensitivity"]
-        return (
-            policy,
-            policy["section_aliases"],
-            tuple(sensitivity["name_tokens"]),
-            tuple(sensitivity["vault_markers"]),
-            tuple(sensitivity["credential_prefixes"]),
-            tuple(sensitivity["url_prefixes"]),
-            tuple(policy["variable_guidance"]["priority_keywords"]),
-            policy["ignored_identifiers"],
-        )
-
-    def _patched_refresh_policy(override_path=None):
-        return _refresh_return_for(patched_policy)
-
-    def _base_refresh_policy(override_path=None):
-        return _refresh_return_for(original_policy)
-
-    try:
-        original_refresh = scanner._config_refresh_policy
-        scanner._config_refresh_policy = _patched_refresh_policy
-        scanner._refresh_policy()
-        snapshot_after = scanner.get_style_section_aliases_snapshot()
-        assert "bertrum policy alias" not in snapshot_before
-        snapshot_before["bertrum policy alias"] = "unknown"
-        assert scanner.STYLE_SECTION_ALIASES["bertrum policy alias"] == "role_variables"
-        assert snapshot_after["bertrum policy alias"] == "role_variables"
-    finally:
-        scanner._config_refresh_policy = _base_refresh_policy
-        scanner._refresh_policy()
-        scanner._config_refresh_policy = original_refresh
-
-
 def test_load_readme_section_config_parses_include_exclude_and_modes(tmp_path):
     role = tmp_path / "role"
     role.mkdir(parents=True)
@@ -2467,36 +2423,6 @@ def test_run_scan_policy_override_isolation_across_concurrent_calls(tmp_path):
 
     assert results["with_override"] is True
     assert results["without_override"] is False
-
-
-def test_run_scan_does_not_mutate_module_policy_state(tmp_path, monkeypatch):
-    role = tmp_path / "role"
-    (role / "tasks").mkdir(parents=True)
-    (role / "tasks" / "main.yml").write_text(
-        "---\n- name: demo\n  debug:\n    msg: ok\n",
-        encoding="utf-8",
-    )
-
-    monkeypatch.setattr(
-        scanner,
-        "_refresh_policy",
-        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("no refresh")),
-    )
-    monkeypatch.setattr(
-        scanner,
-        "_restore_policy_snapshot",
-        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("no restore")),
-    )
-
-    payload = scanner.run_scan(
-        str(role),
-        output="scan.json",
-        output_format="json",
-        dry_run=True,
-    )
-
-    parsed = json.loads(payload)
-    assert parsed["role_name"] == "role"
 
 
 def test_load_section_display_titles_parses_valid_entries_only(tmp_path, monkeypatch):

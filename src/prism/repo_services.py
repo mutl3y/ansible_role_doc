@@ -2,6 +2,10 @@
 
 This module remains the compatibility facade while focused responsibilities live
 in ``repo_intake`` and ``repo_metadata``.
+
+This module is a thin stable shim. Internal repo responsibilities may move to
+dedicated packages when that improves ownership clarity, but repo_services.py
+remains the stable top-level import surface.
 """
 
 from __future__ import annotations

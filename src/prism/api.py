@@ -2,6 +2,10 @@
 
 This module provides a stable import surface for external tooling that wants
 machine-readable scan results without coupling to CLI internals.
+
+This module is a thin stable shim. Internal API responsibilities may move to
+dedicated packages when that improves ownership clarity, but api.py remains
+the stable top-level import surface.
 """
 
 from __future__ import annotations
@@ -155,23 +159,31 @@ def _parse_scan_role_payload(payload: str | dict[str, Any]) -> dict[str, Any]:
         try:
             parsed = json.loads(payload)
         except json.JSONDecodeError as exc:
-            raise RuntimeError(
-                f"{SCAN_ROLE_PAYLOAD_JSON_INVALID}: scan_role received invalid JSON payload"
+            raise PrismRuntimeError(
+                code=SCAN_ROLE_PAYLOAD_JSON_INVALID,
+                message="scan_role received invalid JSON payload",
+                category="parser",
             ) from exc
 
     if not isinstance(parsed, dict):
-        raise RuntimeError(
-            f"{SCAN_ROLE_PAYLOAD_TYPE_INVALID}: scan_role payload must be a JSON object"
+        raise PrismRuntimeError(
+            code=SCAN_ROLE_PAYLOAD_TYPE_INVALID,
+            message="scan_role payload must be a JSON object",
+            category="validation",
         )
 
     if "role_name" in parsed and not isinstance(parsed.get("role_name"), str):
-        raise RuntimeError(
-            f"{SCAN_ROLE_PAYLOAD_SHAPE_INVALID}: expected role_name=str when present"
+        raise PrismRuntimeError(
+            code=SCAN_ROLE_PAYLOAD_SHAPE_INVALID,
+            message="expected role_name=str when present",
+            category="validation",
         )
 
     if "metadata" in parsed and not isinstance(parsed.get("metadata"), dict):
-        raise RuntimeError(
-            f"{SCAN_ROLE_PAYLOAD_SHAPE_INVALID}: expected metadata=object when present"
+        raise PrismRuntimeError(
+            code=SCAN_ROLE_PAYLOAD_SHAPE_INVALID,
+            message="expected metadata=object when present",
+            category="validation",
         )
 
     return parsed

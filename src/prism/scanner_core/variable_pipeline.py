@@ -20,8 +20,8 @@ from ..scanner_analysis.metrics import (
 from ..scanner_extract.dataload import iter_role_argument_spec_entries
 from ..scanner_extract.discovery import load_meta
 from ..scanner_extract.task_parser import _format_inline_yaml, _load_yaml_file
-from ..scanner_extract.variable_extractor import (
-    IGNORED_IDENTIFIERS,
+from ..scanner_extract.variable_policy import IGNORED_IDENTIFIERS
+from ..scanner_extract.variable_traversal import (
     JINJA_IDENTIFIER_RE,
     _collect_include_vars_files,
     _collect_dynamic_include_vars_refs,
@@ -31,8 +31,8 @@ from ..scanner_extract.variable_extractor import (
     _collect_set_fact_names,
     _find_variable_line_in_yaml,
     _infer_variable_type,
-    _is_sensitive_variable,
 )
+from ..scanner_extract.variable_sensitivity import _is_sensitive_variable
 from ..scanner_readme.input_parser import collect_readme_input_variables
 
 
@@ -48,7 +48,7 @@ def collect_dynamic_task_include_tokens(
     )
     tokens: set[str] = set()
     effective_ignored = (
-        set(IGNORED_IDENTIFIERS)
+        set(IGNORED_IDENTIFIERS())
         if ignored_identifiers is None
         else set(ignored_identifiers)
     )
@@ -68,7 +68,7 @@ def collect_dynamic_include_var_tokens(
     """Collect unresolved Jinja identifier tokens from dynamic include_vars refs."""
     tokens: set[str] = set()
     effective_ignored = (
-        set(IGNORED_IDENTIFIERS)
+        set(IGNORED_IDENTIFIERS())
         if ignored_identifiers is None
         else set(ignored_identifiers)
     )

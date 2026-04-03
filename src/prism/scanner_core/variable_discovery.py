@@ -27,13 +27,13 @@ from ..scanner_extract.dataload import (
 from ..scanner_extract.discovery import iter_role_variable_map_candidates
 from ..scanner_extract.task_parser import _format_inline_yaml
 from ..scanner_extract.task_parser import _load_yaml_file
-from ..scanner_extract.variable_extractor import (
+from ..scanner_extract.variable_traversal import (
     _collect_referenced_variable_names,
     _collect_set_fact_names,
     _find_variable_line_in_yaml,
     _infer_variable_type,
-    _is_sensitive_variable,
 )
+from ..scanner_extract.variable_sensitivity import _is_sensitive_variable
 
 
 class VariableDiscovery:

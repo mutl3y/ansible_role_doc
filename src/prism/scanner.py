@@ -7,11 +7,8 @@ metadata and variables, and render a README using a Jinja2 template.
 
 from __future__ import annotations
 
-import copy
-from functools import partial
 from pathlib import Path
 import re
-import threading
 from typing import Any
 
 from .scanner_io import (
@@ -34,9 +31,7 @@ from .scanner_config import (
     load_readme_section_config as _load_readme_section_config,
     load_readme_section_visibility as _load_readme_section_visibility,
 )
-from .scanner_data.contracts import (
-    ScanMetadata as _scan_context_ScanMetadata,
-)
+from .scanner_data.contracts_request import ScanMetadata as _scan_context_ScanMetadata
 from .scanner_data.contracts_output import RunScanOutputPayload as _RunScanOutputPayload
 from .scanner_data.contracts_request import PolicyContext as _PolicyContext
 from .scanner_data.contracts_request import ScanOptionsDict as _ScanOptionsDict
@@ -62,7 +57,6 @@ from .scanner_analysis.metrics import (
     NON_AUTHORITATIVE_TEST_EVIDENCE_MAX_TOTAL_BYTES as _ANALYSIS_MAX_TOTAL_BYTES,
 )
 from .scanner_config import (
-    refresh_policy as _config_refresh_policy,
     resolve_default_style_guide_source as _config_resolve_default_style_guide_source,
 )
 from .scanner_io import (
@@ -120,26 +114,22 @@ from .scanner_extract import variable_extractor as _variable_extractor
 from .scanner_readme import render_readme as _readme_render_readme
 from .scanner_readme import style as _readme_style
 
+IGNORED_IDENTIFIERS = _variable_extractor.IGNORED_IDENTIFIERS
+
 # Load pattern policy (built-in defaults, optionally merged with a repo override).
-# Pass override_path to load_pattern_config() if you want to merge a local file.
-_POLICY = load_pattern_config()
+# NOTE: Policy is now loaded per-scan in _build_policy_context_for_scan()
+# and passed via ContextVar to avoid mutable global state.
 
 # Re-entrant lock protecting policy-derived module-level globals during concurrent scans.
-_POLICY_REFRESH_LOCK = threading.RLock()
+# NOTE: Removed as policy is now request-scoped.
 
 STYLE_SECTION_ALIASES = _readme_style.STYLE_SECTION_ALIASES
 
 # Sensitivity detection tokens extracted from policy for fast tuple lookup
-_SENSITIVITY = _POLICY["sensitivity"]
-_SECRET_NAME_TOKENS: tuple[str, ...] = tuple(_SENSITIVITY["name_tokens"])
-_VAULT_MARKERS: tuple[str, ...] = tuple(_SENSITIVITY["vault_markers"])
-_CREDENTIAL_PREFIXES: tuple[str, ...] = tuple(_SENSITIVITY["credential_prefixes"])
-_URL_PREFIXES: tuple[str, ...] = tuple(_SENSITIVITY["url_prefixes"])
+# NOTE: Removed as policy is now request-scoped.
 
 # Variable guidance priority keywords
-_VARIABLE_GUIDANCE_KEYWORDS: tuple[str, ...] = tuple(
-    _POLICY["variable_guidance"]["priority_keywords"]
-)
+# NOTE: Removed as policy is now request-scoped.
 
 DEFAULT_SECTION_SPECS = [
     ("galaxy_info", "Galaxy Info"),
@@ -206,85 +196,7 @@ DEFAULT_SECTION_DISPLAY_TITLES_PATH = (
 )
 DEFAULT_DOC_MARKER_PREFIX = READMECFG_DEFAULT_DOC_MARKER_PREFIX
 
-
-def _refresh_policy(
-    override_path: str | None = None,
-    *,
-    role_root: str | None = None,
-) -> None:
-    """Reload policy-derived module globals. Protected by _POLICY_REFRESH_LOCK for thread safety.
-
-    Note: This function mutates module-level state. The lock prevents concurrent scans from
-    observing each other's mid-mutation policy state. Full per-scan encapsulation is a
-    longer-term goal; this lock is the interim thread-safety measure.
-    """
-    with _POLICY_REFRESH_LOCK:
-        global _POLICY
-        global _SENSITIVITY
-        global _SECRET_NAME_TOKENS
-        global _VAULT_MARKERS
-        global _CREDENTIAL_PREFIXES
-        global _URL_PREFIXES
-        global _VARIABLE_GUIDANCE_KEYWORDS
-
-        refresh_kwargs = {"override_path": override_path}
-        if role_root is not None:
-            refresh_kwargs["search_root"] = role_root
-
-        (
-            _POLICY,
-            _,
-            _SECRET_NAME_TOKENS,
-            _VAULT_MARKERS,
-            _CREDENTIAL_PREFIXES,
-            _URL_PREFIXES,
-            _VARIABLE_GUIDANCE_KEYWORDS,
-            _,
-        ) = _config_refresh_policy(**refresh_kwargs)
-        _SENSITIVITY = _POLICY["sensitivity"]
-
-        from .scanner_extract import (
-            refresh_policy_derived_state as _extract_refresh_policy_derived_state,
-        )
-        from .scanner_readme import (
-            refresh_policy_derived_state as _readme_refresh_policy_derived_state,
-        )
-
-        _extract_refresh_policy_derived_state(_POLICY)
-        _readme_refresh_policy_derived_state(_POLICY)
-
-
-def _restore_policy_snapshot(policy_snapshot: dict) -> None:
-    """Restore scanner policy-derived globals from an immutable snapshot."""
-    with _POLICY_REFRESH_LOCK:
-        global _POLICY
-        global _SENSITIVITY
-        global _SECRET_NAME_TOKENS
-        global _VAULT_MARKERS
-        global _CREDENTIAL_PREFIXES
-        global _URL_PREFIXES
-        global _VARIABLE_GUIDANCE_KEYWORDS
-
-        restored = copy.deepcopy(policy_snapshot)
-        _POLICY = restored
-        _SENSITIVITY = restored["sensitivity"]
-        _SECRET_NAME_TOKENS = tuple(_SENSITIVITY["name_tokens"])
-        _VAULT_MARKERS = tuple(_SENSITIVITY["vault_markers"])
-        _CREDENTIAL_PREFIXES = tuple(_SENSITIVITY["credential_prefixes"])
-        _URL_PREFIXES = tuple(_SENSITIVITY["url_prefixes"])
-        _VARIABLE_GUIDANCE_KEYWORDS = tuple(
-            restored["variable_guidance"]["priority_keywords"]
-        )
-
-        from .scanner_extract import (
-            refresh_policy_derived_state as _extract_refresh_policy_derived_state,
-        )
-        from .scanner_readme import (
-            refresh_policy_derived_state as _readme_refresh_policy_derived_state,
-        )
-
-        _extract_refresh_policy_derived_state(restored)
-        _readme_refresh_policy_derived_state(restored)
+# _refresh_policy and _restore_policy_snapshot removed as policy is now request-scoped.
 
 
 def resolve_default_style_guide_source(explicit_path: str | None = None) -> str:
@@ -642,12 +554,14 @@ def get_style_section_aliases_snapshot() -> dict[str, str]:
     return _readme_style.get_style_section_aliases_snapshot()
 
 
-load_readme_marker_prefix = partial(
-    _load_readme_marker_prefix,
-    default_prefix=DEFAULT_DOC_MARKER_PREFIX,
-    config_filenames=SECTION_CONFIG_FILENAMES,
-    default_filename=SECTION_CONFIG_FILENAME,
-)
+def load_readme_marker_prefix(*args, **kwargs):
+    return _load_readme_marker_prefix(
+        *args,
+        default_prefix=DEFAULT_DOC_MARKER_PREFIX,
+        config_filenames=SECTION_CONFIG_FILENAMES,
+        default_filename=SECTION_CONFIG_FILENAME,
+        **kwargs,
+    )
 
 
 def load_fail_on_unconstrained_dynamic_includes(
@@ -788,6 +702,12 @@ def _render_guide_section_body(
     variable_guidance_keywords: tuple[str, ...] | None = None,
 ) -> str:
     """Render README guide sections using the currently active policy keywords."""
+    if variable_guidance_keywords is None:
+        # Get from active policy
+        active_policy = _variable_extractor._active_policy()
+        variable_guidance_keywords = tuple(
+            active_policy.get("variable_guidance", {}).get("priority_keywords") or []
+        )
     return _readme_render_guide_section_body(
         section_id,
         role_name,
@@ -796,9 +716,7 @@ def _render_guide_section_body(
         requirements,
         default_filters,
         metadata,
-        variable_guidance_keywords=(
-            variable_guidance_keywords or _VARIABLE_GUIDANCE_KEYWORDS
-        ),
+        variable_guidance_keywords=variable_guidance_keywords,
     )
 
 
@@ -807,33 +725,31 @@ _append_scanner_report_section_if_enabled = (
 )
 
 
-_build_scanner_report_markdown = partial(
-    _runbook_report_build_scanner_report_markdown,
-    render_section_body=_render_guide_section_body,
-)
+def _build_scanner_report_markdown(*args, **kwargs):
+    return _runbook_report_build_scanner_report_markdown(
+        *args, render_section_body=_render_guide_section_body, **kwargs
+    )
 
 
-_resolve_scan_identity = partial(
-    _scan_discovery_resolve_scan_identity,
-    load_meta_fn=load_meta,
-)
+def _resolve_scan_identity(*args, **kwargs):
+    return _scan_discovery_resolve_scan_identity(
+        *args, load_meta_fn=load_meta, **kwargs
+    )
 
 
-_collect_scan_artifacts = partial(
-    _scan_facade_helpers.collect_scan_artifacts,
-    load_variables=load_variables,
-    load_requirements=load_requirements,
-    scan_for_default_filters=scan_for_default_filters,
-    collect_role_contents=collect_role_contents,
-    collect_molecule_scenarios=_collect_molecule_scenarios,
-    collect_unconstrained_dynamic_task_includes=(
-        _collect_unconstrained_dynamic_task_includes
-    ),
-    collect_unconstrained_dynamic_role_includes=(
-        _collect_unconstrained_dynamic_role_includes
-    ),
-    collect_task_handler_catalog=_collect_task_handler_catalog,
-)
+def _collect_scan_artifacts(*args, **kwargs):
+    return _scan_facade_helpers.collect_scan_artifacts(
+        *args,
+        load_variables=load_variables,
+        load_requirements=load_requirements,
+        scan_for_default_filters=scan_for_default_filters,
+        collect_role_contents=collect_role_contents,
+        collect_molecule_scenarios=_collect_molecule_scenarios,
+        collect_unconstrained_dynamic_task_includes=_collect_unconstrained_dynamic_task_includes,
+        collect_unconstrained_dynamic_role_includes=_collect_unconstrained_dynamic_role_includes,
+        collect_task_handler_catalog=_collect_task_handler_catalog,
+        **kwargs,
+    )
 
 
 def _apply_readme_section_config(
@@ -853,115 +769,126 @@ def _apply_readme_section_config(
         )
 
 
-_build_undocumented_default_filters = partial(
-    _variable_insights.build_undocumented_default_filters,
-    extract_default_target_var=_extract_default_target_var,
-    looks_secret_name=_looks_secret_name,
-    resembles_password_like=_resembles_password_like,
-)
-
-_collect_variable_insights_and_default_filter_findings = partial(
-    _variable_insights.collect_variable_insights_and_default_filter_findings,
-    build_variable_insights=build_variable_insights,
-    attach_external_vars_context=_variable_insights.attach_external_vars_context,
-    collect_yaml_parse_failures=_collect_yaml_parse_failures,
-    extract_role_notes_from_comments=_extract_role_notes_from_comments,
-    build_undocumented_default_filters=_build_undocumented_default_filters,
-    extract_scanner_counters=_analysis_extract_scanner_counters,
-    build_display_variables=_variable_insights.build_display_variables,
-)
+def _build_undocumented_default_filters(*args, **kwargs):
+    return _variable_insights.build_undocumented_default_filters(
+        *args,
+        extract_default_target_var=_extract_default_target_var,
+        looks_secret_name=_looks_secret_name,
+        resembles_password_like=_resembles_password_like,
+        **kwargs,
+    )
 
 
-_apply_style_and_comparison_metadata = partial(
-    _scan_facade_helpers.apply_style_and_comparison_metadata,
-    resolve_default_style_guide_source=resolve_default_style_guide_source,
-    parse_style_readme=parse_style_readme,
-    build_comparison_report=build_comparison_report,
-)
+def _collect_variable_insights_and_default_filter_findings(*args, **kwargs):
+    return _variable_insights.collect_variable_insights_and_default_filter_findings(
+        *args,
+        build_variable_insights=build_variable_insights,
+        attach_external_vars_context=_variable_insights.attach_external_vars_context,
+        collect_yaml_parse_failures=_collect_yaml_parse_failures,
+        extract_role_notes_from_comments=_extract_role_notes_from_comments,
+        build_undocumented_default_filters=_build_undocumented_default_filters,
+        extract_scanner_counters=_analysis_extract_scanner_counters,
+        build_display_variables=_variable_insights.build_display_variables,
+        **kwargs,
+    )
 
 
-_render_and_write_scan_output = partial(
-    _scan_output_primary_render_and_write_scan_output,
-    render_readme=_readme_render_readme,
-    render_final_output=render_final_output,
-    write_output=write_output,
-)
+def _apply_style_and_comparison_metadata(*args, **kwargs):
+    return _scan_facade_helpers.apply_style_and_comparison_metadata(
+        *args,
+        resolve_default_style_guide_source=resolve_default_style_guide_source,
+        parse_style_readme=parse_style_readme,
+        build_comparison_report=build_comparison_report,
+        **kwargs,
+    )
 
 
-_apply_unconstrained_dynamic_include_policy = partial(
-    _scan_runtime.apply_unconstrained_dynamic_include_policy,
-    load_fail_on_unconstrained_dynamic_includes=(
-        load_fail_on_unconstrained_dynamic_includes
-    ),
-)
+def _render_and_write_scan_output(*args, **kwargs):
+    return _scan_output_primary_render_and_write_scan_output(
+        *args,
+        render_readme=_readme_render_readme,
+        render_final_output=render_final_output,
+        write_output=write_output,
+        **kwargs,
+    )
 
 
-_apply_yaml_like_task_annotation_policy = partial(
-    _scan_runtime.apply_yaml_like_task_annotation_policy,
-    load_fail_on_yaml_like_task_annotations=(load_fail_on_yaml_like_task_annotations),
-)
+def _apply_unconstrained_dynamic_include_policy(*args, **kwargs):
+    return _scan_runtime.apply_unconstrained_dynamic_include_policy(
+        *args,
+        load_fail_on_unconstrained_dynamic_includes=load_fail_on_unconstrained_dynamic_includes,
+        **kwargs,
+    )
+
+
+def _apply_yaml_like_task_annotation_policy(*args, **kwargs):
+    return _scan_runtime.apply_yaml_like_task_annotation_policy(
+        *args,
+        load_fail_on_yaml_like_task_annotations=load_fail_on_yaml_like_task_annotations,
+        **kwargs,
+    )
 
 
 _finalize_scan_context_payload = _scan_runtime.finalize_scan_context_payload
 
 
-_collect_scan_identity_and_artifacts = partial(
-    _scan_runtime.collect_scan_identity_and_artifacts,
-    resolve_scan_identity=_resolve_scan_identity,
-    load_readme_marker_prefix=load_readme_marker_prefix,
-    collect_scan_artifacts=_collect_scan_artifacts,
-)
+def _collect_scan_identity_and_artifacts(*args, **kwargs):
+    return _scan_runtime.collect_scan_identity_and_artifacts(
+        *args,
+        resolve_scan_identity=_resolve_scan_identity,
+        load_readme_marker_prefix=load_readme_marker_prefix,
+        collect_scan_artifacts=_collect_scan_artifacts,
+        **kwargs,
+    )
 
 
-_apply_scan_metadata_configuration = partial(
-    _scan_runtime.apply_scan_metadata_configuration,
-    build_requirements_display=_runbook_report_build_requirements_display,
-    load_readme_section_config=load_readme_section_config,
-    apply_readme_section_config=_apply_readme_section_config,
-)
+def _apply_scan_metadata_configuration(*args, **kwargs):
+    return _scan_runtime.apply_scan_metadata_configuration(
+        *args,
+        build_requirements_display=_runbook_report_build_requirements_display,
+        load_readme_section_config=load_readme_section_config,
+        apply_readme_section_config=_apply_readme_section_config,
+        **kwargs,
+    )
 
 
-_collect_scan_base_context = partial(
-    _scan_runtime.collect_scan_base_context,
-    collect_scan_identity_and_artifacts=_collect_scan_identity_and_artifacts,
-    apply_scan_metadata_configuration=_apply_scan_metadata_configuration,
-    apply_unconstrained_dynamic_include_policy=_apply_unconstrained_dynamic_include_policy,
-    apply_yaml_like_task_annotation_policy=_apply_yaml_like_task_annotation_policy,
-)
+def _collect_scan_base_context(*args, **kwargs):
+    return _scan_runtime.collect_scan_base_context(
+        *args,
+        collect_scan_identity_and_artifacts=_collect_scan_identity_and_artifacts,
+        apply_scan_metadata_configuration=_apply_scan_metadata_configuration,
+        apply_unconstrained_dynamic_include_policy=_apply_unconstrained_dynamic_include_policy,
+        apply_yaml_like_task_annotation_policy=_apply_yaml_like_task_annotation_policy,
+        **kwargs,
+    )
 
 
-_enrich_scan_context_with_insights = partial(
-    _scan_runtime.enrich_scan_context_with_insights,
-    collect_variable_insights_and_default_filter_findings=(
-        _collect_variable_insights_and_default_filter_findings
-    ),
-    build_doc_insights=build_doc_insights,
-    apply_style_and_comparison_metadata=_apply_style_and_comparison_metadata,
-)
+def _enrich_scan_context_with_insights(*args, **kwargs):
+    return _scan_runtime.enrich_scan_context_with_insights(
+        *args,
+        collect_variable_insights_and_default_filter_findings=_collect_variable_insights_and_default_filter_findings,
+        build_doc_insights=build_doc_insights,
+        apply_style_and_comparison_metadata=_apply_style_and_comparison_metadata,
+        **kwargs,
+    )
 
 
-_prepare_scan_context = partial(
-    _scan_runtime.prepare_scan_context,
-    scan_context_builder_cls=ScanContextBuilder,
-    collect_scan_base_context=_collect_scan_base_context,
-    load_ignore_unresolved_internal_underscore_references=(
-        load_ignore_unresolved_internal_underscore_references
-    ),
-    load_non_authoritative_test_evidence_max_file_bytes=(
-        load_non_authoritative_test_evidence_max_file_bytes
-    ),
-    load_non_authoritative_test_evidence_max_files_scanned=(
-        load_non_authoritative_test_evidence_max_files_scanned
-    ),
-    load_non_authoritative_test_evidence_max_total_bytes=(
-        load_non_authoritative_test_evidence_max_total_bytes
-    ),
-    enrich_scan_context_with_insights=_enrich_scan_context_with_insights,
-    finalize_scan_context_payload=_finalize_scan_context_payload,
-    non_authoritative_test_evidence_max_file_bytes=(_ANALYSIS_MAX_FILE_BYTES),
-    non_authoritative_test_evidence_max_files_scanned=(_ANALYSIS_MAX_FILES_SCANNED),
-    non_authoritative_test_evidence_max_total_bytes=(_ANALYSIS_MAX_TOTAL_BYTES),
-)
+def _prepare_scan_context(*args, **kwargs):
+    return _scan_runtime.prepare_scan_context(
+        *args,
+        scan_context_builder_cls=ScanContextBuilder,
+        collect_scan_base_context=_collect_scan_base_context,
+        load_ignore_unresolved_internal_underscore_references=load_ignore_unresolved_internal_underscore_references,
+        load_non_authoritative_test_evidence_max_file_bytes=load_non_authoritative_test_evidence_max_file_bytes,
+        load_non_authoritative_test_evidence_max_files_scanned=load_non_authoritative_test_evidence_max_files_scanned,
+        load_non_authoritative_test_evidence_max_total_bytes=load_non_authoritative_test_evidence_max_total_bytes,
+        enrich_scan_context_with_insights=_enrich_scan_context_with_insights,
+        finalize_scan_context_payload=_finalize_scan_context_payload,
+        non_authoritative_test_evidence_max_file_bytes=_ANALYSIS_MAX_FILE_BYTES,
+        non_authoritative_test_evidence_max_files_scanned=_ANALYSIS_MAX_FILES_SCANNED,
+        non_authoritative_test_evidence_max_total_bytes=_ANALYSIS_MAX_TOTAL_BYTES,
+        **kwargs,
+    )
 
 
 _build_scan_output_payload = _scan_runtime.build_scan_output_payload
@@ -969,14 +896,17 @@ _build_scan_output_payload = _scan_runtime.build_scan_output_payload
 
 _build_emit_scan_outputs_args = _scan_runtime.build_emit_scan_outputs_args
 
-_emit_scan_outputs = partial(
-    _scan_runtime.emit_scan_outputs,
-    emit_scan_outputs_fn=_scan_output_emit_scan_outputs,
-    build_scanner_report_markdown=_build_scanner_report_markdown,
-    render_and_write_scan_output=_render_and_write_scan_output,
-    render_runbook=_runbook_report_render_runbook,
-    render_runbook_csv=_runbook_report_render_runbook_csv,
-)
+
+def _emit_scan_outputs(*args, **kwargs):
+    return _scan_runtime.emit_scan_outputs(
+        *args,
+        emit_scan_outputs_fn=_scan_output_emit_scan_outputs,
+        build_scanner_report_markdown=_build_scanner_report_markdown,
+        render_and_write_scan_output=_render_and_write_scan_output,
+        render_runbook=_runbook_report_render_runbook,
+        render_runbook_csv=_runbook_report_render_runbook_csv,
+        **kwargs,
+    )
 
 
 def _execute_scan_with_context(

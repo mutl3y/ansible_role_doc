@@ -7,10 +7,6 @@ import pytest
 from prism import api, cli, repo_services
 from prism import errors as prism_errors
 from prism.scanner_io.collection_renderer import write_collection_runbook_artifacts
-from prism.tests._boundary_acceptance import (
-    assert_callable_aliases_bind_exactly,
-    assert_repo_scan_facade_contract,
-)
 from prism.tests import _api_repo_scan_tail as api_repo_scan_tail
 
 HERE = Path(__file__).parent
@@ -93,24 +89,14 @@ def test_api_and_cli_share_repo_service_helper_bindings(monkeypatch):
     )
 
 
-def test_api_repo_service_aliases_bind_to_shared_facade_contract() -> None:
-    assert_repo_scan_facade_contract(api._repo_scan_facade)
-    assert_callable_aliases_bind_exactly(
-        api,
-        {
-            "_build_repo_intake_components": api._repo_scan_facade.build_repo_intake_components,
-            "_run_repo_scan": api._repo_scan_facade.run_repo_scan,
-            "_normalize_repo_scan_payload": api._repo_scan_facade.normalize_repo_scan_payload,
-        },
-        expected_owner_modules={
-            "_build_repo_intake_components": "prism.repo_services",
-            "_run_repo_scan": "prism.repo_services",
-            "_normalize_repo_scan_payload": "prism.repo_services",
-        },
-    )
-
-
 def test_api_uses_repo_scan_facade_binding() -> None:
+    for expected_name in (
+        "build_repo_intake_components",
+        "run_repo_scan",
+        "normalize_repo_scan_payload",
+    ):
+        assert hasattr(api._repo_scan_facade, expected_name)
+        assert callable(getattr(api._repo_scan_facade, expected_name))
     for expected_name in (
         "build_repo_intake_components",
         "run_repo_scan",

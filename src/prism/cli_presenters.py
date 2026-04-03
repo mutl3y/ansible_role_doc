@@ -229,3 +229,67 @@ def _save_style_comparison_artifacts(
         cfg_destination.write_text(rendered_cfg, encoding="utf-8")
 
     return str(source_destination.resolve()), str(demo_destination.resolve())
+
+
+def _finalize_repo_json_output(
+    rendered_or_path: str,
+    *,
+    dry_run: bool,
+    repo_style_readme_path: str | None,
+    scanner_report_relpath: str | None,
+    normalize_repo_json_payload,
+) -> str:
+    """Normalize repo JSON output while preserving dry-run vs file-write semantics."""
+    if dry_run:
+        return normalize_repo_json_payload(
+            rendered_or_path,
+            repo_style_readme_path=repo_style_readme_path,
+            scanner_report_relpath=scanner_report_relpath,
+        )
+
+    output_path = Path(rendered_or_path)
+    try:
+        raw_payload = output_path.read_text(encoding="utf-8")
+    except OSError:
+        raw_payload = ""
+    normalized_payload = normalize_repo_json_payload(
+        raw_payload,
+        repo_style_readme_path=repo_style_readme_path,
+        scanner_report_relpath=scanner_report_relpath,
+    )
+    if normalized_payload and normalized_payload != raw_payload:
+        output_path.write_text(normalized_payload, encoding="utf-8")
+    return rendered_or_path
+
+
+def _persist_collection_role_markdown_documents(
+    *,
+    output_path: Path,
+    payload: dict,
+) -> None:
+    """Write per-role markdown documents beside collection markdown output."""
+    roles_dir = output_path.parent / "roles"
+    roles_dir.mkdir(parents=True, exist_ok=True)
+    for role_entry in payload.get("roles", []):
+        if not isinstance(role_entry, dict):
+            continue
+        role_name = str(role_entry.get("role") or "")
+        if not role_name:
+            continue
+        role_doc = role_entry.get("rendered_readme")
+        if not isinstance(role_doc, str) or not role_doc.strip():
+            continue
+        (roles_dir / f"{role_name}.md").write_text(
+            role_doc,
+            encoding="utf-8",
+        )
+
+
+def _resolve_cli_output_path(output: str, output_format: str) -> Path:
+    """Resolve the effective output path for CLI-managed collection outputs."""
+    output_path = Path(output)
+    if output_format == "json" and output_path.suffix.lower() != ".json":
+        return output_path.with_suffix(".json")
+    if output_format == "md" and output_path.suffix.lower() != ".md":
+        return output_path.with_suffix(".md")
+    return output_path

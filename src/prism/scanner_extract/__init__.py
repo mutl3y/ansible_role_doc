@@ -31,18 +31,21 @@ from .task_parser import (
 )
 
 # Variable extraction functions
-from .variable_extractor import (
+from .variable_policy import (
+    IGNORED_IDENTIFIERS,
+)
+from .variable_traversal import (
     DEFAULT_TARGET_RE,
     JINJA_VAR_RE,
     JINJA_IDENTIFIER_RE,
     VAULT_KEY_RE,
-    IGNORED_IDENTIFIERS,
     collect_include_vars_files,
-    looks_secret_name,
-    resembles_password_like,
     extract_default_target_var,
     load_seed_variables,
-    refresh_policy_derived_state,
+)
+from .variable_sensitivity import (
+    looks_secret_name,
+    resembles_password_like,
 )
 
 # Discovery helpers

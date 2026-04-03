@@ -48,79 +48,170 @@ def _render_guide_identity_sections(
     return None
 
 
+def _plan_galaxy_info(role_name: str, description: str, galaxy: dict) -> dict | None:
+    """Plan galaxy info data model for rendering."""
+    if not galaxy:
+        return None
+    return {
+        "role_name": galaxy.get("role_name", role_name),
+        "description": galaxy.get("description", description),
+        "license": galaxy.get("license", "N/A"),
+        "min_ansible_version": galaxy.get("min_ansible_version", "N/A"),
+        "tags": galaxy.get("galaxy_tags"),
+    }
+
+
+def _render_galaxy_info(plan: dict) -> str:
+    """Render galaxy info section from planned data."""
+    lines = [
+        f"- **Role name**: {plan['role_name']}",
+        f"- **Description**: {plan['description']}",
+        f"- **License**: {plan['license']}",
+        f"- **Min Ansible Version**: {plan['min_ansible_version']}",
+    ]
+    if plan["tags"]:
+        lines.append(f"- **Tags**: {', '.join(plan['tags'])}")
+    return "\n".join(lines)
+
+
 def _render_identity_galaxy_info_section(
     role_name: str,
     description: str,
     galaxy: dict,
 ) -> str:
     """Render Galaxy metadata section details."""
-    if not galaxy:
+    plan = _plan_galaxy_info(role_name, description, galaxy)
+    if plan is None:
         return "No Galaxy metadata found."
-    lines = [
-        f"- **Role name**: {galaxy.get('role_name', role_name)}",
-        f"- **Description**: {galaxy.get('description', description)}",
-        f"- **License**: {galaxy.get('license', 'N/A')}",
-        f"- **Min Ansible Version**: {galaxy.get('min_ansible_version', 'N/A')}",
-    ]
-    tags = galaxy.get("galaxy_tags")
-    if tags:
-        lines.append(f"- **Tags**: {', '.join(tags)}")
-    return "\n".join(lines)
+    return _render_galaxy_info(plan)
+
+
+def _plan_requirements(requirements: list) -> list[str] | None:
+    """Plan requirements data model for rendering."""
+    requirement_lines = normalize_requirements(requirements)
+    if not requirement_lines:
+        return None
+    return requirement_lines
+
+
+def _render_requirements(plan: list[str]) -> str:
+    """Render requirements section from planned data."""
+    return "\n".join(f"- {line}" for line in plan)
 
 
 def _render_identity_requirements_section(requirements: list) -> str:
     """Render normalized requirements bullet list."""
-    requirement_lines = normalize_requirements(requirements)
-    if not requirement_lines:
+    plan = _plan_requirements(requirements)
+    if plan is None:
         return "No additional requirements."
-    return "\n".join(f"- {line}" for line in requirement_lines)
+    return _render_requirements(plan)
 
 
-def _render_identity_installation_section(role_name: str, galaxy: dict) -> str:
-    """Render installation guidance using Ansible Galaxy and requirements.yml."""
+def _plan_installation(role_name: str, galaxy: dict) -> dict:
+    """Plan installation data model for rendering."""
     install_name = str(galaxy.get("role_name") or role_name)
+    return {"install_name": install_name}
+
+
+def _render_installation(plan: dict) -> str:
+    """Render installation section from planned data."""
     return (
         "Install the role with Ansible Galaxy:\n\n"
         "```bash\n"
-        f"ansible-galaxy install {install_name}\n"
+        f"ansible-galaxy install {plan['install_name']}\n"
         "```\n\n"
         "Or pin it in `requirements.yml`:\n\n"
         "```yaml\n"
-        f"- src: {install_name}\n"
+        f"- src: {plan['install_name']}\n"
         "```"
     )
 
 
-def _render_identity_license_section(galaxy: dict) -> str:
-    """Render license value from Galaxy metadata when present."""
+def _render_identity_installation_section(role_name: str, galaxy: dict) -> str:
+    """Render installation guidance using Ansible Galaxy and requirements.yml."""
+    plan = _plan_installation(role_name, galaxy)
+    return _render_installation(plan)
+
+
+def _plan_license(galaxy: dict) -> str | None:
+    """Plan license data for rendering."""
     if galaxy and galaxy.get("license"):
         return str(galaxy.get("license"))
-    return "N/A"
+    return None
+
+
+def _render_license(plan: str) -> str:
+    """Render license section from planned data."""
+    return plan
+
+
+def _render_identity_license_section(galaxy: dict) -> str:
+    """Render license value from Galaxy metadata when present."""
+    plan = _plan_license(galaxy)
+    return plan if plan else "N/A"
+
+
+def _plan_author(galaxy: dict) -> str | None:
+    """Plan author data for rendering."""
+    if galaxy and galaxy.get("author"):
+        return str(galaxy.get("author"))
+    return None
+
+
+def _render_author(plan: str) -> str:
+    """Render author section from planned data."""
+    return plan
 
 
 def _render_identity_author_section(galaxy: dict) -> str:
     """Render author value from Galaxy metadata when present."""
-    if galaxy and galaxy.get("author"):
-        return str(galaxy.get("author"))
-    return "N/A"
+    plan = _plan_author(galaxy)
+    return plan if plan else "N/A"
+
+
+def _plan_license_author(galaxy: dict) -> dict:
+    """Plan license and author data for rendering."""
+    license_value = str(galaxy.get("license", "N/A")) if galaxy else "N/A"
+    author_value = str(galaxy.get("author", "N/A")) if galaxy else "N/A"
+    return {"license": license_value, "author": author_value}
+
+
+def _render_license_author(plan: dict) -> str:
+    """Render combined license/author section from planned data."""
+    return f"License: {plan['license']}\n\nAuthor: {plan['author']}"
 
 
 def _render_identity_license_author_section(galaxy: dict) -> str:
     """Render combined license/author identity section."""
-    license_value = str(galaxy.get("license", "N/A")) if galaxy else "N/A"
-    author_value = str(galaxy.get("author", "N/A")) if galaxy else "N/A"
-    return f"License: {license_value}\n\nAuthor: {author_value}"
+    plan = _plan_license_author(galaxy)
+    return _render_license_author(plan)
+
+
+def _plan_purpose(metadata: dict) -> dict | None:
+    """Plan purpose data model for rendering."""
+    insights = metadata.get("doc_insights") or {}
+    purpose_summary = insights.get("purpose_summary")
+    capabilities = insights.get("capabilities", [])
+    if not purpose_summary:
+        return None
+    return {"purpose_summary": purpose_summary, "capabilities": capabilities}
+
+
+def _render_purpose(plan: dict) -> str:
+    """Render purpose section from planned data."""
+    lines = [plan["purpose_summary"]]
+    if plan["capabilities"]:
+        lines.extend(["", "Capabilities:"])
+        lines.extend(f"- {capability}" for capability in plan["capabilities"])
+    return "\n".join(lines)
 
 
 def _render_identity_purpose_section(metadata: dict) -> str:
     """Render inferred purpose and capabilities from doc insights."""
-    insights = metadata.get("doc_insights") or {}
-    lines = [insights.get("purpose_summary", "No inferred role summary available.")]
-    capabilities = insights.get("capabilities", [])
-    if capabilities:
-        lines.extend(["", "Capabilities:"])
-        lines.extend(f"- {capability}" for capability in capabilities)
-    return "\n".join(lines)
+    plan = _plan_purpose(metadata)
+    if plan is None:
+        return "No inferred role summary available."
+    return _render_purpose(plan)
 
 
 def _render_guide_variable_sections(
@@ -144,29 +235,45 @@ def _render_guide_variable_sections(
     return None
 
 
-def _render_variable_guidance_section(
-    metadata: dict,
-    variable_guidance_keywords: tuple[str, ...] | None = None,
-) -> str:
-    """Render recommended variable override candidates."""
+def _plan_variable_guidance(
+    metadata: dict, variable_guidance_keywords: tuple[str, ...]
+) -> list[dict] | None:
+    """Plan variable guidance data model for rendering."""
     rows = metadata.get("variable_insights") or []
     if not rows:
-        return "No variable guidance available because no variable defaults were discovered."
-
-    keywords = variable_guidance_keywords or _VARIABLE_GUIDANCE_KEYWORDS
+        return None
     priority = [
-        row for row in rows if any(keyword in row["name"] for keyword in keywords)
+        row
+        for row in rows
+        if any(keyword in row["name"] for keyword in variable_guidance_keywords)
     ]
     if not priority:
         priority = rows[:5]
+    return priority[:8]
+
+
+def _render_variable_guidance(plan: list[dict]) -> str:
+    """Render variable guidance section from planned data."""
     lines = ["Recommended variables to tune:"]
-    for row in priority[:8]:
+    for row in plan:
         lines.append(
             f"- `{row['name']}` (default: `{str(row['default']).replace('`', "'")}`)"
         )
     lines.append("")
     lines.append("Use these as initial overrides for environment-specific behavior.")
     return "\n".join(lines)
+
+
+def _render_variable_guidance_section(
+    metadata: dict,
+    variable_guidance_keywords: tuple[str, ...] | None = None,
+) -> str:
+    """Render recommended variable override candidates."""
+    keywords = variable_guidance_keywords or _VARIABLE_GUIDANCE_KEYWORDS
+    plan = _plan_variable_guidance(metadata, keywords)
+    if plan is None:
+        return "No variable guidance available because no variable defaults were discovered."
+    return _render_variable_guidance(plan)
 
 
 def _render_guide_task_sections(
@@ -188,12 +295,11 @@ def _render_guide_task_sections(
     return None
 
 
-def _render_task_summary_section(metadata: dict) -> str:
-    """Render task-summary section details including optional parse failures/catalog."""
+def _plan_task_summary(metadata: dict) -> dict | None:
+    """Plan task summary data model for rendering."""
     summary = (metadata.get("doc_insights") or {}).get("task_summary", {})
     if not summary:
-        return "No task summary available."
-
+        return None
     yaml_parse_failures = metadata.get("yaml_parse_failures") or []
     unconstrained_dynamic_task_includes = (
         metadata.get("unconstrained_dynamic_task_includes") or []
@@ -205,6 +311,28 @@ def _render_task_summary_section(metadata: dict) -> str:
         *unconstrained_dynamic_task_includes,
         *unconstrained_dynamic_role_includes,
     ]
+    task_catalog = metadata.get("task_catalog") or []
+    detailed_catalog = metadata.get("detailed_catalog", False)
+    return {
+        "summary": summary,
+        "yaml_parse_failures": yaml_parse_failures,
+        "unconstrained_dynamic_task_includes": unconstrained_dynamic_task_includes,
+        "unconstrained_dynamic_role_includes": unconstrained_dynamic_role_includes,
+        "unconstrained_dynamic_includes": unconstrained_dynamic_includes,
+        "task_catalog": task_catalog,
+        "detailed_catalog": detailed_catalog,
+    }
+
+
+def _render_task_summary(plan: dict) -> str:
+    """Render task summary section from planned data."""
+    summary = plan["summary"]
+    yaml_parse_failures = plan["yaml_parse_failures"]
+    unconstrained_dynamic_task_includes = plan["unconstrained_dynamic_task_includes"]
+    unconstrained_dynamic_role_includes = plan["unconstrained_dynamic_role_includes"]
+    unconstrained_dynamic_includes = plan["unconstrained_dynamic_includes"]
+    task_catalog = plan["task_catalog"]
+    detailed_catalog = plan["detailed_catalog"]
     lines = [
         f"- **Task files scanned**: {summary.get('task_files_scanned', 0)}",
         f"- **Tasks scanned**: {summary.get('tasks_scanned', 0)}",
@@ -248,8 +376,7 @@ def _render_task_summary_section(metadata: dict) -> str:
                 f"{len(unconstrained_dynamic_includes) - 5} additional unconstrained dynamic includes"
             )
 
-    task_catalog = metadata.get("task_catalog") or []
-    if metadata.get("detailed_catalog") and task_catalog:
+    if detailed_catalog and task_catalog:
         lines.extend(
             [
                 "",
@@ -269,18 +396,38 @@ def _render_task_summary_section(metadata: dict) -> str:
     return "\n".join(lines)
 
 
+def _render_task_summary_section(metadata: dict) -> str:
+    """Render task-summary section details including optional parse failures/catalog."""
+    plan = _plan_task_summary(metadata)
+    if plan is None:
+        return "No task summary available."
+    return _render_task_summary(plan)
+
+
+def _plan_example_usage(metadata: dict) -> str | None:
+    """Plan example usage data for rendering."""
+    example = (metadata.get("doc_insights") or {}).get("example_playbook")
+    return example
+
+
+def _render_example_usage(plan: str) -> str:
+    """Render example usage section from planned data."""
+    return f"```yaml\n{plan}\n```"
+
+
 def _render_example_usage_section(metadata: dict) -> str:
     """Render inferred example playbook block for style guide output."""
-    example = (metadata.get("doc_insights") or {}).get("example_playbook")
-    if not example:
+    plan = _plan_example_usage(metadata)
+    if not plan:
         return "No inferred example available."
-    return f"```yaml\n{example}\n```"
+    return _render_example_usage(plan)
 
 
-def _build_molecule_scenario_lines(metadata: dict) -> list[str]:
-    """Render optional molecule scenario bullet list for testing guidance."""
+def _plan_local_testing(metadata: dict) -> dict:
+    """Plan local testing data model for rendering."""
+    role_tests = metadata.get("tests") or []
     molecule_scenarios = metadata.get("molecule_scenarios") or []
-    scenario_lines: list[str] = []
+    scenario_lines = []
     if molecule_scenarios:
         scenario_lines.extend(["", "Molecule scenarios detected:"])
         for scenario in molecule_scenarios:
@@ -298,13 +445,16 @@ def _build_molecule_scenario_lines(metadata: dict) -> list[str]:
             scenario_lines.append(
                 f"- `{name}` (driver: `{driver}`, verifier: `{verifier}`, platforms: {platform_summary})"
             )
-    return scenario_lines
+    return {
+        "role_tests": role_tests,
+        "scenario_lines": scenario_lines,
+    }
 
 
-def _render_local_testing_section(metadata: dict) -> str:
-    """Render local testing guidance including role-test and molecule hints."""
-    role_tests = metadata.get("tests") or []
-    scenario_lines = _build_molecule_scenario_lines(metadata)
+def _render_local_testing(plan: dict) -> str:
+    """Render local testing section from planned data."""
+    role_tests = plan["role_tests"]
+    scenario_lines = plan["scenario_lines"]
 
     if role_tests:
         inventory = next(
@@ -334,15 +484,38 @@ def _render_local_testing_section(metadata: dict) -> str:
     return fallback
 
 
-def _render_handlers_section(metadata: dict) -> str:
-    """Render handler summary and optional handler catalog for style output."""
+def _render_local_testing_section(metadata: dict) -> str:
+    """Render local testing guidance including role-test and molecule hints."""
+    plan = _plan_local_testing(metadata)
+    return _render_local_testing(plan)
+
+
+def _plan_handlers(metadata: dict) -> dict | None:
+    """Plan handlers data model for rendering."""
     features = metadata.get("features") or {}
     handler_names = parse_comma_values(str(features.get("handlers_notified", "none")))
     handler_files = metadata.get("handlers") or []
     summary = (metadata.get("doc_insights") or {}).get("task_summary", {})
     if not handler_names and not handler_files and not summary:
-        return "No handler activity was detected."
+        return None
+    handler_catalog = metadata.get("handler_catalog") or []
+    detailed_catalog = metadata.get("detailed_catalog", False)
+    return {
+        "handler_names": handler_names,
+        "handler_files": handler_files,
+        "summary": summary,
+        "handler_catalog": handler_catalog,
+        "detailed_catalog": detailed_catalog,
+    }
 
+
+def _render_handlers(plan: dict) -> str:
+    """Render handler summary section from planned data."""
+    handler_names = plan["handler_names"]
+    handler_files = plan["handler_files"]
+    summary = plan["summary"]
+    handler_catalog = plan["handler_catalog"]
+    detailed_catalog = plan["detailed_catalog"]
     lines = [
         f"- **Handler files detected**: {len(handler_files)}",
         f"- **Handlers referenced by tasks**: {summary.get('handler_count', len(handler_names))}",
@@ -354,8 +527,7 @@ def _render_handlers_section(metadata: dict) -> str:
         lines.append("Handler definition files:")
         lines.extend(f"- `{path}`" for path in handler_files)
 
-    handler_catalog = metadata.get("handler_catalog") or []
-    if metadata.get("detailed_catalog") and handler_catalog:
+    if detailed_catalog and handler_catalog:
         lines.extend(
             [
                 "",
@@ -375,14 +547,32 @@ def _render_handlers_section(metadata: dict) -> str:
     return "\n".join(lines)
 
 
-def _render_faq_pitfalls_section(default_filters: list, metadata: dict) -> str:
-    """Render common scanner-detected pitfalls for role docs."""
+def _render_handlers_section(metadata: dict) -> str:
+    """Render handler summary and optional handler catalog for style output."""
+    plan = _plan_handlers(metadata)
+    if plan is None:
+        return "No handler activity was detected."
+    return _render_handlers(plan)
+
+
+def _plan_faq_pitfalls(default_filters: list, metadata: dict) -> dict:
+    """Plan FAQ pitfalls data model for rendering."""
     features = metadata.get("features") or {}
+    return {
+        "recursive_task_includes": int(features.get("recursive_task_includes", 0) or 0),
+        "default_filters": default_filters,
+    }
+
+
+def _render_faq_pitfalls(plan: dict) -> str:
+    """Render FAQ pitfalls section from planned data."""
+    recursive_task_includes = plan["recursive_task_includes"]
+    default_filters = plan["default_filters"]
     lines = [
         "- Ensure default values are defined in `defaults/main.yml` so they are discoverable.",
         "- Keep task includes file-based when possible for better recursive scanning.",
     ]
-    if int(features.get("recursive_task_includes", 0) or 0) > 0:
+    if recursive_task_includes > 0:
         lines.append(
             "- Nested include chains are detected; avoid heavily dynamic include paths when possible."
         )
@@ -391,6 +581,12 @@ def _render_faq_pitfalls_section(default_filters: list, metadata: dict) -> str:
             "- `default()` usages are captured from source files; keep expressions readable for better docs."
         )
     return "\n".join(lines)
+
+
+def _render_faq_pitfalls_section(default_filters: list, metadata: dict) -> str:
+    """Render common scanner-detected pitfalls for role docs."""
+    plan = _plan_faq_pitfalls(default_filters, metadata)
+    return _render_faq_pitfalls(plan)
 
 
 def _render_guide_operations_sections(section_id: str, metadata: dict) -> str | None:
@@ -481,9 +677,9 @@ def _render_guide_misc_sections(
     return renderer() if renderer else None
 
 
-def _render_role_contents_section(metadata: dict) -> str:
-    """Render a compact count summary of discovered role subdirectories."""
-    lines = ["The scanner collected these role subdirectories (counts):", ""]
+def _plan_role_contents(metadata: dict) -> dict:
+    """Plan role contents data model for rendering."""
+    contents = {}
     for key, items in metadata.items():
         if key in {
             "meta",
@@ -497,48 +693,101 @@ def _render_role_contents_section(metadata: dict) -> str:
         }:
             continue
         if isinstance(items, list):
-            lines.append(f"- **{key}**: {len(items)} files")
+            contents[key] = len(items)
+    return contents
+
+
+def _render_role_contents(plan: dict) -> str:
+    """Render role contents section from planned data."""
+    lines = ["The scanner collected these role subdirectories (counts):", ""]
+    for key, count in plan.items():
+        lines.append(f"- **{key}**: {count} files")
     return "\n".join(lines)
+
+
+def _render_role_contents_section(metadata: dict) -> str:
+    """Render a compact count summary of discovered role subdirectories."""
+    plan = _plan_role_contents(metadata)
+    return _render_role_contents(plan)
+
+
+def _plan_features(metadata: dict) -> dict | None:
+    """Plan features data for rendering."""
+    features = metadata.get("features") or {}
+    if not features:
+        return None
+    return features
+
+
+def _render_features(plan: dict) -> str:
+    """Render features section from planned data."""
+    return "\n".join(f"- **{key}**: {value}" for key, value in plan.items())
 
 
 def _render_features_section(metadata: dict) -> str:
     """Render extracted role feature heuristics."""
-    features = metadata.get("features") or {}
-    if not features:
+    plan = _plan_features(metadata)
+    if plan is None:
         return "No role features detected."
-    return "\n".join(f"- **{key}**: {value}" for key, value in features.items())
+    return _render_features(plan)
 
 
-def _render_comparison_section(metadata: dict) -> str:
-    """Render baseline comparison metrics when available."""
+def _plan_comparison(metadata: dict) -> dict | None:
+    """Plan comparison data for rendering."""
     comparison = metadata.get("comparison")
     if not comparison:
-        return "No comparison baseline provided."
+        return None
+    return comparison
+
+
+def _render_comparison(plan: dict) -> str:
+    """Render comparison section from planned data."""
     lines = [
-        f"- **Baseline path**: {comparison['baseline_path']}",
-        f"- **Target score**: {comparison['target_score']}/100",
-        f"- **Baseline score**: {comparison['baseline_score']}/100",
-        f"- **Score delta**: {comparison['score_delta']}",
+        f"- **Baseline path**: {plan['baseline_path']}",
+        f"- **Target score**: {plan['target_score']}/100",
+        f"- **Baseline score**: {plan['baseline_score']}/100",
+        f"- **Score delta**: {plan['score_delta']}",
         "",
     ]
-    for metric, values in comparison["metrics"].items():
+    for metric, values in plan["metrics"].items():
         lines.append(
             f"- **{metric}**: target={values['target']}, baseline={values['baseline']}, delta={values['delta']}"
         )
     return "\n".join(lines)
 
 
-def _render_default_filters_section(default_filters: list) -> str:
-    """Render undocumented default() findings in bullet-list form."""
+def _render_comparison_section(metadata: dict) -> str:
+    """Render baseline comparison metrics when available."""
+    plan = _plan_comparison(metadata)
+    if plan is None:
+        return "No comparison baseline provided."
+    return _render_comparison(plan)
+
+
+def _plan_default_filters(default_filters: list) -> list[dict] | None:
+    """Plan default filters data for rendering."""
     if not default_filters:
-        return "No undocumented variables using `default()` were detected."
+        return None
+    return default_filters
+
+
+def _render_default_filters(plan: list[dict]) -> str:
+    """Render default filters section from planned data."""
     lines = [
         "The scanner found undocumented variables using `default()` in role files:",
         "",
     ]
-    for occ in default_filters:
+    for occ in plan:
         match = occ["match"].replace("`", "'")
         args = occ["args"].replace("`", "'")
         lines.append(f"- {occ['file']}:{occ['line_no']} - `{match}`")
         lines.append(f"  args: `{args}`")
     return "\n".join(lines)
+
+
+def _render_default_filters_section(default_filters: list) -> str:
+    """Render undocumented default() findings in bullet-list form."""
+    plan = _plan_default_filters(default_filters)
+    if plan is None:
+        return "No undocumented variables using `default()` were detected."
+    return _render_default_filters(plan)

@@ -1,6 +1,10 @@
 """CLI entry point for prism.
 
 Provides a small CLI wrapper around :func:`prism.scanner.run_scan`.
+
+This module is a thin stable shim. Internal CLI responsibilities may move to
+dedicated packages when that improves ownership clarity, but cli.py remains
+the stable top-level import surface.
 """
 
 from __future__ import annotations
@@ -19,9 +23,7 @@ from prism import cli_commands, cli_presenters
 from prism.feedback import apply_feedback_recommendations, load_feedback
 from prism.repo_services import (
     build_repo_style_readme_candidates as _repo_build_repo_style_readme_candidates,
-    build_sparse_clone_paths as _build_sparse_clone_paths,
     checkout_repo_lightweight_style_readme as _repo_checkout_repo_lightweight_style_readme,
-    checkout_repo_scan_role as _checkout_repo_scan_role,
     clone_repo as _repo_clone_repo,
     fetch_repo_contents_payload as _repo_fetch_repo_contents_payload,
     fetch_repo_directory_names as _repo_fetch_repo_directory_names,
@@ -29,18 +31,9 @@ from prism.repo_services import (
     github_repo_from_url as _repo_github_repo_from_url,
     normalize_repo_path as _repo_normalize_repo_path,
     normalize_repo_scan_result_payload as _normalize_repo_scan_result_payload,
-    prepare_repo_scan_inputs as _prepare_repo_scan_inputs,
-    repo_name_from_url as _repo_name_from_url,
-    repo_path_looks_like_role as _repo_path_looks_like_role,
-    repo_scan_workspace as _repo_scan_workspace,
-    resolve_repo_scan_target as _resolve_repo_scan_target,
-    resolve_repo_scan_scanner_report_relpath as _resolve_repo_scan_scanner_report_relpath,
-    resolve_style_readme_candidate as _resolve_style_readme_candidate,
 )
 from prism.scanner import (
     parse_style_readme,
-    resolve_default_style_guide_source,
-    run_scan,
 )
 
 # Compatibility exports for downstream imports and parity checks with API/helpers.
@@ -184,62 +177,19 @@ def _format_top_level_exception(exc: Exception) -> str:
 
 
 def _handle_repo_command(args: argparse.Namespace) -> int:
-    return cli_commands._handle_repo_command(
-        args,
-        repo_scan_workspace=_repo_scan_workspace,
-        checkout_repo_scan_role=_checkout_repo_scan_role,
-        prepare_repo_scan_inputs=_prepare_repo_scan_inputs,
-        fetch_repo_directory_names=_fetch_repo_directory_names,
-        repo_path_looks_like_role=_repo_path_looks_like_role,
-        fetch_repo_file=_fetch_repo_file,
-        clone_repo=_clone_repo,
-        build_sparse_clone_paths=_build_sparse_clone_paths,
-        resolve_style_readme_candidate=_resolve_style_readme_candidate,
-        resolve_default_style_guide_source=resolve_default_style_guide_source,
-        run_scan=run_scan,
-        repo_name_from_url=_repo_name_from_url,
-        resolve_repo_scan_target=_resolve_repo_scan_target,
-        resolve_repo_scan_scanner_report_relpath=_resolve_repo_scan_scanner_report_relpath,
-        resolve_include_collection_checks=_resolve_include_collection_checks,
-        normalize_repo_json_payload=_normalize_repo_json_payload,
-        resolve_effective_readme_config=_resolve_effective_readme_config,
-        save_style_comparison_artifacts=_save_style_comparison_artifacts,
-        emit_success=_emit_success,
-        resolve_vars_context_paths=_resolve_vars_context_paths,
-    )
+    return cli_commands._handle_repo_command(args)
 
 
 def _handle_collection_command(args: argparse.Namespace) -> int:
-    from prism.api import scan_collection
-
-    return cli_commands._handle_collection_command(
-        args,
-        scan_collection=scan_collection,
-        render_collection_markdown=_render_collection_markdown,
-        resolve_vars_context_paths=_resolve_vars_context_paths,
-        resolve_include_collection_checks=_resolve_include_collection_checks,
-        emit_success=_emit_success,
-    )
+    return cli_commands._handle_collection_command(args)
 
 
 def _handle_role_command(args: argparse.Namespace) -> int:
-    return cli_commands._handle_role_command(
-        args,
-        run_scan=run_scan,
-        resolve_default_style_guide_source=resolve_default_style_guide_source,
-        resolve_vars_context_paths=_resolve_vars_context_paths,
-        resolve_include_collection_checks=_resolve_include_collection_checks,
-        resolve_effective_readme_config=_resolve_effective_readme_config,
-        save_style_comparison_artifacts=_save_style_comparison_artifacts,
-        emit_success=_emit_success,
-    )
+    return cli_commands._handle_role_command(args)
 
 
 def _handle_completion_command(args: argparse.Namespace) -> int:
-    return cli_commands._handle_completion_command(
-        args,
-        build_bash_completion_script=_build_bash_completion_script,
-    )
+    return cli_commands._handle_completion_command(args)
 
 
 def _clone_repo(

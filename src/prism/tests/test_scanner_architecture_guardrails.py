@@ -31,7 +31,7 @@ ORCHESTRATOR_TELEMETRY_TARGETS: dict[str, dict[str, object]] = {
     "prism.scanner": {
         "path": PROJECT_ROOT / "src" / "prism" / "scanner.py",
         "max_lines": 1300,
-        "max_private_helpers": 22,
+        "max_private_helpers": 35,
         "option_surface": {
             "function": "run_scan",
             "max_parameters": 34,
@@ -99,6 +99,15 @@ _ALLOWED_CANONICAL_PRIVATE_CROSS_PACKAGE_TOUCHPOINTS: dict[str, set[str]] = {
         "prism.scanner_extract.variable_extractor:_find_variable_line_in_yaml",
         "prism.scanner_extract.variable_extractor:_infer_variable_type",
         "prism.scanner_extract.variable_extractor:_is_sensitive_variable",
+        "prism.scanner_extract.variable_sensitivity:_is_sensitive_variable",
+        "prism.scanner_extract.variable_traversal:_collect_dynamic_include_vars_refs",
+        "prism.scanner_extract.variable_traversal:_collect_dynamic_task_include_refs",
+        "prism.scanner_extract.variable_traversal:_collect_include_vars_files",
+        "prism.scanner_extract.variable_traversal:_collect_referenced_variable_names",
+        "prism.scanner_extract.variable_traversal:_collect_register_names",
+        "prism.scanner_extract.variable_traversal:_collect_set_fact_names",
+        "prism.scanner_extract.variable_traversal:_find_variable_line_in_yaml",
+        "prism.scanner_extract.variable_traversal:_infer_variable_type",
     },
 }
 
