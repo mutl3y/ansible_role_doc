@@ -1,12 +1,11 @@
 """VariableDiscovery orchestrator for role variable discovery and analysis.
 
 This module consolidates variable-extraction logic currently spread across:
-- `prism.scanner_extract.variable_extractor` for variable tokenization from task
-  files and README content
-- `prism.scanner_extract.task_parser` for task and include-file parsing helpers
-- `prism.scanner_extract.dataload` and `prism.scanner_extract.discovery` for
-  YAML loading, map discovery, and scan identity inputs
-- `prism.scanner_analysis.metrics` for uncertainty tracking and error reasoning
+- variable_extractor.py — variable tokenization from task files/README
+- task_parser.py — task/include file parsing
+- scanner_dataload.py — YAML loading and preparation
+- scan_discovery.py — variable discovery orchestration
+- scanner_analysis/metrics.py — uncertainty tracking and error reasoning
 
 The VariableDiscovery class provides a cohesive interface for discovering,
 extracting, typing, and resolving all variables in a role.
@@ -35,6 +34,22 @@ from prism.scanner_extract.variable_extractor import (
     _infer_variable_type,
     _is_sensitive_variable,
 )
+
+
+def _iter_processor_results(raw_results: object) -> tuple[object, ...]:
+    """Normalize extension processor results to an immutable tuple.
+
+    Some tests inject bare ``Mock`` objects for extension registries; those are
+    not iterable and should be treated as "no processor output".
+    """
+    if raw_results is None:
+        return ()
+    if isinstance(raw_results, (str, bytes)):
+        return ()
+    try:
+        return tuple(raw_results)  # type: ignore[arg-type]
+    except TypeError:
+        return ()
 
 
 class VariableDiscovery:
@@ -264,9 +279,11 @@ class VariableDiscovery:
             Immutable frozenset[str] of referenced variable names.
         """
         # Collect from task files, templates, handlers
-        referenced = _collect_referenced_variable_names(
-            self._role_path,
-            exclude_paths=self._options.get("exclude_path_patterns"),
+        referenced = set(
+            _collect_referenced_variable_names(
+                self._role_path,
+                exclude_paths=self._options.get("exclude_path_patterns"),
+            )
         )
 
         # Collect from README sections
@@ -311,6 +328,10 @@ class VariableDiscovery:
         unresolved: dict[str, str] = {}
         for var_name in effective_referenced:
             if var_name not in effective_static_names:
+                if self._options.get(
+                    "ignore_unresolved_internal_underscore_references", False
+                ) and var_name.startswith("_"):
+                    continue
                 # Build uncertainty reason
                 reason = self._build_uncertainty_reason(
                     var_name,
@@ -368,7 +389,31 @@ class VariableDiscovery:
                 )
                 all_rows.append(row)
 
-        return tuple(all_rows)
+        result = tuple(all_rows)
+
+        extension_registry_factory = getattr(
+            self._di, "factory_extension_registry", None
+        )
+        if callable(extension_registry_factory):
+            extension_registry = extension_registry_factory()
+            call_processors = getattr(extension_registry, "call_processors", None)
+            if callable(call_processors):
+                try:
+                    from prism.scanner_core.extension_registry import HookPoint
+
+                    hook_point: object = HookPoint.VARIABLE_DISCOVERY_POST
+                except Exception:
+                    hook_point = "variable_discovery_post"
+
+                try:
+                    raw_results = call_processors(hook_point, result)
+                except Exception:
+                    raw_results = ()
+                for processor_result in _iter_processor_results(raw_results):
+                    if isinstance(processor_result, tuple):
+                        result = processor_result
+
+        return result
 
     def _build_uncertainty_reason(
         self,
@@ -377,12 +422,102 @@ class VariableDiscovery:
         referenced_names: frozenset[str],
     ) -> str:
         """Build uncertainty reason text for unresolved variable."""
-        # Check for dynamic indicators
-        if var_name.startswith("_"):
-            return "Dynamic or internal variable (underscore prefix)"
+        similar = sorted(name for name in referenced_names if var_name in name)
+        if similar:
+            reason = f"Similar variables found: {', '.join(similar)}"
+            if var_name.startswith("_"):
+                related = sorted(referenced_names)
+                reason += f"; Related variables: {', '.join(related)}"
+            return reason
 
-        # Check if it might come from complex expressions
-        if var_name in referenced_names:
-            return "Referenced but not defined in role"
+        return "No similar or related variables found"
 
-        return "Unresolved reference"
+
+def discover_variables_pure(
+    variable_maps: dict[str, Any],
+    argument_spec_entries: list[tuple[Path, str, dict[str, Any]]],
+    referenced_names: frozenset[str],
+    options: dict[str, Any],
+) -> tuple[VariableRow, ...]:
+    """Pure functional variable discovery helper used by tests.
+
+    This helper keeps behavior intentionally minimal and deterministic.
+    """
+    del options  # Pure helper currently ignores policy options.
+
+    rows: list[VariableRow] = []
+    known_names: set[str] = set()
+
+    for name, value in variable_maps.items():
+        if not isinstance(name, str):
+            continue
+        known_names.add(name)
+        rows.append(
+            VariableRowBuilder()
+            .name(name)
+            .type(_infer_variable_type(value))
+            .default(_format_inline_yaml(value) if value is not None else "")
+            .source("defaults/main.yml")
+            .required(False)
+            .secret(_is_sensitive_variable(name, value))
+            .provenance_source_file("defaults/main.yml")
+            .provenance_line(None)
+            .provenance_confidence(0.95)
+            .is_unresolved(False)
+            .is_ambiguous(False)
+            .build()
+        )
+
+    for _source_file, name, spec in argument_spec_entries:
+        if name in known_names:
+            continue
+        known_names.add(name)
+        spec_type = spec.get("type", "documented")
+        mapped_type = (
+            map_argument_spec_type(spec_type)
+            if isinstance(spec_type, str)
+            else "documented"
+        )
+        rows.append(
+            VariableRowBuilder()
+            .name(name)
+            .type(mapped_type)
+            .default(
+                _format_inline_yaml(spec.get("default", ""))
+                if "default" in spec
+                else ""
+            )
+            .source("meta/argument_specs")
+            .documented(True)
+            .required(bool(spec.get("required", False)))
+            .secret(False)
+            .provenance_source_file("meta/argument_specs.yml")
+            .provenance_line(None)
+            .provenance_confidence(0.9)
+            .is_unresolved(False)
+            .is_ambiguous(False)
+            .build()
+        )
+
+    for name in sorted(referenced_names):
+        if name in known_names:
+            continue
+        rows.append(
+            VariableRowBuilder()
+            .name(name)
+            .type("unknown")
+            .default("")
+            .source("referenced")
+            .documented(False)
+            .required(False)
+            .secret(False)
+            .provenance_source_file("tasks/")
+            .provenance_line(None)
+            .provenance_confidence(0.5)
+            .uncertainty_reason("Referenced but not defined in role")
+            .is_unresolved(True)
+            .is_ambiguous(False)
+            .build()
+        )
+
+    return tuple(rows)

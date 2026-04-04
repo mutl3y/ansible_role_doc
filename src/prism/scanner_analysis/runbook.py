@@ -12,6 +12,9 @@ from pathlib import Path
 import jinja2
 
 
+_template_cache: dict[str, jinja2.Template] = {}
+
+
 def render_runbook(
     role_name: str,
     metadata: dict | None = None,
@@ -27,12 +30,15 @@ def render_runbook(
             Path(__file__).resolve().parent.parent / "templates" / "RUNBOOK.md.j2"
         )
 
-    env = jinja2.Environment(
-        loader=jinja2.FileSystemLoader(str(tpl_file.parent)),
-        trim_blocks=True,
-        lstrip_blocks=True,
-    )
-    template_obj = env.get_template(tpl_file.name)
+    key = str(tpl_file)
+    if key not in _template_cache:
+        env = jinja2.Environment(
+            loader=jinja2.FileSystemLoader(str(tpl_file.parent)),
+            trim_blocks=True,
+            lstrip_blocks=True,
+        )
+        _template_cache[key] = env.get_template(tpl_file.name)
+    template_obj = _template_cache[key]
     return template_obj.render(role_name=role_name, metadata=metadata)
 
 

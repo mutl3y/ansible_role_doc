@@ -187,31 +187,41 @@ def empty_test_role(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def basic_test_role(tmp_path: Path) -> Path:
-    """Basic Ansible role with minimal files for testing.
+def temp_role_path(tmp_path: Path) -> Path:
+    """Temporary directory path for role testing.
 
-    Creates a role structure with:
-    - defaults/main.yml: simple variables
-    - tasks/main.yml: basic task list
+    Returns a Path to a temporary directory that can be used for creating
+    test role structures. The directory is automatically cleaned up after
+    the test.
+    """
+    return tmp_path / "test_role"
+
+
+@pytest.fixture
+def minimal_ansible_role(temp_role_path: Path) -> Path:
+    """Create a minimal Ansible role structure for testing.
+
+    Creates:
+    - defaults/main.yml with basic variables
+    - tasks/main.yml with a simple task
 
     Returns:
-        Path: Path to the test role directory.
+        Path: Path to the role directory.
     """
-    role_path = tmp_path / "basic_role"
-
-    # Create directory structure
-    (role_path / "defaults").mkdir(parents=True, exist_ok=True)
-    (role_path / "tasks").mkdir(parents=True, exist_ok=True)
+    role_path = temp_role_path
+    role_path.mkdir(parents=True, exist_ok=True)
 
     # Create defaults/main.yml
+    (role_path / "defaults").mkdir(exist_ok=True)
     (role_path / "defaults" / "main.yml").write_text(
-        "---\ntest_variable: test_value\nenabled: true\n",
+        "---\ntest_var: default_value\nenabled: true\n",
         encoding="utf-8",
     )
 
     # Create tasks/main.yml
+    (role_path / "tasks").mkdir(exist_ok=True)
     (role_path / "tasks" / "main.yml").write_text(
-        "---\n" "- name: Test task\n" "  debug:\n" "    msg: '{{ test_variable }}'\n",
+        "---\n- name: Test task\n  debug:\n    msg: '{{ test_var }}'\n",
         encoding="utf-8",
     )
 

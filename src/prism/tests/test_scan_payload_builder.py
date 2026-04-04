@@ -9,6 +9,7 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
+from hypothesis import given, strategies as st
 
 from prism.scanner_data.builders import ScanPayloadBuilder
 from prism.scanner_data.contracts import RunScanOutputPayload, ScanMetadata
@@ -271,6 +272,36 @@ class TestScanPayloadBuilderMethodOverride:
         assert payload["role_name"] == "role2"
         assert payload["description"] == "desc2"
         assert payload["display_variables"] == {}
+
+
+class TestScanPayloadBuilderPropertyBased:
+    """Property-based tests for ScanPayloadBuilder."""
+
+    @given(
+        role_name=st.text(min_size=1, max_size=100).filter(
+            lambda value: bool(value.strip())
+        ),
+        description=st.text(min_size=0, max_size=500),
+    )
+    def test_property_based_builder_with_random_strings_produces_valid_payload(
+        self, role_name: str, description: str
+    ) -> None:
+        """Builder with random strings produces valid payload structure."""
+        payload = (
+            ScanPayloadBuilder()
+            .role_name(role_name)
+            .description(description)
+            .metadata(_build_test_metadata())
+            .build()
+        )
+
+        assert isinstance(payload, dict)
+        assert payload["role_name"] == role_name
+        assert payload["description"] == description
+        assert isinstance(payload["display_variables"], dict)
+        assert isinstance(payload["requirements_display"], (list, tuple))
+        assert isinstance(payload["undocumented_default_filters"], (list, tuple))
+        assert isinstance(payload["metadata"], dict)
 
 
 def _build_test_metadata() -> ScanMetadata:

@@ -3,8 +3,10 @@ Jinja2
 tox
 pytest
 pytest-cov
+pytest-xdist
 ruff==0.15.6
 black==25.1.0
 markdown
 pylint
 mypy
+pyfakefs

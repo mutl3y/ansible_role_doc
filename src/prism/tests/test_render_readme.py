@@ -38,7 +38,8 @@ def test_readme_render_uses_canonical_styleguide_contract_import():
     module_source = render_module_path.read_text(encoding="utf-8")
 
     assert (
-        "from ..scanner_data.contracts_request import StyleGuideConfig" in module_source
+        "from prism.scanner_data.contracts_request import StyleGuideConfig"
+        in module_source
     )
     assert "from ..scanner_data.contracts import StyleGuideConfig" not in module_source
     assert (

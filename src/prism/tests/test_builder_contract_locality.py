@@ -280,11 +280,5 @@ class TestOutputModulesImportCanonicalContracts:
             "scanner_data.contracts_request",
         )
 
-    def test_render_compat_imports_contracts_request_directly(self) -> None:
-        self._assert_imports_owner_modules(
-            Path("src/prism/scanner_compat/render_compat.py"),
-            "scanner_data.contracts_request",
-        )
-
     def test_scan_facade_helpers_no_longer_imports_umbrella_contracts(self) -> None:
         self._assert_avoids_umbrella_contracts(scan_facade_helpers_mod)

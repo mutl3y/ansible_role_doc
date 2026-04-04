@@ -1,9 +1,8 @@
 """FeatureDetector orchestrator for role feature analysis.
 
 This module consolidates feature-extraction logic currently scattered in:
-- `prism.scanner_extract.task_parser` for task and handler catalogs, included
-  roles, and executed modules
-- `prism.scanner_analysis` helpers for feature shaping and reporting inputs
+- scanner_extract.task_parser — task/handler catalog, included roles, executed modules
+- scanner_submodules — feature counting and pattern analysis
 
 The FeatureDetector class provides a cohesive interface for detecting,
 analyzing, and reporting on all adaptively-discovered role features
@@ -55,7 +54,7 @@ class FeatureDetector:
     Returns immutable FeaturesContext with complete feature analysis.
 
     **Design Rationale:**
-    - Encapsulates package-owned feature detection logic behind one orchestrator
+    - Encapsulates feature detection logic currently in task_parser.py
     - Provides immutable TypedDict results (FeaturesContext)
     - Enables testable dependency injection via DIContainer
     - Operates at higher abstraction than low-level helpers
@@ -330,3 +329,96 @@ class FeatureDetector:
             }
 
         return result
+
+
+def detect_features_pipeline(
+    task_data_list: list[dict[str, Any]] | list[list[dict[str, Any]]],
+    options: dict[str, Any],
+) -> FeaturesContext:
+    """Detect feature signals from pre-loaded task mappings.
+
+    This pure function is intentionally lightweight and does not access
+    filesystem state. It is used by unit tests and compatibility seams that
+    already provide parsed task payloads.
+    """
+    del options  # Reserved for future strategy toggles.
+
+    tasks_scanned = 0
+    privileged_tasks = 0
+    conditional_tasks = 0
+    tagged_tasks = 0
+    include_count = 0
+    included_role_calls = 0
+    dynamic_included_role_calls = 0
+    disabled_task_annotations = 0
+    yaml_like_task_annotations = 0
+
+    modules: set[str] = set()
+    external_collections: set[str] = set()
+    handlers_notified: set[str] = set()
+    included_roles: set[str] = set()
+    dynamic_included_roles: set[str] = set()
+
+    for task_data in task_data_list:
+        include_count += len(_iter_task_include_targets(task_data))
+
+        for task in _iter_task_mappings(task_data):
+            tasks_scanned += 1
+
+            static_role_targets = _iter_role_include_targets(task)
+            included_role_calls += len(static_role_targets)
+            included_roles.update(static_role_targets)
+
+            dynamic_role_targets = _iter_dynamic_role_include_targets(task)
+            dynamic_included_role_calls += len(dynamic_role_targets)
+            dynamic_included_roles.update(dynamic_role_targets)
+
+            module_name = _detect_task_module(task)
+            if module_name:
+                modules.add(module_name)
+                collection_name = _extract_collection_from_module_name(module_name)
+                if collection_name:
+                    external_collections.add(collection_name)
+
+            if bool(task.get("become")):
+                privileged_tasks += 1
+            if "when" in task:
+                conditional_tasks += 1
+            if task.get("tags"):
+                tagged_tasks += 1
+
+            notify = task.get("notify")
+            if isinstance(notify, str):
+                handlers_notified.add(notify)
+            elif isinstance(notify, list):
+                handlers_notified.update(
+                    item for item in notify if isinstance(item, str)
+                )
+
+    return {
+        "task_files_scanned": len(task_data_list),
+        "tasks_scanned": tasks_scanned,
+        "recursive_task_includes": include_count,
+        "unique_modules": ",".join(sorted(modules)) if modules else "none",
+        "external_collections": (
+            ",".join(sorted(external_collections)) if external_collections else "none"
+        ),
+        "handlers_notified": (
+            ",".join(sorted(handlers_notified)) if handlers_notified else "none"
+        ),
+        "privileged_tasks": privileged_tasks,
+        "conditional_tasks": conditional_tasks,
+        "tagged_tasks": tagged_tasks,
+        "included_role_calls": included_role_calls,
+        "included_roles": (
+            ",".join(sorted(included_roles)) if included_roles else "none"
+        ),
+        "dynamic_included_role_calls": dynamic_included_role_calls,
+        "dynamic_included_roles": (
+            ",".join(sorted(dynamic_included_roles))
+            if dynamic_included_roles
+            else "none"
+        ),
+        "disabled_task_annotations": disabled_task_annotations,
+        "yaml_like_task_annotations": yaml_like_task_annotations,
+    }

@@ -19,8 +19,8 @@ def orchestrate_scan_payload(
     scan_options: dict[str, Any],
     di_container_cls: type,
     scanner_context_cls: type,
-    build_run_scan_options_fn: Callable[..., dict[str, Any]],
-    prepare_scan_context_fn: Callable[..., dict[str, Any]],
+    build_run_scan_options_fn: Callable[..., dict[str, Any]] | None = None,
+    prepare_scan_context_fn: Callable[[dict[str, Any]], dict[str, Any]] | None = None,
 ) -> RunScanOutputPayload:
     """Execute a scan via ScannerContext and return the in-memory payload."""
     container = di_container_cls(role_path=role_path, scan_options=scan_options)
@@ -49,8 +49,8 @@ def execute_scan_with_context(
     runbook_csv_output: str | None,
     di_container_cls: type,
     scanner_context_cls: type,
-    build_run_scan_options_fn: Callable[..., dict[str, Any]],
-    prepare_scan_context_fn: Callable[..., dict[str, Any]],
+    build_run_scan_options_fn: Callable[..., dict[str, Any]] | None = None,
+    prepare_scan_context_fn: Callable[[dict[str, Any]], dict[str, Any]] | None = None,
     build_emit_scan_outputs_args_fn: Callable[..., dict[str, Any]],
     emit_scan_outputs_fn: Callable[[dict[str, Any]], str | bytes],
 ) -> str | bytes:

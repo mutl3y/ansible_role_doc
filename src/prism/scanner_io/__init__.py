@@ -24,6 +24,12 @@ from prism.scanner_io.output import (
     resolve_output_path,
     write_output,
 )
+from prism.scanner_io.scan_output import (
+    build_emit_scan_outputs_args,
+    build_scan_output_payload,
+    build_scan_report_sidecar_args,
+    build_runbook_sidecar_args,
+)
 
 __all__ = [
     "collect_yaml_parse_failures",
@@ -37,6 +43,10 @@ __all__ = [
     "render_final_output",
     "resolve_output_path",
     "write_output",
+    "build_emit_scan_outputs_args",
+    "build_scan_output_payload",
+    "build_scan_report_sidecar_args",
+    "build_runbook_sidecar_args",
 ]
 
 

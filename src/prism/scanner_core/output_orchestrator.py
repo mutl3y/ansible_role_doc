@@ -1,11 +1,12 @@
 """OutputOrchestrator - orchestrator for rendering and emitting scan outputs.
 
 This module consolidates output-related logic currently spread across:
-- `prism.scanner_io.scan_output_primary` for primary output format handling
-- `prism.scanner_io.emit_output` for output orchestration and file emission
-- `prism.scanner_io.output` for format primitives and path resolution
-- `prism.scanner_readme` for README composition
-- `prism.scanner_analysis` for scanner-report and runbook rendering
+- scan_output_primary.py — primary output format handling
+- scan_output_emission.py — orchestration of rendering and writing
+- output.py — format primitives and path resolution
+- render_readme.py — README composition and formatting
+- scanner_report.py — scanner-report YAML generation and rendering
+- runbook.py — runbook markdown and CSV generation
 
 The OutputOrchestrator class provides a cohesive interface for:
 - Rendering primary outputs (README, JSON, HTML, PDF)
@@ -21,7 +22,7 @@ from pathlib import Path
 from typing import Any
 
 from prism.scanner_core.di import DIContainer
-from prism.scanner_data.contracts_output import RunScanOutputPayload
+from prism.scanner_data.contracts import RunScanOutputPayload
 from prism.scanner_io.emit_output import (
     build_output_emission_context as _build_output_emission_context,
     orchestrate_output_emission as _orchestrate_output_emission,
@@ -196,3 +197,19 @@ class OutputOrchestrator:
             result[csv_path] = len(rb_csv_content.encode("utf-8"))
 
         return result
+
+    def emit_runbook_sidecars_content(
+        self,
+        md_path: str,
+        csv_path: str,
+        *,
+        role_name: str = "role",
+        metadata: dict[str, Any] | None = None,
+    ) -> dict[str, int]:
+        """Backward-compatible alias for runbook sidecar emission."""
+        return self.emit_runbook_sidecars(
+            md_path,
+            csv_path,
+            role_name=role_name,
+            metadata=metadata,
+        )

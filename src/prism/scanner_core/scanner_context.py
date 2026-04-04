@@ -11,14 +11,27 @@ specialized orchestrators (VariableDiscovery, OutputOrchestrator, FeatureDetecto
 
 from __future__ import annotations
 
+import inspect
+import traceback
+from contextlib import contextmanager
 from copy import deepcopy
-import logging
+from pathlib import Path
 from typing import Any, Callable
+
+from opentelemetry import trace
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 from prism.errors import PrismRuntimeError
 from prism.scanner_data.contracts_request import ScanContextPayload, ScanOptionsDict
 from prism.scanner_core import scan_request
 from prism.scanner_core.di import DIContainer
+from prism.scanner_core.logging_config import set_scan_context
+from prism.scanner_io.loader import load_readme_content
 
 
 _REQUIRED_SCAN_OPTION_KEYS: set[str] = {
@@ -47,6 +60,43 @@ _REQUIRED_SCAN_OPTION_KEYS: set[str] = {
 _RECOVERABLE_PHASE_ERRORS: tuple[type[Exception], ...] = (PrismRuntimeError,)
 
 
+def _prepare_scan_context_compat(
+    prepare_scan_context_fn: Callable[..., ScanContextPayload],
+    normalized_scan_options: ScanOptionsDict,
+    di: DIContainer,
+) -> ScanContextPayload:
+    """Invoke prepare_scan_context callback with legacy/modern compatibility.
+
+    Supports both callback signatures:
+    1) callback(scan_options)
+    2) callback(scan_options, di_container=...)
+    """
+    try:
+        signature = inspect.signature(prepare_scan_context_fn)
+    except (TypeError, ValueError):
+        signature = None
+
+    if signature is not None:
+        parameters = signature.parameters
+        if "di_container" in parameters or any(
+            parameter.kind is inspect.Parameter.VAR_KEYWORD
+            for parameter in parameters.values()
+        ):
+            return prepare_scan_context_fn(
+                normalized_scan_options,
+                di_container=di,
+            )
+        return prepare_scan_context_fn(normalized_scan_options)
+
+    # Fallback for callables without introspectable signatures.
+    try:
+        return prepare_scan_context_fn(normalized_scan_options, di_container=di)
+    except TypeError as error:
+        if "di_container" not in str(error):
+            raise
+        return prepare_scan_context_fn(normalized_scan_options)
+
+
 class ScannerContext:
     """Main orchestrator for role scanning.
 
@@ -72,9 +122,7 @@ class ScannerContext:
         role_path: str,
         scan_options: ScanOptionsDict,
         build_run_scan_options_fn: Callable[..., ScanOptionsDict] | None = None,
-        prepare_scan_context_fn: (
-            Callable[[ScanOptionsDict], ScanContextPayload] | None
-        ) = None,
+        prepare_scan_context_fn: Callable[..., ScanContextPayload] | None = None,
     ) -> None:
         """Initialize context with DI container and scan options.
 
@@ -100,10 +148,17 @@ class ScannerContext:
         self._build_run_scan_options_fn = (
             build_run_scan_options_fn or scan_request.build_run_scan_options_canonical
         )
-        self._prepare_scan_context_fn = prepare_scan_context_fn
+        self._prepare_scan_context_fn = (
+            prepare_scan_context_fn or scan_request.prepare_scan_context_canonical
+        )
         self._strict_phase_failures = bool(
             self._scan_options.get("strict_phase_failures", True)
         )
+
+        # Metrics collector for performance and error tracking
+        self._metrics = self._di.factory_metrics_collector()
+        self._logger_factory = self._di.factory_logger_factory()
+        self._logger = self._logger_factory.get_logger(__name__)
 
         # Internal state: discovered variables and features stored as immutable tuples/dicts
         self._discovered_variables: tuple[Any, ...] = ()
@@ -148,21 +203,74 @@ class ScannerContext:
             ValueError: If orchestration encounters unrecoverable errors
                         (e.g., invalid role structure).
         """
+        enforce_role_path_exists = bool(
+            self._scan_options.get("enforce_role_path_exists", False)
+        ) or (
+            self._prepare_scan_context_fn is scan_request.prepare_scan_context_canonical
+        )
+
+        role_path = Path(self._role_path)
+        if enforce_role_path_exists and (
+            not role_path.exists() or not role_path.is_dir()
+        ):
+            raise FileNotFoundError(f"role path not found: {self._role_path}")
+
         self._discovered_variables = ()
         self._detected_features = {}
         self._scan_metadata = {}
         self._scan_errors = []
 
-        # Phase 1: Variable Discovery (returns immutable tuple)
-        self._discovered_variables = self._discover_variables()
+        # Set scan context for logging
+        role_name = self._scan_options.get("role_name", "unknown")
+        scan_id = f"scan_{id(self)}"
+        with set_scan_context(role_name=role_name, scan_id=scan_id):
+            # Start metrics collection
+            self._metrics.start_scan()
 
-        # Phase 2: Feature Detection (returns immutable dict)
-        self._detected_features = self._detect_features()
+            phase_tracer = trace.get_tracer(__name__)
 
-        # Phase 3: Output Orchestration & Payload Building
-        payload = self._build_output_payload()
+            # Phase 1: Variable Discovery (returns immutable tuple)
+            with self._start_phase_span(phase_tracer, "variable_discovery") as span:
+                span.set_attribute("phase", "discovery")
+                span.set_attribute("role_name", role_name)
+                self._discovered_variables = self._discover_variables()
+
+            # Phase 2: Feature Detection (returns immutable dict)
+            with self._start_phase_span(phase_tracer, "feature_detection") as span:
+                span.set_attribute("phase", "detection")
+                span.set_attribute("role_name", role_name)
+                self._detected_features = self._detect_features()
+
+            # Phase 3: Output Orchestration & Payload Building
+            with self._start_phase_span(phase_tracer, "output_orchestration") as span:
+                span.set_attribute("phase", "output")
+                span.set_attribute("role_name", role_name)
+                payload = self._build_output_payload()
+
+        # End metrics collection
+        self._metrics.end_scan()
 
         return payload
+
+    @contextmanager
+    def _start_phase_span(self, phase_tracer: Any, span_name: str):
+        """Start a span across tracer API variants.
+
+        Prefer start_as_span when available; otherwise emulate it via start_span.
+        """
+        start_as_span = getattr(phase_tracer, "start_as_span", None)
+        if callable(start_as_span):
+            with start_as_span(span_name) as span:
+                yield span
+            return
+
+        span = phase_tracer.start_span(span_name)
+        try:
+            yield span
+        finally:
+            end = getattr(span, "end", None)
+            if callable(end):
+                end()
 
     def _record_phase_error(self, phase: str, error: Exception) -> dict[str, str]:
         """Record a structured phase failure entry for metadata propagation."""
@@ -170,14 +278,23 @@ class ScannerContext:
             "phase": phase,
             "error_type": error.__class__.__name__,
             "message": str(error),
+            "traceback": traceback.format_exc(),
         }
         self._scan_errors.append(entry)
         self._scan_metadata = {
             "scan_errors": list(self._scan_errors),
             "scan_degraded": True,
         }
+        # Record error in metrics
+        self._metrics.record_error(f"{phase}_error")
         return entry
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        retry=retry_if_exception_type(_RECOVERABLE_PHASE_ERRORS),
+        reraise=False,
+    )
     def _discover_variables(self) -> tuple[Any, ...]:
         """Execute variable discovery phase.
 
@@ -193,24 +310,64 @@ class ScannerContext:
             tuple[Any, ...]: Discovered variables (immutable collection).
         """
         try:
-            discovery = self._di.factory_variable_discovery()
-            variables_tuple = discovery.discover()  # Returns tuple[VariableRow, ...]
-            return variables_tuple
+            factory = getattr(self._di, "factory_variable_discovery", None)
+            if callable(factory):
+                discovery = factory()
+                discover = getattr(discovery, "discover", None)
+                if callable(discover):
+                    return tuple(discover())
+
+            plugin_factory = getattr(
+                self._di, "factory_variable_discovery_plugin", None
+            )
+            if callable(plugin_factory):
+                plugin = plugin_factory()
+                static_vars = plugin.discover_static_variables(
+                    self._role_path, self._scan_options
+                )
+                readme_content = load_readme_content(self._role_path)
+                referenced_vars = plugin.discover_referenced_variables(
+                    self._role_path,
+                    self._scan_options,
+                    readme_content,
+                )
+                plugin.resolve_unresolved_variables(
+                    frozenset(v["name"] for v in static_vars),
+                    referenced_vars,
+                    self._scan_options,
+                )
+                return tuple(static_vars)
+
+            raise AttributeError(
+                "DIContainer does not provide variable discovery factory"
+            )
         except Exception as e:
-            logger = logging.getLogger(__name__)
             if self._strict_phase_failures or not isinstance(
                 e,
                 _RECOVERABLE_PHASE_ERRORS,
             ):
-                logger.error("Variable discovery failed")
+                self._logger.error(
+                    "Variable discovery failed",
+                    extra={"operation": "variable_discovery", "phase": "discovery"},
+                )
                 raise
             entry = self._record_phase_error("discovery", e)
-            logger.error(
+            self._logger.error(
                 "Variable discovery failed; continuing in best-effort mode",
-                extra={"scan_error": entry},
+                extra={
+                    "scan_error": entry,
+                    "operation": "variable_discovery",
+                    "phase": "discovery",
+                },
             )
             return ()
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        retry=retry_if_exception_type(_RECOVERABLE_PHASE_ERRORS),
+        reraise=False,
+    )
     def _detect_features(self) -> dict[str, Any]:
         """Execute feature detection phase.
 
@@ -226,21 +383,39 @@ class ScannerContext:
             dict[str, Any]: Detected features (immutable dict).
         """
         try:
-            detector = self._di.factory_feature_detector()
-            features = detector.detect()  # Returns dict[str, Any]
-            return features
+            factory = getattr(self._di, "factory_feature_detector", None)
+            if callable(factory):
+                detector = factory()
+                detect = getattr(detector, "detect", None)
+                if callable(detect):
+                    return dict(detect())
+
+            plugin_factory = getattr(self._di, "factory_feature_detection_plugin", None)
+            if callable(plugin_factory):
+                plugin = plugin_factory()
+                return dict(plugin.detect_features(self._role_path, self._scan_options))
+
+            raise AttributeError(
+                "DIContainer does not provide feature detection factory"
+            )
         except Exception as e:
-            logger = logging.getLogger(__name__)
             if self._strict_phase_failures or not isinstance(
                 e,
                 _RECOVERABLE_PHASE_ERRORS,
             ):
-                logger.error("Feature detection failed")
+                self._logger.error(
+                    "Feature detection failed",
+                    extra={"operation": "feature_detection", "phase": "detection"},
+                )
                 raise
             entry = self._record_phase_error("feature_detection", e)
-            logger.error(
+            self._logger.error(
                 "Feature detection failed; continuing in best-effort mode",
-                extra={"scan_error": entry},
+                extra={
+                    "scan_error": entry,
+                    "operation": "feature_detection",
+                    "phase": "detection",
+                },
             )
             return {
                 "task_files_scanned": 0,
@@ -260,6 +435,12 @@ class ScannerContext:
                 "yaml_like_task_annotations": 0,
             }
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        retry=retry_if_exception_type(_RECOVERABLE_PHASE_ERRORS),
+        reraise=False,
+    )
     def _build_output_payload(self) -> dict[str, Any]:
         """Build final RunScanOutputPayload from orchestration results.
 
@@ -339,7 +520,45 @@ class ScannerContext:
                 "prepare_scan_context_fn must be provided for canonical ScannerContext orchestration"
             )
 
-        context_payload = self._prepare_scan_context_fn(normalized_scan_options)
+        try:
+            context_payload = _prepare_scan_context_compat(
+                self._prepare_scan_context_fn,
+                normalized_scan_options,
+                self._di,
+            )
+        except Exception as e:
+            if self._strict_phase_failures or not isinstance(
+                e,
+                _RECOVERABLE_PHASE_ERRORS,
+            ):
+                self._logger.error(
+                    "Output payload building failed",
+                    extra={"operation": "output_payload_building", "phase": "output"},
+                )
+                raise
+            entry = self._record_phase_error("output", e)
+            self._logger.error(
+                "Output payload building failed; returning degraded payload",
+                extra={
+                    "scan_error": entry,
+                    "operation": "output_payload_building",
+                    "phase": "output",
+                },
+            )
+            # Return degraded payload with minimal valid structure
+            degraded_metadata = dict(self._scan_metadata)
+            if self._scan_errors:
+                degraded_metadata["scan_errors"] = list(self._scan_errors)
+                degraded_metadata["scan_degraded"] = True
+            degraded_metadata["metrics"] = self._metrics.get_metrics()
+            return {
+                "role_name": "unknown",
+                "description": "",
+                "display_variables": {},
+                "requirements_display": [],
+                "undocumented_default_filters": [],
+                "metadata": degraded_metadata,
+            }
 
         metadata = dict(context_payload.get("metadata") or {})
         if "features" not in metadata and self._detected_features:
@@ -347,6 +566,8 @@ class ScannerContext:
         if self._scan_errors:
             metadata["scan_errors"] = list(self._scan_errors)
             metadata["scan_degraded"] = True
+        # Add metrics to metadata
+        metadata["metrics"] = self._metrics.get_metrics()
         self._scan_metadata = metadata
 
         return {

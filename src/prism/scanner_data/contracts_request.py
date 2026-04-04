@@ -76,7 +76,10 @@ class ScanPhaseError(TypedDict):
 
 
 class ScanMetadata(TypedDict, total=False):
-    """Comprehensive metadata contract flowing through scanner orchestration."""
+    """Comprehensive metadata contract flowing through scanner orchestration.
+
+    NOTE: Treat as immutable after construction. Use dict copies {**metadata, "key": value} for modifications to enforce immutability.
+    """
 
     molecule_scenarios: list[Any]
     marker_prefix: str
@@ -110,7 +113,7 @@ class ScanMetadata(TypedDict, total=False):
     concise_readme: NotRequired[bool]
     include_scanner_report_link: NotRequired[bool]
     scanner_report_relpath: NotRequired[str]
-    collection_compliance_notes: NotRequired[Any]
+    collection_compliance_notes: NotRequired[list[str]]
     style_guide: NotRequired[StyleGuideConfig]
     style_guide_skeleton: NotRequired[bool]
     comparison: NotRequired[dict[str, Any]]
@@ -153,7 +156,10 @@ class PolicyContext(TypedDict):
 
 
 class ScanOptionsDict(TypedDict):
-    """Normalized scan configuration passed through the scanner pipeline."""
+    """Normalized scan configuration passed through the scanner pipeline.
+
+    NOTE: Treat as immutable after construction. Use dict copies {**scan_options, "key": value} for modifications to enforce immutability.
+    """
 
     role_path: str
     role_name_override: str | None

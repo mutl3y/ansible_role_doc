@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
-from prism.scanner_data.contracts_request import PolicyContext, ScanOptionsDict
+from prism.scanner_core import scan_runtime
+from prism.scanner_data.contracts_request import (
+    PolicyContext,
+    ScanContextPayload,
+    ScanOptionsDict,
+)
 
 
 def resolve_scan_request_for_runtime(
@@ -66,4 +71,13 @@ def build_run_scan_options_canonical(
             ignore_unresolved_internal_underscore_references
         ),
         policy_context=policy_context,
+    )
+
+
+def prepare_scan_context_canonical(
+    scan_options: ScanOptionsDict, di_container=None, **kwargs
+) -> ScanContextPayload:
+    """Canonical scan context preparation for scanner runtime path."""
+    return scan_runtime.prepare_scan_context(
+        scan_options=scan_options, di_container=di_container, **kwargs
     )

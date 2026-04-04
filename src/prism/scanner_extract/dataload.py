@@ -12,6 +12,8 @@ from typing import Callable
 
 import yaml
 
+from prism.scanner_data.contracts import DataLoaderProtocol
+
 
 def _role_relative_candidate_path(path: Path, role_root: Path) -> str | None:
     """Return a lexical role-relative path when the candidate lives under the role."""
@@ -250,3 +252,31 @@ def iter_role_argument_spec_entries(
                 if "{{" in var_name or "{%" in var_name:
                     continue
                 yield source_file, var_name, spec
+
+
+class ConcreteDataLoader(DataLoaderProtocol):
+    """Concrete implementation of DataLoaderProtocol using scanner_extract functions."""
+
+    def iter_role_argument_spec_entries(
+        self, role_path, load_yaml_file_fn, load_meta_fn
+    ):
+        return iter_role_argument_spec_entries(
+            role_path, load_yaml_file_fn, load_meta_fn
+        )
+
+    def load_role_variable_maps(
+        self,
+        role_path,
+        include_vars_main,
+        iter_variable_map_candidates_fn,
+        load_yaml_file_fn,
+    ):
+        return load_role_variable_maps(
+            role_path,
+            include_vars_main,
+            iter_variable_map_candidates_fn,
+            load_yaml_file_fn,
+        )
+
+    def map_argument_spec_type(self, spec_entry):
+        return map_argument_spec_type(spec_entry)

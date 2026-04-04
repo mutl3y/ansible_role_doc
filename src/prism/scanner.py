@@ -18,6 +18,7 @@ from prism._jinja_analyzer import (
 from prism.errors import FailurePolicy
 from prism.scanner_analysis import (
     build_scanner_report_markdown as _runbook_report_build_scanner_report_markdown,
+    enrich_scan_context_with_insights,
     extract_scanner_counters as _analysis_extract_scanner_counters,
     render_runbook as _runbook_report_render_runbook,
     render_runbook_csv as _runbook_report_render_runbook_csv,
@@ -31,6 +32,7 @@ from prism.scanner_config import (
     DEFAULT_DOC_MARKER_PREFIX as READMECFG_DEFAULT_DOC_MARKER_PREFIX,
     SECTION_CONFIG_FILENAME,
     SECTION_CONFIG_FILENAMES,
+    apply_readme_section_config as _apply_readme_section_config,
     load_fail_on_unconstrained_dynamic_includes as _load_fail_on_unconstrained_dynamic_includes,
     load_fail_on_yaml_like_task_annotations as _load_fail_on_yaml_like_task_annotations,
     load_ignore_unresolved_internal_underscore_references as _load_ignore_unresolved_internal_underscore_references,
@@ -43,15 +45,13 @@ from prism.scanner_config import (
     load_readme_section_visibility as _load_readme_section_visibility,
     resolve_default_style_guide_source as _config_resolve_default_style_guide_source,
 )
-from prism.scanner_core import DIContainer, ScanContextBuilder, ScannerContext
+from prism.scanner_core import DIContainer, ScannerContext
+from prism.scanner_core import scan_context_builder
 from prism.scanner_core import scan_facade_helpers as _scan_facade_helpers
 from prism.scanner_core import scan_request
 from prism.scanner_core import scan_runtime as _scan_runtime
 from prism.scanner_core import variable_insights as _variable_insights
 from prism.scanner_core import variable_pipeline as _variable_pipeline
-from prism.scanner_data.contracts import (
-    ScanMetadata as _scan_context_ScanMetadata,
-)
 from prism.scanner_data.contracts_output import (
     RunScanOutputPayload as _RunScanOutputPayload,
 )
@@ -71,7 +71,6 @@ from prism.scanner_extract import (
     collect_unconstrained_dynamic_task_includes as _collect_unconstrained_dynamic_task_includes,
     extract_default_target_var as _extract_default_target_var,
     extract_role_features,
-    extract_role_notes_from_comments as _extract_role_notes_from_comments,
     filter_scanner as _filter_scanner,
     is_path_excluded as _is_path_excluded,
     is_relpath_excluded as _is_relpath_excluded,
@@ -115,7 +114,7 @@ from prism.scanner_readme import guide as _readme_guide
 from prism.scanner_readme import render_readme as _readme_render_readme
 from prism.scanner_readme import style as _readme_style
 
-DEFAULT_SECTION_SPECS = [
+DEFAULT_SECTION_SPECS = (
     ("galaxy_info", "Galaxy Info"),
     ("requirements", "Requirements"),
     ("purpose", "Role purpose and capabilities"),
@@ -128,15 +127,17 @@ DEFAULT_SECTION_SPECS = [
     ("features", "Auto-detected role features"),
     ("comparison", "Comparison against local baseline role"),
     ("default_filters", "Detected usages of the default() filter"),
-]
+)
 
-SCANNER_STATS_SECTION_IDS = {
-    "task_summary",
-    "role_contents",
-    "features",
-    "comparison",
-    "default_filters",
-}
+SCANNER_STATS_SECTION_IDS = frozenset(
+    {
+        "task_summary",
+        "role_contents",
+        "features",
+        "comparison",
+        "default_filters",
+    }
+)
 
 _EXTRA_SECTION_IDS = {
     "basic_authorization",
@@ -432,6 +433,7 @@ def _populate_variable_rows(
     non_authoritative_test_evidence_max_file_bytes: int = _ANALYSIS_MAX_FILE_BYTES,
     non_authoritative_test_evidence_max_files_scanned: int = _ANALYSIS_MAX_FILES_SCANNED,
     non_authoritative_test_evidence_max_total_bytes: int = _ANALYSIS_MAX_TOTAL_BYTES,
+    non_authoritative_test_evidence_allowed_suffixes: set[str] | None = None,
 ) -> None:
     """Populate dynamic, documented, and inferred variable rows in-place."""
     _variable_pipeline.populate_variable_rows(
@@ -455,6 +457,9 @@ def _populate_variable_rows(
         non_authoritative_test_evidence_max_total_bytes=(
             non_authoritative_test_evidence_max_total_bytes
         ),
+        non_authoritative_test_evidence_allowed_suffixes=(
+            non_authoritative_test_evidence_allowed_suffixes
+        ),
     )
 
 
@@ -474,6 +479,7 @@ def build_variable_insights(
     non_authoritative_test_evidence_max_file_bytes: int = _ANALYSIS_MAX_FILE_BYTES,
     non_authoritative_test_evidence_max_files_scanned: int = _ANALYSIS_MAX_FILES_SCANNED,
     non_authoritative_test_evidence_max_total_bytes: int = _ANALYSIS_MAX_TOTAL_BYTES,
+    non_authoritative_test_evidence_allowed_suffixes: set[str] | None = None,
 ) -> list[dict]:
     """Build variable rows with inferred type/default/source details."""
     return _variable_insights.build_variable_insights(
@@ -494,6 +500,9 @@ def build_variable_insights(
         ),
         non_authoritative_test_evidence_max_total_bytes=(
             non_authoritative_test_evidence_max_total_bytes
+        ),
+        non_authoritative_test_evidence_allowed_suffixes=(
+            non_authoritative_test_evidence_allowed_suffixes
         ),
         load_role_variable_maps=_load_role_variable_maps,
         collect_variable_reference_context=_collect_variable_reference_context,
@@ -676,7 +685,6 @@ _build_scanner_report_markdown = partial(
     render_section_body=_render_guide_section_body,
 )
 
-
 _resolve_scan_identity = partial(
     _scan_discovery_resolve_scan_identity,
     load_meta_fn=load_meta,
@@ -700,23 +708,6 @@ _collect_scan_artifacts = partial(
 )
 
 
-def _apply_readme_section_config(
-    metadata: _scan_context_ScanMetadata, readme_section_config: dict | None
-) -> None:
-    """Apply resolved README section configuration into scan metadata."""
-    if readme_section_config is None:
-        return
-    metadata["enabled_sections"] = sorted(readme_section_config["enabled_sections"])
-    if readme_section_config["section_title_overrides"]:
-        metadata["section_title_overrides"] = dict(
-            readme_section_config["section_title_overrides"]
-        )
-    if readme_section_config["section_content_modes"]:
-        metadata["section_content_modes"] = dict(
-            readme_section_config["section_content_modes"]
-        )
-
-
 _build_undocumented_default_filters = partial(
     _variable_insights.build_undocumented_default_filters,
     extract_default_target_var=_extract_default_target_var,
@@ -726,14 +717,35 @@ _build_undocumented_default_filters = partial(
 
 _collect_variable_insights_and_default_filter_findings = partial(
     _variable_insights.collect_variable_insights_and_default_filter_findings,
+    non_authoritative_test_evidence_allowed_suffixes=None,
     build_variable_insights=build_variable_insights,
     attach_external_vars_context=_variable_insights.attach_external_vars_context,
     collect_yaml_parse_failures=_collect_yaml_parse_failures,
-    extract_role_notes_from_comments=_extract_role_notes_from_comments,
+    extract_role_notes_from_comments=None,  # Will be set from DI container
     build_undocumented_default_filters=_build_undocumented_default_filters,
     extract_scanner_counters=_analysis_extract_scanner_counters,
     build_display_variables=_variable_insights.build_display_variables,
 )
+
+
+def _collect_variable_insights_and_default_filter_findings_with_di(
+    di_container, **kwargs
+):
+    """Collect variable insights using plugin from DI container."""
+    plugin = None
+    if di_container is not None:
+        factory = getattr(di_container, "factory_comment_driven_doc_plugin", None)
+        if callable(factory):
+            plugin = factory()
+    if plugin is None:
+        from prism.scanner_plugins.defaults import (
+            DefaultCommentDrivenDocumentationPlugin,
+        )
+
+        plugin = DefaultCommentDrivenDocumentationPlugin()
+    return _collect_variable_insights_and_default_filter_findings(
+        extract_role_notes_from_comments=plugin, **kwargs
+    )
 
 
 _apply_style_and_comparison_metadata = partial(
@@ -769,14 +781,6 @@ _apply_yaml_like_task_annotation_policy = partial(
 _finalize_scan_context_payload = _scan_runtime.finalize_scan_context_payload
 
 
-_collect_scan_identity_and_artifacts = partial(
-    _scan_runtime.collect_scan_identity_and_artifacts,
-    resolve_scan_identity=_resolve_scan_identity,
-    load_readme_marker_prefix=load_readme_marker_prefix,
-    collect_scan_artifacts=_collect_scan_artifacts,
-)
-
-
 _apply_scan_metadata_configuration = partial(
     _scan_runtime.apply_scan_metadata_configuration,
     build_requirements_display=_runbook_report_build_requirements_display,
@@ -785,46 +789,14 @@ _apply_scan_metadata_configuration = partial(
 )
 
 
-_collect_scan_base_context = partial(
-    _scan_runtime.collect_scan_base_context,
-    collect_scan_identity_and_artifacts=_collect_scan_identity_and_artifacts,
-    apply_scan_metadata_configuration=_apply_scan_metadata_configuration,
-    apply_unconstrained_dynamic_include_policy=_apply_unconstrained_dynamic_include_policy,
-    apply_yaml_like_task_annotation_policy=_apply_yaml_like_task_annotation_policy,
-)
-
-
+# Create enrich function with DI container and scanner wiring seams
 _enrich_scan_context_with_insights = partial(
-    _scan_runtime.enrich_scan_context_with_insights,
+    enrich_scan_context_with_insights,
     collect_variable_insights_and_default_filter_findings=(
-        _collect_variable_insights_and_default_filter_findings
+        _collect_variable_insights_and_default_filter_findings_with_di
     ),
     build_doc_insights=build_doc_insights,
     apply_style_and_comparison_metadata=_apply_style_and_comparison_metadata,
-)
-
-
-_prepare_scan_context = partial(
-    _scan_runtime.prepare_scan_context,
-    scan_context_builder_cls=ScanContextBuilder,
-    collect_scan_base_context=_collect_scan_base_context,
-    load_ignore_unresolved_internal_underscore_references=(
-        load_ignore_unresolved_internal_underscore_references
-    ),
-    load_non_authoritative_test_evidence_max_file_bytes=(
-        load_non_authoritative_test_evidence_max_file_bytes
-    ),
-    load_non_authoritative_test_evidence_max_files_scanned=(
-        load_non_authoritative_test_evidence_max_files_scanned
-    ),
-    load_non_authoritative_test_evidence_max_total_bytes=(
-        load_non_authoritative_test_evidence_max_total_bytes
-    ),
-    enrich_scan_context_with_insights=_enrich_scan_context_with_insights,
-    finalize_scan_context_payload=_finalize_scan_context_payload,
-    non_authoritative_test_evidence_max_file_bytes=(_ANALYSIS_MAX_FILE_BYTES),
-    non_authoritative_test_evidence_max_files_scanned=(_ANALYSIS_MAX_FILES_SCANNED),
-    non_authoritative_test_evidence_max_total_bytes=(_ANALYSIS_MAX_TOTAL_BYTES),
 )
 
 
@@ -840,6 +812,30 @@ _emit_scan_outputs = partial(
     render_and_write_scan_output=_render_and_write_scan_output,
     render_runbook=_runbook_report_render_runbook,
     render_runbook_csv=_runbook_report_render_runbook_csv,
+)
+
+
+# Prepare the scan context function with required dependencies
+_prepare_scan_context_fn = partial(
+    scan_request.prepare_scan_context_canonical,
+    scan_context_builder_cls=scan_context_builder.ScanContextBuilder,
+    collect_scan_base_context=_scan_runtime.collect_scan_base_context,
+    load_ignore_unresolved_internal_underscore_references=_load_ignore_unresolved_internal_underscore_references,
+    apply_unconstrained_dynamic_include_policy=_apply_unconstrained_dynamic_include_policy,
+    apply_yaml_like_task_annotation_policy=_apply_yaml_like_task_annotation_policy,
+    load_non_authoritative_test_evidence_max_file_bytes=_load_non_authoritative_test_evidence_max_file_bytes,
+    load_non_authoritative_test_evidence_max_files_scanned=_load_non_authoritative_test_evidence_max_files_scanned,
+    load_non_authoritative_test_evidence_max_total_bytes=_load_non_authoritative_test_evidence_max_total_bytes,
+    enrich_scan_context_with_insights=_enrich_scan_context_with_insights,
+    finalize_scan_context_payload=_scan_runtime.finalize_scan_context_payload,
+    non_authoritative_test_evidence_max_file_bytes=_ANALYSIS_MAX_FILE_BYTES,
+    non_authoritative_test_evidence_max_files_scanned=_ANALYSIS_MAX_FILES_SCANNED,
+    non_authoritative_test_evidence_max_total_bytes=_ANALYSIS_MAX_TOTAL_BYTES,
+    collect_scan_identity_and_artifacts=_scan_runtime.collect_scan_identity_and_artifacts,
+    apply_scan_metadata_configuration=_apply_scan_metadata_configuration,
+    resolve_scan_identity=_resolve_scan_identity,
+    load_readme_marker_prefix=_load_readme_marker_prefix,
+    collect_scan_artifacts=_collect_scan_artifacts,
 )
 
 
@@ -872,10 +868,9 @@ def _execute_scan_with_context(
         runbook_csv_output=runbook_csv_output,
         di_container_cls=DIContainer,
         scanner_context_cls=ScannerContext,
-        build_run_scan_options_fn=scan_request.build_run_scan_options_canonical,
-        prepare_scan_context_fn=_prepare_scan_context,
         build_emit_scan_outputs_args_fn=_build_emit_scan_outputs_args,
         emit_scan_outputs_fn=_emit_scan_outputs,
+        prepare_scan_context_fn=_prepare_scan_context_fn,
     )
 
 
@@ -890,8 +885,7 @@ def _orchestrate_scan_payload(
         scan_options=scan_options,
         di_container_cls=DIContainer,
         scanner_context_cls=ScannerContext,
-        build_run_scan_options_fn=scan_request.build_run_scan_options_canonical,
-        prepare_scan_context_fn=_prepare_scan_context,
+        prepare_scan_context_fn=_prepare_scan_context_fn,
     )
 
 
@@ -900,6 +894,7 @@ _build_runtime_scan_state = partial(
     load_pattern_policy_with_context=load_pattern_policy_with_context,
     build_run_scan_options_fn=scan_request.build_run_scan_options_canonical,
     resolve_scan_request_for_runtime_fn=scan_request.resolve_scan_request_for_runtime,
+    logger_factory=None,
 )
 
 
@@ -1066,3 +1061,32 @@ def run_scan(
             runbook_output=runbook_output,
             runbook_csv_output=runbook_csv_output,
         )
+
+
+def _prepare_scan_context(scan_options):
+    """Private facade for scan context preparation."""
+    from prism.scanner_core.scan_context_builder import ScanContextBuilder
+
+    return _scan_runtime.prepare_scan_context(
+        scan_options=scan_options,
+        scan_context_builder_cls=ScanContextBuilder,
+        collect_scan_base_context=_scan_runtime.collect_scan_base_context,
+        load_ignore_unresolved_internal_underscore_references=_load_ignore_unresolved_internal_underscore_references,
+        apply_unconstrained_dynamic_include_policy=_apply_unconstrained_dynamic_include_policy,
+        apply_yaml_like_task_annotation_policy=_apply_yaml_like_task_annotation_policy,
+        load_non_authoritative_test_evidence_max_file_bytes=_load_non_authoritative_test_evidence_max_file_bytes,
+        load_non_authoritative_test_evidence_max_files_scanned=_load_non_authoritative_test_evidence_max_files_scanned,
+        load_non_authoritative_test_evidence_max_total_bytes=_load_non_authoritative_test_evidence_max_total_bytes,
+        enrich_scan_context_with_insights=_enrich_scan_context_with_insights,
+        finalize_scan_context_payload=_scan_runtime.finalize_scan_context_payload,
+        non_authoritative_test_evidence_max_file_bytes=_ANALYSIS_MAX_FILE_BYTES,
+        non_authoritative_test_evidence_max_files_scanned=_ANALYSIS_MAX_FILES_SCANNED,
+        non_authoritative_test_evidence_max_total_bytes=_ANALYSIS_MAX_TOTAL_BYTES,
+        collect_scan_identity_and_artifacts=_scan_runtime.collect_scan_identity_and_artifacts,
+        apply_scan_metadata_configuration=_apply_scan_metadata_configuration,
+        apply_unconstrained_dynamic_include_policy_arg=_apply_unconstrained_dynamic_include_policy,
+        apply_yaml_like_task_annotation_policy_arg=_apply_yaml_like_task_annotation_policy,
+        resolve_scan_identity=_resolve_scan_identity,
+        load_readme_marker_prefix=_load_readme_marker_prefix,
+        collect_scan_artifacts=_collect_scan_artifacts,
+    )

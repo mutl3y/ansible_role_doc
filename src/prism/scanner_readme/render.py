@@ -11,28 +11,7 @@ from prism.scanner_readme.guide import _render_guide_section_body
 from prism.scanner_readme.style import format_heading
 from prism.scanner_data.contracts_request import StyleGuideConfig
 
-DEFAULT_SECTION_SPECS = [
-    ("galaxy_info", "Galaxy Info"),
-    ("requirements", "Requirements"),
-    ("purpose", "Role purpose and capabilities"),
-    ("role_notes", "Role notes"),
-    ("variable_summary", "Inputs / variables summary"),
-    ("task_summary", "Task/module usage summary"),
-    ("example_usage", "Inferred example usage"),
-    ("role_variables", "Role Variables"),
-    ("role_contents", "Role contents summary"),
-    ("features", "Auto-detected role features"),
-    ("comparison", "Comparison against local baseline role"),
-    ("default_filters", "Detected usages of the default() filter"),
-]
-
-SCANNER_STATS_SECTION_IDS = {
-    "task_summary",
-    "role_contents",
-    "features",
-    "comparison",
-    "default_filters",
-}
+_template_cache: dict[str, jinja2.Template] = {}
 
 
 def _generated_merge_markers(section_id: str) -> list[tuple[str, str]]:
@@ -142,7 +121,20 @@ def _default_ordered_style_sections() -> list[dict]:
     """Return default style sections when no style guide sections are supplied."""
     return [
         {"id": section_id, "title": title}
-        for section_id, title in DEFAULT_SECTION_SPECS
+        for section_id, title in [
+            ("galaxy_info", "Galaxy Info"),
+            ("requirements", "Requirements"),
+            ("purpose", "Role purpose and capabilities"),
+            ("role_notes", "Role notes"),
+            ("variable_summary", "Inputs / variables summary"),
+            ("task_summary", "Task/module usage summary"),
+            ("example_usage", "Inferred example usage"),
+            ("role_variables", "Role Variables"),
+            ("role_contents", "Role contents summary"),
+            ("features", "Auto-detected role features"),
+            ("comparison", "Comparison against local baseline role"),
+            ("default_filters", "Detected usages of the default() filter"),
+        ]
     ]
 
 
@@ -186,10 +178,17 @@ def _filter_ordered_sections_by_metadata(
 
 def _filter_concise_readme_sections(ordered_sections: list[dict]) -> list[dict]:
     """Drop verbose sections and duplicate variable detail rows for concise output."""
+    scanner_stats_section_ids = {
+        "task_summary",
+        "role_contents",
+        "features",
+        "comparison",
+        "default_filters",
+    }
     concise_sections = [
         section
         for section in ordered_sections
-        if section.get("id") not in SCANNER_STATS_SECTION_IDS
+        if section.get("id") not in scanner_stats_section_ids
     ]
     section_ids = [section.get("id") for section in concise_sections]
     if "variable_summary" in section_ids and "role_variables" in section_ids:
@@ -434,12 +433,15 @@ def render_readme(
         if template
         else Path(__file__).resolve().parent.parent / "templates" / "README.md.j2"
     )
-    env = jinja2.Environment(
-        loader=jinja2.FileSystemLoader(str(tpl_file.parent)),
-        trim_blocks=True,
-        lstrip_blocks=True,
-    )
-    template_obj = env.get_template(tpl_file.name)
+    key = str(tpl_file)
+    if key not in _template_cache:
+        env = jinja2.Environment(
+            loader=jinja2.FileSystemLoader(str(tpl_file.parent)),
+            trim_blocks=True,
+            lstrip_blocks=True,
+        )
+        _template_cache[key] = env.get_template(tpl_file.name)
+    template_obj = _template_cache[key]
     rendered = template_obj.render(
         role_name=role_name,
         description=description,
@@ -452,3 +454,31 @@ def render_readme(
         Path(output).write_text(rendered, encoding="utf-8")
         return str(Path(output).resolve())
     return rendered
+
+
+DEFAULT_SECTION_SPECS = frozenset(
+    (
+        ("galaxy_info", "Galaxy Info"),
+        ("requirements", "Requirements"),
+        ("purpose", "Role purpose and capabilities"),
+        ("role_notes", "Role notes"),
+        ("variable_summary", "Inputs / variables summary"),
+        ("task_summary", "Task/module usage summary"),
+        ("example_usage", "Inferred example usage"),
+        ("role_variables", "Role Variables"),
+        ("role_contents", "Role contents summary"),
+        ("features", "Auto-detected role features"),
+        ("comparison", "Comparison against local baseline role"),
+        ("default_filters", "Detected usages of the default() filter"),
+    )
+)
+
+SCANNER_STATS_SECTION_IDS = frozenset(
+    {
+        "task_summary",
+        "role_contents",
+        "features",
+        "comparison",
+        "default_filters",
+    }
+)

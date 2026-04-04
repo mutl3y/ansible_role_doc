@@ -14,7 +14,6 @@ _TARGETED_PACKAGE_IMPORTS = (
     "prism.api_layer",
     "prism.cli_app",
     "prism.repo_layer",
-    "prism.scanner_compat",
 )
 
 

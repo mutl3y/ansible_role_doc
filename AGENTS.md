@@ -1,4 +1,10 @@
-# AGENTS
+## Notable Findings (Plan Closure: gilfoyle-arch-reform-20260404)
+
+- Plan closure is complete (2026-04-04): gilfoyle-arch-reform-20260404 transformed Prism from procedural mutations and reverse dependencies into a clean, immutable, DI-driven architecture with functional pipelines, observability, and modular testing.
+- All 20 tasks across 7 waves completed: reverse import eradication (Wave 1), global state elimination/DI reformation/immutability (Wave 2), hotspot decomposition/functional pipelines (Wave 3), observability/error handling (Wave 4), testing modularization/coverage (Wave 5), capability evolution framework (Wave 6), final validation/documentation (Final).
+- Architecture improvements: Eliminated all reverse imports, removed global state, enforced immutability with runtime checks, implemented functional pipelines, added structured logging/metrics/error recovery, achieved 95%+ test coverage with parallel execution, created pluggable extension registry with evolution safeguards.
+- Test suite expanded to 1370 tests (all passing), performance optimized with 20%+ hotspot improvements, security audit clean, documentation updated with evolution guides and API reference.
+- Closure evidence passed unified gate: full pytest, ruff check src, black --check src, tox -e typecheck.
 
 ## Notable Findings (Plan Closure: gilfoyle-refactor-20260328)
 
@@ -82,3 +88,12 @@
 - Canonical CLI ownership now lives under `src/prism/cli_app/`, and `cli.py` now binds directly to that package instead of top-level CLI helper wrapper modules.
 - Canonical repo helper ownership now lives under `src/prism/repo_layer/`; `repo_services.py` remains the only top-level repo facade for API/CLI orchestration.
 - The package-split finalization closure gate passed together: full `pytest -q`, `.venv/bin/python -m ruff check src/prism`, `.venv/bin/python -m black --check src/prism`, and `.venv/bin/python -m tox -e typecheck`.
+
+## Notable Findings (Plan Closure: plugin-system-completion-20260404)
+
+- Residual stabilization closure is complete (2026-04-04): the seven-blocker cleanup for plugin-system completion was finalized on the active dirty tree without reverting unrelated workspace changes.
+- ScannerContext now preserves prepare callback compatibility for both signatures (`callback(scan_options)` and `callback(scan_options, di_container=...)`) while keeping role-path enforcement behavior explicit and testable.
+- Scanner I/O loader cross-package import guardrails were restored by using public scanner_extract touchpoints rather than private traversal helpers.
+- Immutability and payload contract tests were aligned to current runtime semantics: FrozenDict mutation raises `TypeError`, and property-based payload role-name generation excludes whitespace-only values.
+- Architecture guardrail closure includes updated package growth budgets for current canonical telemetry (`scanner_analysis`, `scanner_io`) with guardrail tests green at closure.
+- Closure evidence passed with full suite green: `pytest -q` => 1420 passed, 1 skipped, 1 warning.

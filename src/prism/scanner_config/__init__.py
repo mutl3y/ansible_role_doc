@@ -27,6 +27,7 @@ from prism.scanner_config.marker import (
 
 # README section configuration
 from prism.scanner_config.readme import (
+    apply_readme_section_config,
     load_readme_section_config,
     load_readme_section_visibility,
     resolve_role_config_file,
@@ -40,6 +41,10 @@ from prism.scanner_config.policy import (
     load_non_authoritative_test_evidence_max_file_bytes,
     load_non_authoritative_test_evidence_max_files_scanned,
     load_non_authoritative_test_evidence_max_total_bytes,
+)
+from prism.scanner_config.scan_policies import (
+    apply_unconstrained_dynamic_include_policy,
+    apply_yaml_like_task_annotation_policy,
 )
 
 # Pattern loading
@@ -68,6 +73,7 @@ __all__ = [
     # Marker loading
     "load_readme_marker_prefix",
     # README section configuration
+    "apply_readme_section_config",
     "load_readme_section_config",
     "load_readme_section_visibility",
     "resolve_role_config_file",
@@ -78,6 +84,8 @@ __all__ = [
     "load_non_authoritative_test_evidence_max_file_bytes",
     "load_non_authoritative_test_evidence_max_files_scanned",
     "load_non_authoritative_test_evidence_max_total_bytes",
+    "apply_unconstrained_dynamic_include_policy",
+    "apply_yaml_like_task_annotation_policy",
     # Pattern loading
     "build_policy_context",
     "fetch_remote_policy",

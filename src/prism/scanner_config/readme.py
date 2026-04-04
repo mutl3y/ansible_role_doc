@@ -22,6 +22,7 @@ from prism.scanner_config.section import (
     SECTION_CONFIG_FILENAMES,
 )
 from prism.scanner_config.style import load_section_display_titles
+from prism.scanner_data.contracts_request import ScanMetadata
 
 
 README_SECTION_CONFIG_YAML_INVALID = "README_SECTION_CONFIG_YAML_INVALID"
@@ -327,10 +328,28 @@ def load_readme_section_visibility(
     return config["enabled_sections"]
 
 
+def apply_readme_section_config(
+    metadata: ScanMetadata, readme_section_config: dict | None
+) -> None:
+    """Apply resolved README section configuration into scan metadata."""
+    if readme_section_config is None:
+        return
+    metadata["enabled_sections"] = sorted(readme_section_config["enabled_sections"])
+    if readme_section_config["section_title_overrides"]:
+        metadata["section_title_overrides"] = dict(
+            readme_section_config["section_title_overrides"]
+        )
+    if readme_section_config["section_content_modes"]:
+        metadata["section_content_modes"] = dict(
+            readme_section_config["section_content_modes"]
+        )
+
+
 __all__ = [
     "README_SECTION_CONFIG_YAML_INVALID",
     "README_SECTION_CONFIG_IO_ERROR",
     "resolve_role_config_file",
     "load_readme_section_config",
     "load_readme_section_visibility",
+    "apply_readme_section_config",
 ]

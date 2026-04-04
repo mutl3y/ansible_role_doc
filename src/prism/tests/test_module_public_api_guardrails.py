@@ -15,7 +15,6 @@ import prism.api_layer
 import prism.cli_app
 import prism.repo_layer
 import prism.scanner_analysis
-import prism.scanner_compat
 import prism.scanner_config
 import prism.scanner_core
 import prism.scanner_data
@@ -33,11 +32,6 @@ import prism.scanner_readme
         (
             prism.scanner_analysis,
             ("render_runbook", "build_scanner_report_markdown"),
-            True,
-        ),
-        (
-            prism.scanner_compat,
-            ("render_guide_section_body", "render_readme_with_style_guide"),
             True,
         ),
         (

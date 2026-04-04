@@ -16,18 +16,7 @@ from prism.scanner_analysis.report import (
 )
 
 NON_AUTHORITATIVE_TEST_TOKEN_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
-NON_AUTHORITATIVE_TEST_EVIDENCE_ALLOWED_SUFFIXES = {
-    ".yml",
-    ".yaml",
-    ".j2",
-    ".jinja2",
-    ".json",
-    ".ini",
-    ".cfg",
-    ".conf",
-    ".md",
-    ".txt",
-}
+
 NON_AUTHORITATIVE_TEST_EVIDENCE_MAX_FILE_BYTES = 512 * 1024
 NON_AUTHORITATIVE_TEST_EVIDENCE_MAX_FILES_SCANNED = 400
 NON_AUTHORITATIVE_TEST_EVIDENCE_MAX_TOTAL_BYTES = 8 * 1024 * 1024
@@ -137,11 +126,25 @@ def collect_non_authoritative_test_variable_evidence(
     role_path: str,
     unresolved_names: set[str],
     exclude_paths: list[str] | None,
+    allowed_suffixes: set[str] | None = None,
     max_file_bytes: int = NON_AUTHORITATIVE_TEST_EVIDENCE_MAX_FILE_BYTES,
     max_files_scanned: int = NON_AUTHORITATIVE_TEST_EVIDENCE_MAX_FILES_SCANNED,
     max_total_bytes: int = NON_AUTHORITATIVE_TEST_EVIDENCE_MAX_TOTAL_BYTES,
 ) -> dict[str, dict]:
     """Collect non-authoritative unresolved-name evidence from tests/molecule files."""
+    if allowed_suffixes is None:
+        allowed_suffixes = {
+            ".yml",
+            ".yaml",
+            ".j2",
+            ".jinja2",
+            ".json",
+            ".ini",
+            ".cfg",
+            ".conf",
+            ".md",
+            ".txt",
+        }
     if not unresolved_names:
         return {}
 
@@ -171,10 +174,7 @@ def collect_non_authoritative_test_variable_evidence(
                 continue
             if _is_path_excluded(file_path, role_root, exclude_paths):
                 continue
-            if (
-                file_path.suffix.lower()
-                not in NON_AUTHORITATIVE_TEST_EVIDENCE_ALLOWED_SUFFIXES
-            ):
+            if file_path.suffix.lower() not in allowed_suffixes:
                 continue
             try:
                 raw = file_path.read_bytes()
@@ -259,6 +259,7 @@ def attach_non_authoritative_test_evidence(
     role_path: str,
     rows: list[dict],
     exclude_paths: list[str] | None,
+    allowed_suffixes: set[str] | None = None,
     max_file_bytes: int = NON_AUTHORITATIVE_TEST_EVIDENCE_MAX_FILE_BYTES,
     max_files_scanned: int = NON_AUTHORITATIVE_TEST_EVIDENCE_MAX_FILES_SCANNED,
     max_total_bytes: int = NON_AUTHORITATIVE_TEST_EVIDENCE_MAX_TOTAL_BYTES,
@@ -276,6 +277,7 @@ def attach_non_authoritative_test_evidence(
         role_path=role_path,
         unresolved_names=unresolved_names,
         exclude_paths=exclude_paths,
+        allowed_suffixes=allowed_suffixes,
         max_file_bytes=max_file_bytes,
         max_files_scanned=max_files_scanned,
         max_total_bytes=max_total_bytes,

@@ -100,26 +100,26 @@ class TestContractsDefinitions:
         assert VariableRow is not None
         assert hasattr(VariableRow, "__annotations__")
 
-    def test_scan_metadata_structure(self) -> None:
-        """Verify ScanMetadata is properly defined."""
-        from prism.scanner_data.contracts import ScanMetadata
+    @pytest.mark.parametrize(
+        "contract_name",
+        [
+            "ScanMetadata",
+            "FeaturesContext",
+            "StyleGuideConfig",
+            "ReferenceContext",
+            "ScanBaseContext",
+            "ScannerCounters",
+            "ScannerReportMetadata",
+            "FinalOutputPayload",
+        ],
+    )
+    def test_contract_structure(self, contract_name: str) -> None:
+        """Verify contract TypedDicts are properly defined."""
+        from prism.scanner_data import contracts
 
-        assert ScanMetadata is not None
-        assert hasattr(ScanMetadata, "__annotations__")
-
-    def test_features_context_structure(self) -> None:
-        """Verify FeaturesContext is properly defined."""
-        from prism.scanner_data.contracts import FeaturesContext
-
-        assert FeaturesContext is not None
-        assert hasattr(FeaturesContext, "__annotations__")
-
-    def test_style_guide_config_structure(self) -> None:
-        """Verify StyleGuideConfig is properly defined."""
-        from prism.scanner_data.contracts import StyleGuideConfig
-
-        assert StyleGuideConfig is not None
-        assert hasattr(StyleGuideConfig, "__annotations__")
+        contract = getattr(contracts, contract_name)
+        assert contract is not None
+        assert hasattr(contract, "__annotations__")
 
     def test_reference_context_structure(self) -> None:
         """Verify ReferenceContext is properly defined."""

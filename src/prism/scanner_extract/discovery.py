@@ -2,10 +2,30 @@
 
 from __future__ import annotations
 
+from functools import lru_cache
 from pathlib import Path
 from typing import Callable
 
 import yaml
+
+from prism.scanner_data.contracts import DiscoveryProtocol
+
+
+@lru_cache(maxsize=128)
+def _load_yaml_with_mtime(file_path_str: str, mtime: float):
+    file_path = Path(file_path_str)
+    try:
+        text = file_path.read_text(encoding="utf-8")
+        return yaml.safe_load(text)
+    except (OSError, UnicodeDecodeError, yaml.YAMLError):
+        return None
+
+
+def load_yaml_file_cached(file_path: Path):
+    if not file_path.is_file():
+        return None
+    mtime = file_path.stat().st_mtime
+    return _load_yaml_with_mtime(str(file_path), mtime)
 
 
 ROLE_METADATA_YAML_INVALID = "ROLE_METADATA_YAML_INVALID"
@@ -61,31 +81,8 @@ def load_meta(
     """
     meta_file = Path(role_path) / "meta" / "main.yml"
     if meta_file.exists():
-        try:
-            loaded = yaml.safe_load(meta_file.read_text(encoding="utf-8")) or {}
-        except yaml.YAMLError as exc:
-            if strict:
-                raise RuntimeError(
-                    f"{ROLE_METADATA_YAML_INVALID}: {meta_file}: {exc}"
-                ) from exc
-            _record_metadata_warning(
-                warning_collector,
-                code=ROLE_METADATA_YAML_INVALID,
-                meta_file=meta_file,
-                error=exc,
-            )
-            return {}
-        except (OSError, UnicodeDecodeError) as exc:
-            if strict:
-                raise RuntimeError(
-                    f"{ROLE_METADATA_IO_ERROR}: {meta_file}: {exc}"
-                ) from exc
-            _record_metadata_warning(
-                warning_collector,
-                code=ROLE_METADATA_IO_ERROR,
-                meta_file=meta_file,
-                error=exc,
-            )
+        loaded = load_yaml_file_cached(meta_file)
+        if loaded is None:
             return {}
         if not isinstance(loaded, dict):
             _record_metadata_warning(
@@ -103,11 +100,8 @@ def load_requirements(role_path: str) -> list:
     """Load ``meta/requirements.yml`` as a list, or return an empty list."""
     path = Path(role_path) / "meta" / "requirements.yml"
     if path.exists():
-        try:
-            payload = yaml.safe_load(path.read_text(encoding="utf-8"))
-            return payload if isinstance(payload, list) else []
-        except (OSError, UnicodeDecodeError, yaml.YAMLError, ValueError):
-            return []
+        payload = load_yaml_file_cached(path)
+        return payload if isinstance(payload, list) else []
     return []
 
 
@@ -127,20 +121,16 @@ def load_variables(
 
     for sub in subdirs:
         for path in iter_role_variable_map_candidates(role_root, sub):
-            try:
-                data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-                if isinstance(data, dict):
-                    vars_out.update(data)
-            except (OSError, UnicodeDecodeError, yaml.YAMLError, ValueError):
+            data = load_yaml_file_cached(path)
+            if data is None or not isinstance(data, dict):
                 continue
+            vars_out.update(data)
 
     for extra_path in collect_include_vars_files(role_path, exclude_paths):
-        try:
-            data = yaml.safe_load(extra_path.read_text(encoding="utf-8")) or {}
-            if isinstance(data, dict):
-                vars_out.update(data)
-        except (OSError, UnicodeDecodeError, yaml.YAMLError, ValueError):
+        data = load_yaml_file_cached(extra_path)
+        if data is None or not isinstance(data, dict):
             continue
+        vars_out.update(data)
 
     return vars_out
 
@@ -164,3 +154,10 @@ def resolve_scan_identity(
     description = galaxy.get("description", "")
 
     return role_root, meta, role_name, description
+
+
+class ConcreteDiscovery(DiscoveryProtocol):
+    """Concrete implementation of DiscoveryProtocol using scanner_extract functions."""
+
+    def iter_role_variable_map_candidates(self, role_root, subdir):
+        return iter_role_variable_map_candidates(role_root, subdir)

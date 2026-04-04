@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any, Self, TypedDict
 
 from prism.scanner_data.contracts_request import ScanMetadata
+from prism.scanner_data.immutable import FrozenDict
 
 
 class ScanRenderPayload(TypedDict):
@@ -254,14 +255,14 @@ class ScanPayloadBuilder:
         result: RunScanOutputPayload = {
             "role_name": role_name,
             "description": description,
-            "display_variables": self._payload.get("display_variables", {}),
-            "requirements_display": self._payload.get("requirements_display", []),
-            "undocumented_default_filters": self._payload.get(
-                "undocumented_default_filters", []
+            "display_variables": FrozenDict(self._payload.get("display_variables", {})),
+            "requirements_display": list(self._payload.get("requirements_display", [])),
+            "undocumented_default_filters": list(
+                self._payload.get("undocumented_default_filters", [])
             ),
-            "metadata": metadata,
+            "metadata": FrozenDict(metadata),
         }
-        return result
+        return FrozenDict(result)
 
 
 __all__ = [

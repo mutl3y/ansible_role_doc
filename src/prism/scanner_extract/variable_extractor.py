@@ -33,6 +33,8 @@ import re
 import threading
 import yaml
 from pathlib import Path
+
+from prism.scanner_data.contracts import VariableExtractorProtocol
 from typing import Any, Iterable
 
 from prism._jinja_analyzer import (
@@ -694,3 +696,22 @@ collect_include_vars_files = _collect_include_vars_files
 looks_secret_name = _looks_secret_name
 resembles_password_like = _resembles_password_like
 refresh_policy_derived_state = _refresh_policy_derived_state
+
+
+class ConcreteVariableExtractor(VariableExtractorProtocol):
+    """Concrete implementation of VariableExtractorProtocol using scanner_extract functions."""
+
+    def _collect_referenced_variable_names(self, content):
+        return _collect_referenced_variable_names(content)
+
+    def _collect_set_fact_names(self, content):
+        return _collect_set_fact_names(content)
+
+    def _find_variable_line_in_yaml(self, file_path, var_name):
+        return _find_variable_line_in_yaml(file_path, var_name)
+
+    def _infer_variable_type(self, value):
+        return _infer_variable_type(value)
+
+    def _is_sensitive_variable(self, variable_name):
+        return _is_sensitive_variable(variable_name)

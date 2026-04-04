@@ -7,15 +7,25 @@ from typing import Any, Callable
 from prism.scanner_data.contracts_request import (
     ScanBaseContext,
     ScanContextPayload,
+    ScanMetadata,
     ScanOptionsDict,
 )
 
-CollectScanBaseContext = Callable[[ScanOptionsDict], ScanBaseContext]
 LoadIgnoreUnresolvedReferences = Callable[[str, str | None, bool], bool]
 LoadEvidenceBudget = Callable[[str, str | None, int], int]
+CollectScanBaseContext = Callable[..., ScanBaseContext]
 EnrichScanContextWithInsights = Callable[
-    ..., tuple[list[dict[str, Any]], dict[str, Any]]
+    ..., tuple[list[dict[str, Any]], dict[str, Any], ScanMetadata]
 ]
+CollectScanIdentityAndArtifacts = Callable[..., tuple[Any, ...]]
+ApplyScanMetadataConfiguration = Callable[..., tuple[list, dict]]
+ApplyUnconstrainedDynamicIncludePolicy = Callable[..., dict]
+ApplyYamlLikeTaskAnnotationPolicy = Callable[..., dict]
+ApplyScanMetadataConfiguration = Callable[..., tuple[list, dict]]
+ApplyUnconstrainedDynamicIncludePolicy = Callable[..., dict]
+ApplyYamlLikeTaskAnnotationPolicy = Callable[..., dict]
+
+
 FinalizeScanContextPayload = Callable[..., ScanContextPayload]
 
 
@@ -27,6 +37,8 @@ class ScanContextBuilder:
         *,
         collect_scan_base_context: CollectScanBaseContext,
         load_ignore_unresolved_internal_underscore_references: LoadIgnoreUnresolvedReferences,
+        load_fail_on_unconstrained_dynamic_includes: LoadIgnoreUnresolvedReferences,
+        load_fail_on_yaml_like_task_annotations: LoadIgnoreUnresolvedReferences,
         load_non_authoritative_test_evidence_max_file_bytes: LoadEvidenceBudget,
         load_non_authoritative_test_evidence_max_files_scanned: LoadEvidenceBudget,
         load_non_authoritative_test_evidence_max_total_bytes: LoadEvidenceBudget,
@@ -35,10 +47,28 @@ class ScanContextBuilder:
         non_authoritative_test_evidence_max_file_bytes: int,
         non_authoritative_test_evidence_max_files_scanned: int,
         non_authoritative_test_evidence_max_total_bytes: int,
+        collect_scan_identity_and_artifacts: Callable[..., tuple[Any, ...]],
+        apply_scan_metadata_configuration: Callable[..., tuple[list, dict]],
+        apply_unconstrained_dynamic_include_policy: Callable[..., dict],
+        apply_yaml_like_task_annotation_policy: Callable[..., dict],
+        resolve_scan_identity: (
+            Callable[[str, str | None], tuple[Any, Any, str, str]] | None
+        ) = None,
+        load_readme_marker_prefix: Callable[..., str] | None = None,
+        collect_scan_artifacts: (
+            Callable[..., tuple[dict, list, list, ScanMetadata]] | None
+        ) = None,
+        di_container=None,  # DI container for plugins
     ) -> None:
         self._collect_scan_base_context = collect_scan_base_context
         self._load_ignore_unresolved_internal_underscore_references = (
             load_ignore_unresolved_internal_underscore_references
+        )
+        self._load_fail_on_unconstrained_dynamic_includes = (
+            load_fail_on_unconstrained_dynamic_includes
+        )
+        self._load_fail_on_yaml_like_task_annotations = (
+            load_fail_on_yaml_like_task_annotations
         )
         self._load_non_authoritative_test_evidence_max_file_bytes = (
             load_non_authoritative_test_evidence_max_file_bytes
@@ -60,10 +90,36 @@ class ScanContextBuilder:
         self._non_authoritative_test_evidence_max_total_bytes = (
             non_authoritative_test_evidence_max_total_bytes
         )
+        self._collect_scan_identity_and_artifacts = collect_scan_identity_and_artifacts
+        self._apply_scan_metadata_configuration = apply_scan_metadata_configuration
+        self._apply_unconstrained_dynamic_include_policy = (
+            apply_unconstrained_dynamic_include_policy
+        )
+        self._apply_yaml_like_task_annotation_policy = (
+            apply_yaml_like_task_annotation_policy
+        )
+        self._resolve_scan_identity = resolve_scan_identity
+        self._load_readme_marker_prefix = load_readme_marker_prefix
+        self._collect_scan_artifacts = collect_scan_artifacts
+        self._di_container = di_container
 
     def build_scan_context(self, scan_options: ScanOptionsDict) -> ScanContextPayload:
         """Collect role metadata and scanner context required for rendering outputs."""
-        base_context = self._collect_scan_base_context(scan_options)
+        base_context = self._collect_scan_base_context(
+            scan_options,
+            self._load_fail_on_unconstrained_dynamic_includes,
+            self._load_fail_on_yaml_like_task_annotations,
+            self._load_non_authoritative_test_evidence_max_file_bytes,
+            self._load_non_authoritative_test_evidence_max_files_scanned,
+            self._load_non_authoritative_test_evidence_max_total_bytes,
+            collect_scan_identity_and_artifacts=self._collect_scan_identity_and_artifacts,
+            apply_scan_metadata_configuration=self._apply_scan_metadata_configuration,
+            apply_unconstrained_dynamic_include_policy=self._apply_unconstrained_dynamic_include_policy,
+            apply_yaml_like_task_annotation_policy=self._apply_yaml_like_task_annotation_policy,
+            resolve_scan_identity=self._resolve_scan_identity,
+            load_readme_marker_prefix=self._load_readme_marker_prefix,
+            collect_scan_artifacts=self._collect_scan_artifacts,
+        )
         metadata = base_context["metadata"]
 
         config_default_ignore = (
@@ -78,7 +134,10 @@ class ScanContextBuilder:
             if scan_options["ignore_unresolved_internal_underscore_references"] is None
             else bool(scan_options["ignore_unresolved_internal_underscore_references"])
         )
-        metadata["ignore_unresolved_internal_underscore_references"] = effective_ignore
+        metadata = {
+            **metadata,
+            "ignore_unresolved_internal_underscore_references": effective_ignore,
+        }
 
         max_file_bytes = self._load_non_authoritative_test_evidence_max_file_bytes(
             scan_options["role_path"],
@@ -97,35 +156,42 @@ class ScanContextBuilder:
             scan_options["readme_config_path"],
             self._non_authoritative_test_evidence_max_total_bytes,
         )
-        metadata["non_authoritative_test_evidence_limits"] = {
-            "max_file_bytes": max_file_bytes,
-            "max_files_scanned": max_files_scanned,
-            "max_total_bytes": max_total_bytes,
+        metadata = {
+            **metadata,
+            "non_authoritative_test_evidence_limits": {
+                "max_file_bytes": max_file_bytes,
+                "max_files_scanned": max_files_scanned,
+                "max_total_bytes": max_total_bytes,
+            },
         }
 
-        undocumented_default_filters, display_variables = (
-            self._enrich_scan_context_with_insights(
-                role_path=scan_options["role_path"],
-                role_name=base_context["role_name"],
-                description=base_context["description"],
-                vars_seed_paths=scan_options["vars_seed_paths"],
-                include_vars_main=scan_options["include_vars_main"],
-                exclude_path_patterns=scan_options["exclude_path_patterns"],
-                marker_prefix=base_context["marker_prefix"],
-                found=base_context["found"],
-                variables=base_context["variables"],
-                metadata=metadata,
-                style_readme_path=scan_options["style_readme_path"],
-                policy_context=scan_options.get("policy_context"),
-                style_source_path=scan_options["style_source_path"],
-                style_guide_skeleton=scan_options["style_guide_skeleton"],
-                compare_role_path=scan_options["compare_role_path"],
-                ignore_unresolved_internal_underscore_references=effective_ignore,
-                non_authoritative_test_evidence_max_file_bytes=max_file_bytes,
-                non_authoritative_test_evidence_max_files_scanned=max_files_scanned,
-                non_authoritative_test_evidence_max_total_bytes=max_total_bytes,
+        if self._enrich_scan_context_with_insights is not None:
+            undocumented_default_filters, display_variables, metadata = (
+                self._enrich_scan_context_with_insights(
+                    role_path=scan_options["role_path"],
+                    role_name=base_context["role_name"],
+                    description=base_context["description"],
+                    vars_seed_paths=scan_options["vars_seed_paths"],
+                    include_vars_main=scan_options["include_vars_main"],
+                    exclude_path_patterns=scan_options["exclude_path_patterns"],
+                    marker_prefix=base_context["marker_prefix"],
+                    found=base_context["found"],
+                    variables=base_context["variables"],
+                    metadata=metadata,
+                    style_readme_path=scan_options["style_readme_path"],
+                    policy_context=scan_options.get("policy_context"),
+                    style_source_path=scan_options["style_source_path"],
+                    style_guide_skeleton=scan_options["style_guide_skeleton"],
+                    compare_role_path=scan_options["compare_role_path"],
+                    ignore_unresolved_internal_underscore_references=effective_ignore,
+                    non_authoritative_test_evidence_max_file_bytes=max_file_bytes,
+                    non_authoritative_test_evidence_max_files_scanned=max_files_scanned,
+                    non_authoritative_test_evidence_max_total_bytes=max_total_bytes,
+                    di_container=self._di_container,
+                )
             )
-        )
+        else:
+            undocumented_default_filters, display_variables = [], {}
         return self._finalize_scan_context_payload(
             rp=base_context["rp"],
             role_name=base_context["role_name"],
@@ -142,6 +208,8 @@ def build_scan_context(
     *,
     collect_scan_base_context: CollectScanBaseContext,
     load_ignore_unresolved_internal_underscore_references: LoadIgnoreUnresolvedReferences,
+    load_fail_on_unconstrained_dynamic_includes: LoadIgnoreUnresolvedReferences,
+    load_fail_on_yaml_like_task_annotations: LoadIgnoreUnresolvedReferences,
     load_non_authoritative_test_evidence_max_file_bytes: LoadEvidenceBudget,
     load_non_authoritative_test_evidence_max_files_scanned: LoadEvidenceBudget,
     load_non_authoritative_test_evidence_max_total_bytes: LoadEvidenceBudget,
@@ -150,12 +218,27 @@ def build_scan_context(
     non_authoritative_test_evidence_max_file_bytes: int,
     non_authoritative_test_evidence_max_files_scanned: int,
     non_authoritative_test_evidence_max_total_bytes: int,
+    collect_scan_identity_and_artifacts: Callable[..., tuple[Any, ...]],
+    apply_scan_metadata_configuration: Callable[..., tuple[list, dict]],
+    apply_unconstrained_dynamic_include_policy: Callable[..., dict],
+    apply_yaml_like_task_annotation_policy: Callable[..., dict],
+    resolve_scan_identity: Callable[..., tuple[Any, Any, str, str]] | None = None,
+    load_readme_marker_prefix: Callable[..., str] | None = None,
+    collect_scan_artifacts: (
+        Callable[..., tuple[dict, list, list, ScanMetadata]] | None
+    ) = None,
 ) -> ScanContextPayload:
     """Build scan context payload with an explicit dependency seam."""
     builder = ScanContextBuilder(
         collect_scan_base_context=collect_scan_base_context,
         load_ignore_unresolved_internal_underscore_references=(
             load_ignore_unresolved_internal_underscore_references
+        ),
+        load_fail_on_unconstrained_dynamic_includes=(
+            load_fail_on_unconstrained_dynamic_includes
+        ),
+        load_fail_on_yaml_like_task_annotations=(
+            load_fail_on_yaml_like_task_annotations
         ),
         load_non_authoritative_test_evidence_max_file_bytes=(
             load_non_authoritative_test_evidence_max_file_bytes
@@ -177,5 +260,12 @@ def build_scan_context(
         non_authoritative_test_evidence_max_total_bytes=(
             non_authoritative_test_evidence_max_total_bytes
         ),
+        collect_scan_identity_and_artifacts=collect_scan_identity_and_artifacts,
+        apply_scan_metadata_configuration=apply_scan_metadata_configuration,
+        apply_unconstrained_dynamic_include_policy=apply_unconstrained_dynamic_include_policy,
+        apply_yaml_like_task_annotation_policy=apply_yaml_like_task_annotation_policy,
+        resolve_scan_identity=resolve_scan_identity,
+        load_readme_marker_prefix=load_readme_marker_prefix,
+        collect_scan_artifacts=collect_scan_artifacts,
     )
     return builder.build_scan_context(scan_options)

@@ -5,6 +5,7 @@ from __future__ import annotations
 import ast
 import json
 from pathlib import Path
+import pytest
 import re
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -30,8 +31,8 @@ SCANNER_PRIVATE_IMPORT_BOUNDARIES = (
 ORCHESTRATOR_TELEMETRY_TARGETS: dict[str, dict[str, object]] = {
     "prism.scanner": {
         "path": PROJECT_ROOT / "src" / "prism" / "scanner.py",
-        "max_lines": 1300,
-        "max_private_helpers": 22,
+        "max_lines": 1200,
+        "max_private_helpers": 20,
         "option_surface": {
             "function": "run_scan",
             "max_parameters": 34,
@@ -39,8 +40,8 @@ ORCHESTRATOR_TELEMETRY_TARGETS: dict[str, dict[str, object]] = {
     },
     "prism.api": {
         "path": PROJECT_ROOT / "src" / "prism" / "api.py",
-        "max_lines": 700,
-        "max_private_helpers": 12,
+        "max_lines": 500,
+        "max_private_helpers": 10,
         "option_surface": {
             "function": "scan_repo",
             "max_parameters": 30,
@@ -66,7 +67,7 @@ ORCHESTRATOR_TELEMETRY_TARGETS: dict[str, dict[str, object]] = {
     },
     "prism.scanner_core.scan_request": {
         "path": PROJECT_ROOT / "src" / "prism" / "scanner_core" / "scan_request.py",
-        "max_lines": 120,
+        "max_lines": 100,
         "max_private_helpers": 2,
         "option_surface": {
             "function": "build_run_scan_options_canonical",
@@ -114,6 +115,34 @@ _ALLOWED_CANONICAL_PRIVATE_CROSS_PACKAGE_TOUCHPOINTS: dict[str, set[str]] = {
     },
     "prism.scanner_readme.variable_renderer": {
         "prism.scanner_extract.task_parser:_format_inline_yaml",
+    },
+}
+
+
+CANONICAL_SCANNER_PACKAGE_TELEMETRY_TARGETS: dict[str, dict[str, object]] = {
+    "prism.scanner_core": {
+        "path": PROJECT_ROOT / "src" / "prism" / "scanner_core",
+        "max_lines": 4600,
+    },
+    "prism.scanner_extract": {
+        "path": PROJECT_ROOT / "src" / "prism" / "scanner_extract",
+        "max_lines": 3600,
+    },
+    "prism.scanner_readme": {
+        "path": PROJECT_ROOT / "src" / "prism" / "scanner_readme",
+        "max_lines": 2500,
+    },
+    "prism.scanner_analysis": {
+        "path": PROJECT_ROOT / "src" / "prism" / "scanner_analysis",
+        "max_lines": 1550,
+    },
+    "prism.scanner_io": {
+        "path": PROJECT_ROOT / "src" / "prism" / "scanner_io",
+        "max_lines": 1300,
+    },
+    "prism.scanner_config": {
+        "path": PROJECT_ROOT / "src" / "prism" / "scanner_config",
+        "max_lines": 1700,
     },
 }
 
@@ -226,6 +255,26 @@ def _collect_orchestrator_growth_telemetry() -> dict[str, dict[str, int | str]]:
     return telemetry
 
 
+def _collect_canonical_scanner_package_telemetry() -> dict[str, dict[str, int | str]]:
+    telemetry: dict[str, dict[str, int | str]] = {}
+
+    for module_name, budget in CANONICAL_SCANNER_PACKAGE_TELEMETRY_TARGETS.items():
+        package_path = budget["path"]
+        assert isinstance(package_path, Path)
+
+        total_lines = 0
+        for py_file in package_path.rglob("*.py"):
+            source = py_file.read_text(encoding="utf-8")
+            total_lines += source.count("\n") + (1 if source else 0)
+
+        telemetry[module_name] = {
+            "path": str(package_path.relative_to(PROJECT_ROOT)),
+            "line_count": total_lines,
+        }
+
+    return telemetry
+
+
 def _resolve_import_from(module_name: str, node: ast.ImportFrom) -> str | None:
     if node.module is None:
         return None
@@ -250,7 +299,14 @@ def test_scanner_core_modules_do_not_import_scanner_facade() -> None:
 
         targets = _iter_import_targets(module_path)
         if any(
-            target == "prism.scanner" or target.startswith("prism.scanner.")
+            target == "prism.scanner"
+            or (
+                target.startswith("prism.scanner.")
+                and not any(
+                    target == pkg or target.startswith(f"{pkg}.")
+                    for pkg in CANONICAL_SCANNER_PACKAGE_DIRS
+                )
+            )
             for target in targets
         ):
             offenders.append(module_path.name)
@@ -273,14 +329,24 @@ def test_canonical_scanner_packages_do_not_import_scanner_facade() -> None:
             if isinstance(node, ast.Import):
                 for alias in node.names:
                     target = alias.name
-                    if target == "prism.scanner" or target.startswith("prism.scanner."):
+                    if target == "prism.scanner" or (
+                        target.startswith("prism.scanner.")
+                        and not any(
+                            target == pkg or target.startswith(f"{pkg}.")
+                            for pkg in CANONICAL_SCANNER_PACKAGE_DIRS
+                        )
+                    ):
                         offenders.append(f"{module_name}:{target}")
             if isinstance(node, ast.ImportFrom):
                 resolved_target = _resolve_import_from(module_name, node)
                 if not resolved_target:
                     continue
-                if resolved_target == "prism.scanner" or resolved_target.startswith(
-                    "prism.scanner."
+                if resolved_target == "prism.scanner" or (
+                    resolved_target.startswith("prism.scanner.")
+                    and not any(
+                        resolved_target == pkg or resolved_target.startswith(f"{pkg}.")
+                        for pkg in CANONICAL_SCANNER_PACKAGE_DIRS
+                    )
                 ):
                     offenders.append(f"{module_name}:{resolved_target}")
 
@@ -578,3 +644,147 @@ def test_orchestrator_growth_guardrails_remain_within_budget() -> None:
         + "; violations="
         + json.dumps(violations, indent=2, sort_keys=True)
     )
+
+
+def test_canonical_scanner_package_growth_guardrails_remain_within_budget() -> None:
+    telemetry = _collect_canonical_scanner_package_telemetry()
+    violations: list[dict[str, int | str]] = []
+
+    for module_name, budget in CANONICAL_SCANNER_PACKAGE_TELEMETRY_TARGETS.items():
+        module_telemetry = telemetry[module_name]
+        max_lines = budget["max_lines"]
+        assert isinstance(max_lines, int)
+
+        line_count = module_telemetry["line_count"]
+        assert isinstance(line_count, int)
+
+        if line_count > max_lines:
+            violations.append(
+                {
+                    "module": module_name,
+                    "metric": "line_count",
+                    "actual": line_count,
+                    "budget": max_lines,
+                }
+            )
+
+    assert not violations, (
+        "canonical scanner package growth guardrails exceeded; telemetry="
+        + json.dumps(telemetry, indent=2, sort_keys=True)
+        + "; violations="
+        + json.dumps(violations, indent=2, sort_keys=True)
+    )
+
+
+def test_canonical_scanner_package_telemetry_has_stable_shape() -> None:
+    telemetry = _collect_canonical_scanner_package_telemetry()
+
+    assert set(telemetry) == set(CANONICAL_SCANNER_PACKAGE_TELEMETRY_TARGETS)
+    for module_name, module_telemetry in telemetry.items():
+        assert module_telemetry["path"]
+        assert isinstance(module_telemetry["line_count"], int)
+
+
+def test_canonical_scanner_packages_use_absolute_imports_only() -> None:
+    """Enforce absolute imports: no relative imports (from ..) in scanner_core packages."""
+    relative_import_pattern = re.compile(r"from \.\.", re.MULTILINE)
+    offenders: list[str] = []
+
+    for package_name, module_path in _iter_python_modules(
+        CANONICAL_SCANNER_PACKAGE_DIRS
+    ):
+        source = module_path.read_text(encoding="utf-8")
+        if relative_import_pattern.search(source):
+            offenders.append(f"{package_name}:{module_path.name}")
+
+    assert (
+        not offenders
+    ), "canonical scanner packages use relative imports; offenders: " + ", ".join(
+        sorted(offenders)
+    )
+
+
+def test_immutability_builders_used() -> None:
+    """Enforce immutability: builders are used for data construction in scanner_core."""
+    builder_used = False
+    for module_path in SCANNER_CORE_DIR.glob("*.py"):
+        source = module_path.read_text(encoding="utf-8")
+        if (
+            "from prism.scanner_data.builders import" in source
+            or "VariableRowBuilder" in source
+        ):
+            builder_used = True
+            break
+    assert builder_used, "builders not used in scanner_core"
+
+
+def test_immutability_violations_detected() -> None:
+    """Enforce immutability: TypedDicts are immutable and raise on mutation attempts."""
+    from prism.scanner_data.contracts import VariableRowBuilder
+
+    row = VariableRowBuilder().name("test").type("str").build()
+
+    with pytest.raises(TypeError, match="immutable"):
+        row["name"] = "new"
+
+
+def test_di_compliance_no_direct_orchestrator_instantiation() -> None:
+    """Enforce DI compliance: no direct instantiation of orchestrator classes outside scanner_core."""
+    orchestrator_classes = {
+        "ScannerContext",
+        "VariableDiscovery",
+        "OutputOrchestrator",
+        "FeatureDetector",
+    }
+    offenders: list[str] = []
+
+    for package_name, module_path in _iter_python_modules(
+        CANONICAL_SCANNER_PACKAGE_DIRS
+    ):
+        if package_name == "prism.scanner_core":
+            continue  # Allow in scanner_core
+        tree = ast.parse(module_path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call):
+                if (
+                    isinstance(node.func, ast.Name)
+                    and node.func.id in orchestrator_classes
+                ):
+                    offenders.append(
+                        f"{_module_name_for_path(module_path)}:{node.func.id}()"
+                    )
+
+    assert (
+        not offenders
+    ), "direct orchestrator instantiation outside scanner_core: " + ", ".join(
+        sorted(offenders)
+    )
+
+
+def test_no_global_state_in_scanner_packages() -> None:
+    """Enforce no global state: no mutable module-level variables in scanner packages."""
+    offenders: list[str] = []
+
+    for package_name, module_path in _iter_python_modules(
+        CANONICAL_SCANNER_PACKAGE_DIRS
+    ):
+        tree = ast.parse(module_path.read_text(encoding="utf-8"))
+
+        for node in ast.iter_child_nodes(tree):
+            if isinstance(node, ast.Assign):
+                # Check if this is a module-level assignment to mutable data
+                for target in node.targets:
+                    if isinstance(target, ast.Name):
+                        var_name = target.id
+                        # Check if value is a mutable literal, but allow __all__ and function calls (which may return immutable objects)
+                        if (
+                            isinstance(node.value, (ast.List, ast.Dict, ast.Set))
+                            and var_name != "__all__"
+                        ):
+                            offenders.append(
+                                f"{_module_name_for_path(module_path)}:{var_name} = {type(node.value).__name__}"
+                            )
+
+    assert (
+        not offenders
+    ), "mutable global state found in scanner packages: " + ", ".join(sorted(offenders))

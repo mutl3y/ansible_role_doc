@@ -100,6 +100,50 @@ def parse_yaml_candidate(candidate: Path, role_root: Path) -> dict[str, object] 
         }
 
 
+def load_readme_content(role_path: str) -> str | None:
+    """Load README.md content from role directory.
+
+    Args:
+        role_path: Path to the role directory.
+
+    Returns:
+        README content as string, or None if not found or error.
+    """
+    readme_path = Path(role_path) / "README.md"
+    if readme_path.exists():
+        try:
+            return readme_path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            return None
+    return None
+
+
+def load_task_data_for_feature_detection(
+    role_root: Path, exclude_patterns: list[str] | None
+) -> list[tuple[dict[str, object], list[str]]]:
+    """Load all task data for feature detection.
+
+    Args:
+        role_root: Role root directory.
+        exclude_patterns: Patterns to exclude.
+
+    Returns:
+        List of (yaml_data, raw_lines) for each task file.
+    """
+    from prism.scanner_extract import collect_task_files, load_yaml_file
+
+    task_files = collect_task_files(role_root, exclude_patterns)
+    result = []
+    for task_file in task_files:
+        yaml_data = load_yaml_file(task_file)
+        try:
+            raw_lines = task_file.read_text(encoding="utf-8").splitlines()
+        except OSError:
+            raw_lines = []
+        result.append((yaml_data, raw_lines))
+    return result
+
+
 def map_argument_spec_type(spec_type: object) -> str:
     """Map argument-spec type labels into scanner variable type labels.
 

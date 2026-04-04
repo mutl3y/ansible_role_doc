@@ -12,10 +12,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from hypothesis import given, strategies as st
+
 from prism import scanner
 from prism.scanner_core import DIContainer
 from prism.scanner_core import variable_discovery as variable_discovery_module
 from prism.scanner_core.variable_discovery import VariableDiscovery
+from prism.scanner_extract.variable_extractor import _infer_variable_type
 
 
 class TestVariableDiscoveryStaticDiscovery:
@@ -298,6 +301,77 @@ class TestVariableDiscoveryStaticDiscovery:
         names = {v["name"] for v in static}
         assert "valid_var" in names
 
+    def test_discover_static_exclude_vars_main(self, tmp_path):
+        """Exclude vars/main.yml when include_vars_main=False."""
+        role_path = tmp_path
+        (role_path / "vars").mkdir()
+        (role_path / "vars" / "main.yml").write_text(
+            "---\nvar_only: var_value\n",
+            encoding="utf-8",
+        )
+
+        options = {
+            "role_path": str(role_path),
+            "include_vars_main": False,  # Exclude vars
+            "exclude_path_patterns": None,
+            "vars_seed_paths": None,
+            "ignore_unresolved_internal_underscore_references": False,
+        }
+        di = DIContainer(str(role_path), options)
+        discovery = VariableDiscovery(di, str(role_path), options)
+
+        static = discovery.discover_static()
+
+        names = {v["name"] for v in static}
+        assert "var_only" not in names
+
+    def test_discover_static_invalid_yaml_handling(self, tmp_path):
+        """Invalid YAML in defaults should be handled gracefully."""
+        role_path = tmp_path
+        (role_path / "defaults").mkdir()
+        (role_path / "defaults" / "main.yml").write_text(
+            "invalid: yaml: content: [\n",
+            encoding="utf-8",
+        )
+
+        options = {
+            "role_path": str(role_path),
+            "include_vars_main": True,
+            "exclude_path_patterns": None,
+            "vars_seed_paths": None,
+            "ignore_unresolved_internal_underscore_references": False,
+        }
+        di = DIContainer(str(role_path), options)
+        discovery = VariableDiscovery(di, str(role_path), options)
+
+        # Should not raise, but may log error
+        static = discovery.discover_static()
+        assert isinstance(static, tuple)
+
+    def test_discover_static_non_string_variable_names_skipped(self, tmp_path):
+        """Non-string variable names are skipped."""
+        role_path = tmp_path
+        (role_path / "defaults").mkdir()
+        (role_path / "defaults" / "main.yml").write_text(
+            "---\n123: invalid_name\nvalid_name: value\n",
+            encoding="utf-8",
+        )
+
+        options = {
+            "role_path": str(role_path),
+            "include_vars_main": True,
+            "exclude_path_patterns": None,
+            "vars_seed_paths": None,
+            "ignore_unresolved_internal_underscore_references": False,
+        }
+        di = DIContainer(str(role_path), options)
+        discovery = VariableDiscovery(di, str(role_path), options)
+
+        static = discovery.discover_static()
+        names = {v["name"] for v in static}
+        assert 123 not in names  # Non-string skipped
+        assert "valid_name" in names
+
 
 class TestVariableDiscoveryReferencedDiscovery:
     """Referenced discovery: task files and README sections."""
@@ -398,6 +472,102 @@ class TestVariableDiscoveryReferencedDiscovery:
 
         assert any(row["name"] == "runtime_value" for row in rows)
         assert call_count == 1
+
+    def test_discover_referenced_no_readme(self, tmp_path):
+        """No README file present."""
+        role_path = tmp_path
+        # No README
+
+        options = {
+            "role_path": str(role_path),
+            "include_vars_main": True,
+            "exclude_path_patterns": None,
+            "vars_seed_paths": None,
+            "ignore_unresolved_internal_underscore_references": False,
+        }
+        di = DIContainer(str(role_path), options)
+        discovery = VariableDiscovery(di, str(role_path), options)
+
+        referenced = discovery.discover_referenced()
+        assert isinstance(referenced, frozenset)
+        assert len(referenced) == 0
+
+
+class TestVariableDiscoveryPure:
+    """Pure functional version of variable discovery."""
+
+    def test_discover_variables_pure_empty(self):
+        """Empty inputs yield empty variable tuple."""
+        from prism.scanner_core.variable_discovery import discover_variables_pure
+
+        variable_maps = {}
+        argument_spec_entries = []
+        referenced_names = frozenset()
+        options = {
+            "include_vars_main": True,
+            "exclude_path_patterns": None,
+            "vars_seed_paths": None,
+            "ignore_unresolved_internal_underscore_references": False,
+        }
+
+        result = discover_variables_pure(
+            variable_maps, argument_spec_entries, referenced_names, options
+        )
+
+        assert isinstance(result, tuple)
+        assert len(result) == 0
+
+    def test_discover_variables_pure_with_static_vars(self):
+        """Static variables from variable_maps."""
+        from prism.scanner_core.variable_discovery import discover_variables_pure
+
+        variable_maps = {"var1": "value1", "var2": 42}
+        argument_spec_entries = []
+        referenced_names = frozenset()
+        options = {
+            "include_vars_main": True,
+            "exclude_path_patterns": None,
+            "vars_seed_paths": None,
+            "ignore_unresolved_internal_underscore_references": False,
+        }
+
+        result = discover_variables_pure(
+            variable_maps, argument_spec_entries, referenced_names, options
+        )
+
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        names = {row["name"] for row in result}
+        assert names == {"var1", "var2"}
+        var1_row = next(row for row in result if row["name"] == "var1")
+        assert var1_row["type"] == "str"
+        assert not var1_row["secret"]
+
+    def test_discover_variables_pure_with_unresolved(self):
+        """Unresolved referenced variables."""
+        from prism.scanner_core.variable_discovery import discover_variables_pure
+
+        variable_maps = {"var1": "value1"}
+        argument_spec_entries = []
+        referenced_names = frozenset(["var1", "var2"])
+        options = {
+            "include_vars_main": True,
+            "exclude_path_patterns": None,
+            "vars_seed_paths": None,
+            "ignore_unresolved_internal_underscore_references": False,
+        }
+
+        result = discover_variables_pure(
+            variable_maps, argument_spec_entries, referenced_names, options
+        )
+
+        assert isinstance(result, tuple)
+        assert len(result) == 2  # var1 static, var2 unresolved
+        names = {row["name"] for row in result}
+        assert names == {"var1", "var2"}
+        var2_row = next(row for row in result if row["name"] == "var2")
+        assert var2_row["type"] == "unknown"
+        assert var2_row["uncertainty_reason"] == "Referenced but not defined in role"
 
     def test_discover_referenced_from_readme(self, tmp_path):
         """Extract referenced variable names from README."""
@@ -555,6 +725,64 @@ class TestVariableDiscoveryTypeInference:
         # At least one of the secret-named variables should be detected
         assert secret_map.get("api_key") or secret_map.get("database_password")
 
+    def test_infer_type_edge_cases(self, tmp_path):
+        """Test type inference for various edge cases."""
+        role_path = tmp_path
+        (role_path / "defaults").mkdir()
+        (role_path / "defaults" / "main.yml").write_text(
+            "---\n"
+            "empty_string: ''\n"
+            "zero: 0\n"
+            "false_bool: false\n"
+            "null_value: null\n"
+            "complex_dict:\n"
+            "  nested:\n"
+            "    value: 123\n"
+            "empty_list: []\n"
+            "string_number: '123'\n"
+            "float_value: 3.14\n",
+            encoding="utf-8",
+        )
+
+        options = {
+            "role_path": str(role_path),
+            "include_vars_main": True,
+            "exclude_path_patterns": None,
+            "vars_seed_paths": None,
+            "ignore_unresolved_internal_underscore_references": False,
+        }
+        di = DIContainer(str(role_path), options)
+        discovery = VariableDiscovery(di, str(role_path), options)
+
+        static = discovery.discover_static()
+        type_map = {v["name"]: v["type"] for v in static}
+
+        assert type_map["empty_string"] == "str"
+        assert type_map["zero"] == "int"
+        assert type_map["false_bool"] == "bool"
+        assert type_map["null_value"] == "null"  # null becomes null type
+        assert type_map["complex_dict"] == "dict"
+        assert type_map["empty_list"] == "list"
+        assert type_map["string_number"] == "str"  # quoted is str
+        assert type_map["float_value"] == "float"
+
+    @given(
+        st.one_of(
+            st.integers(),
+            st.floats(),
+            st.booleans(),
+            st.text(),
+            st.lists(st.integers()),
+            st.dictionaries(st.text(), st.integers()),
+            st.none(),
+        )
+    )
+    def test_infer_variable_type_property_based(self, value):
+        """Property-based test for _infer_variable_type with various inputs."""
+        result = _infer_variable_type(value)
+        assert isinstance(result, str)
+        assert result in {"int", "float", "bool", "str", "list", "dict", "null"}
+
 
 class TestVariableDiscoveryUnresolved:
     """Unresolved variable handling and uncertainty reasoning."""
@@ -612,6 +840,35 @@ class TestVariableDiscoveryUnresolved:
         # undefined_var should be in unresolved
         if "undefined_var" in unresolved:
             assert isinstance(unresolved["undefined_var"], str)
+
+    def test_discover_unresolved_underscore_ignored(self, tmp_path):
+        """Underscore variables ignored when flag set."""
+        role_path = tmp_path
+        (role_path / "defaults").mkdir()
+        (role_path / "tasks").mkdir()
+        (role_path / "defaults" / "main.yml").write_text(
+            "---\npublic_var: value\n",
+            encoding="utf-8",
+        )
+        (role_path / "tasks" / "main.yml").write_text(
+            "---\n- name: Use vars\n  debug:\n    msg: '{{ _internal_var }} {{ public_var }}'\n",
+            encoding="utf-8",
+        )
+
+        options = {
+            "role_path": str(role_path),
+            "include_vars_main": True,
+            "exclude_path_patterns": None,
+            "vars_seed_paths": None,
+            "ignore_unresolved_internal_underscore_references": True,
+        }
+        di = DIContainer(str(role_path), options)
+        discovery = VariableDiscovery(di, str(role_path), options)
+
+        unresolved = discovery.resolve_unresolved()
+        names = set(unresolved.keys())
+        assert "_internal_var" not in names  # ignored
+        assert "public_var" not in names  # resolved
 
 
 class TestVariableDiscoveryIntegration:

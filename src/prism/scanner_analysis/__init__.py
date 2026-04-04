@@ -45,6 +45,12 @@ from prism.scanner_analysis.runbook import (
     render_runbook,
     render_runbook_csv,
 )
+from prism.scanner_analysis.scan_finalize import (
+    apply_scan_metadata_configuration,
+    collect_scan_identity_and_artifacts,
+    enrich_scan_context_with_insights,
+    finalize_scan_context_payload,
+)
 
 __all__ = [
     "append_non_authoritative_test_evidence_uncertainty_reason",
@@ -77,6 +83,10 @@ __all__ = [
     "build_runbook_rows",
     "render_runbook",
     "render_runbook_csv",
+    "apply_scan_metadata_configuration",
+    "collect_scan_identity_and_artifacts",
+    "enrich_scan_context_with_insights",
+    "finalize_scan_context_payload",
 ]
 
 

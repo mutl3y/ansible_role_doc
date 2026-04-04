@@ -8,6 +8,7 @@ scanner.py infrastructure.
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -57,6 +58,18 @@ def _prepare_scan_context_stub(scan_options: dict[str, object]):
         "display_variables": {},
         "metadata": {},
     }
+
+
+def _prepare_scan_context_with_di_stub(
+    scan_options: dict[str, object],
+    *,
+    di_container: DIContainer,
+):
+    payload = _prepare_scan_context_stub(scan_options)
+    payload["metadata"] = {
+        "di_role_path": di_container._role_path,
+    }
+    return payload
 
 
 class TestScannerContextInstantiation:
@@ -540,6 +553,47 @@ class TestScannerContextPhaseCoordination:
         assert "scan_degraded" not in recovered_metadata
         assert "scan_errors" not in recovered_metadata
 
+    def test_orchestrate_scan_best_effort_handles_output_phase_errors(self) -> None:
+        """Best-effort mode records output phase errors and returns degraded payload."""
+
+        def _failing_prepare_scan_context(scan_options):
+            raise prism_errors.PrismRuntimeError(
+                code=prism_errors.ROLE_SCAN_RUNTIME_ERROR,
+                category=prism_errors.ERROR_CATEGORY_RUNTIME,
+                message="output phase exploded",
+            )
+
+        scan_options = {
+            **_canonical_scan_options(),
+            "strict_phase_failures": False,
+        }
+        di = DIContainer(role_path="/path/to/role", scan_options=scan_options)
+
+        context = ScannerContext(
+            di=di,
+            role_path="/path/to/role",
+            scan_options=scan_options,
+            prepare_scan_context_fn=_failing_prepare_scan_context,
+        )
+
+        payload = context.orchestrate_scan()
+
+        metadata = payload["metadata"]
+        assert metadata["scan_degraded"] is True
+        assert isinstance(metadata["scan_errors"], list)
+        assert len(metadata["scan_errors"]) == 1
+        assert metadata["scan_errors"][0]["phase"] == "output"
+        assert metadata["scan_errors"][0]["error_type"] == "PrismRuntimeError"
+        assert "output phase exploded" in metadata["scan_errors"][0]["message"]
+        assert "traceback" in metadata["scan_errors"][0]  # Full context with traceback
+
+        # Degraded payload should have minimal valid structure
+        assert payload["role_name"] == "unknown"  # fallback
+        assert payload["description"] == ""
+        assert payload["display_variables"] == {}
+        assert payload["requirements_display"] == []
+        assert payload["undocumented_default_filters"] == []
+
 
 class TestScannerContextDataFlow:
     """Test immutable data flow through orchestration."""
@@ -732,3 +786,104 @@ def test_scanner_context_runtime_path_uses_canonical_modules(monkeypatch):
     assert payload["role_name"] == "role"
     assert payload["display_variables"] == {"x": {"required": False}}
     assert payload["requirements_display"] == ["dep"]
+
+
+def test_scanner_context_prepare_callback_supports_legacy_signature_only():
+    """prepare callback compatibility: callback(scan_options) remains supported."""
+    scan_options = _canonical_scan_options()
+    di = DIContainer(role_path="/path/to/role", scan_options=scan_options)
+    context = ScannerContext(
+        di=di,
+        role_path="/path/to/role",
+        scan_options=scan_options,
+        prepare_scan_context_fn=_prepare_scan_context_stub,
+    )
+
+    payload = context.orchestrate_scan()
+
+    assert payload["role_name"] == "role"
+
+
+def test_scanner_context_prepare_callback_supports_di_container_signature():
+    """prepare callback compatibility: callback(scan_options, di_container=...) is supported."""
+    scan_options = _canonical_scan_options()
+    di = DIContainer(role_path="/path/to/role", scan_options=scan_options)
+    context = ScannerContext(
+        di=di,
+        role_path="/path/to/role",
+        scan_options=scan_options,
+        prepare_scan_context_fn=_prepare_scan_context_with_di_stub,
+    )
+
+    payload = context.orchestrate_scan()
+
+    assert payload["metadata"]["di_role_path"] == "/path/to/role"
+
+
+class TestScannerContextTracing:
+    """Test that tracing is added to orchestration phases."""
+
+    @patch("prism.scanner_core.scanner_context.trace.get_tracer")
+    def test_orchestrate_scan_creates_tracing_spans(self, mock_get_tracer) -> None:
+        """orchestrate_scan creates spans for each phase."""
+        mock_tracer = mock_get_tracer.return_value
+        mock_span = mock_tracer.start_as_span.return_value.__enter__.return_value
+
+        scan_options = _canonical_scan_options()
+        di = DIContainer(role_path="/path/to/role", scan_options=scan_options)
+        context = ScannerContext(
+            di=di,
+            role_path="/path/to/role",
+            scan_options=scan_options,
+            prepare_scan_context_fn=_prepare_scan_context_stub,
+        )
+
+        context.orchestrate_scan()
+
+        # Should have called start_as_span 3 times: variable_discovery, feature_detection, output_orchestration
+        assert mock_tracer.start_as_span.call_count == 3
+        calls = mock_tracer.start_as_span.call_args_list
+        assert calls[0][0][0] == "variable_discovery"
+        assert calls[1][0][0] == "feature_detection"
+        assert calls[2][0][0] == "output_orchestration"
+
+        # Check attributes set on spans
+        mock_span.set_attribute.assert_called()
+
+
+class TestScannerContextRecovery:
+    """Test that recovery strategies are implemented for failures."""
+
+    def test_discover_variables_retries_on_recoverable_error(self) -> None:
+        """_discover_variables retries on PrismRuntimeError."""
+        from tenacity import RetryError
+
+        class FailingDiscovery:
+            def __init__(self):
+                self.calls = 0
+
+            def discover(self):
+                self.calls += 1
+                raise prism_errors.PrismRuntimeError(
+                    code=prism_errors.ROLE_SCAN_RUNTIME_ERROR,
+                    category=prism_errors.ERROR_CATEGORY_RUNTIME,
+                    message="test error",
+                )
+
+        scan_options = _canonical_scan_options()
+        di = DIContainer(role_path="/path/to/role", scan_options=scan_options)
+        discovery = FailingDiscovery()
+        di.factory_variable_discovery = lambda: discovery
+
+        context = ScannerContext(
+            di=di,
+            role_path="/path/to/role",
+            scan_options=scan_options,
+            prepare_scan_context_fn=_prepare_scan_context_stub,
+        )
+
+        with pytest.raises(RetryError):
+            context._discover_variables()
+
+        # Should have been called 3 times (retries)
+        assert discovery.calls == 3

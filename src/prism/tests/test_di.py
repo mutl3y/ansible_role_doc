@@ -105,6 +105,28 @@ class TestDIContainerFactoryMethods:
         assert isinstance(first, VariableRowBuilder)
         assert second is first
 
+    def test_factory_cycle_detection_raises_runtime_error(
+        self, container: DIContainer
+    ) -> None:
+        """Cycle in factory dependencies raises RuntimeError."""
+
+        # Create cycle: variable_discovery -> feature_detector -> variable_discovery
+        def cycle_feature_detector(di, role_path, scan_options):
+            return di.factory_variable_discovery()
+
+        def cycle_variable_discovery(di, role_path, scan_options):
+            return di.factory_feature_detector()
+
+        container._factory_overrides["feature_detector_factory"] = (
+            cycle_feature_detector
+        )
+        container._factory_overrides["variable_discovery_factory"] = (
+            cycle_variable_discovery
+        )
+
+        with pytest.raises(RuntimeError, match="Cycle detected in DI container"):
+            container.factory_variable_discovery()
+
 
 class TestDIContainerMockInjection:
     """Test mock injection capability for testing."""

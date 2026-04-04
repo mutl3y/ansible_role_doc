@@ -22,7 +22,7 @@ def test_feature_detector_imports_task_parser_from_canonical_module() -> None:
     """FeatureDetector should import task helpers from scanner_extract, not shim."""
     source = inspect.getsource(feature_detector)
     assert "from ..scanner_submodules.task_parser import" not in source
-    assert "from ..scanner_extract.task_parser import" in source
+    assert "from prism.scanner_extract.task_parser import" in source
 
 
 class TestFeatureDetectorInit:
@@ -615,3 +615,52 @@ class TestFeatureDetectorIntegration:
 
         # The excluded file should not be scanned
         assert features["tasks_scanned"] == 1
+
+
+class TestFeatureDetectionPipeline:
+    """Tests for pure functional feature detection pipeline."""
+
+    def test_detect_features_pipeline_empty(self):
+        """Empty task data yields zero counts."""
+        from prism.scanner_core.feature_detector import detect_features_pipeline
+
+        task_data_list = []
+        options = {}
+
+        result = detect_features_pipeline(task_data_list, options)
+
+        assert result["task_files_scanned"] == 0
+        assert result["tasks_scanned"] == 0
+        assert result["privileged_tasks"] == 0
+
+    def test_detect_features_pipeline_with_tasks(self):
+        """Detect features from task data."""
+        from prism.scanner_core.feature_detector import detect_features_pipeline
+
+        task_data_list = [
+            [
+                {
+                    "name": "Task 1",
+                    "debug": {"msg": "hello"},
+                    "become": True,
+                    "when": "condition",
+                    "tags": ["tag1"],
+                    "notify": "handler1",
+                },
+                {
+                    "name": "Task 2",
+                    "command": "echo test",
+                    "notify": ["handler1", "handler2"],
+                },
+            ]
+        ]
+        options = {}
+
+        result = detect_features_pipeline(task_data_list, options)
+
+        assert result["task_files_scanned"] == 1
+        assert result["tasks_scanned"] == 2
+        assert result["privileged_tasks"] == 1
+        assert result["conditional_tasks"] == 1
+        assert result["tagged_tasks"] == 1
+        assert result["handlers_notified"] == "handler1,handler2"

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any, NotRequired, Self, TypedDict
 
+from prism.scanner_data.immutable import FrozenDict
+
 
 class Variable(TypedDict, total=False):
     """A variable metadata entry with type, default, and description."""
@@ -191,7 +193,7 @@ class VariableRowBuilder:
         result.setdefault("provenance_confidence", 0.5)
         result.setdefault("is_unresolved", False)
         result.setdefault("is_ambiguous", False)
-        return result  # type: ignore[return-value]
+        return FrozenDict(result)  # type: ignore[return-value]
 
 
 __all__ = [

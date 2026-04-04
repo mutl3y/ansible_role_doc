@@ -24,28 +24,28 @@ import yaml
 # Task key sets (constants)
 # ---------------------------------------------------------------------------
 
-TASK_INCLUDE_KEYS = {
+TASK_INCLUDE_KEYS = (
     "include_tasks",
     "import_tasks",
     "ansible.builtin.include_tasks",
     "ansible.builtin.import_tasks",
-}
-ROLE_INCLUDE_KEYS = {
+)
+ROLE_INCLUDE_KEYS = (
     "include_role",
     "import_role",
     "ansible.builtin.include_role",
     "ansible.builtin.import_role",
-}
-INCLUDE_VARS_KEYS = {
+)
+INCLUDE_VARS_KEYS = (
     "include_vars",
     "ansible.builtin.include_vars",
-}
-SET_FACT_KEYS = {
+)
+SET_FACT_KEYS = (
     "set_fact",
     "ansible.builtin.set_fact",
-}
+)
 TASK_BLOCK_KEYS = ("block", "rescue", "always")
-TASK_META_KEYS = {
+TASK_META_KEYS = (
     "name",
     "when",
     "tags",
@@ -77,7 +77,7 @@ TASK_META_KEYS = {
     "until",
     "throttle",
     "no_log",
-}
+)
 
 # ---------------------------------------------------------------------------
 # Regex patterns

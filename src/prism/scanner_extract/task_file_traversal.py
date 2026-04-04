@@ -14,6 +14,16 @@ Functions exported:
 
 from __future__ import annotations
 
+from prism.scanner_extract.task_catalog_assembly import (
+    _detect_task_module,
+    _extract_collection_from_module_name,
+)
+from prism.scanner_extract.task_annotation_parsing import (
+    _extract_task_annotations_for_file,
+)
+
+from prism.scanner_data.contracts import TaskParserProtocol
+
 import yaml
 from fnmatch import fnmatch
 from pathlib import Path
@@ -418,3 +428,37 @@ def _collect_unconstrained_dynamic_role_includes(
                 )
 
     return findings
+
+
+class ConcreteTaskParser(TaskParserProtocol):
+    """Concrete implementation of TaskParserProtocol using scanner_extract functions."""
+
+    def _format_inline_yaml(self, value):
+        return _format_inline_yaml(value)
+
+    def _load_yaml_file(self, file_path):
+        return _load_yaml_file(file_path)
+
+    def _collect_task_files(self, role_path, exclude_patterns=None):
+        return _collect_task_files(role_path, exclude_patterns)
+
+    def _iter_task_include_targets(self, data):
+        return _iter_task_include_targets(data)
+
+    def _iter_task_mappings(self, task_files, load_yaml_file_fn):
+        return _iter_task_mappings(task_files, load_yaml_file_fn)
+
+    def _iter_role_include_targets(self, role_path, load_yaml_file_fn):
+        return _iter_role_include_targets(role_path, load_yaml_file_fn)
+
+    def _iter_dynamic_role_include_targets(self, role_path, load_yaml_file_fn):
+        return _iter_dynamic_role_include_targets(role_path, load_yaml_file_fn)
+
+    def _detect_task_module(self, task):
+        return _detect_task_module(task)
+
+    def _extract_collection_from_module_name(self, module_name):
+        return _extract_collection_from_module_name(module_name)
+
+    def _extract_task_annotations_for_file(self, file_path, load_yaml_file_fn):
+        return _extract_task_annotations_for_file(file_path, load_yaml_file_fn)

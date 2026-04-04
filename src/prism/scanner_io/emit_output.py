@@ -300,3 +300,30 @@ def orchestrate_output_emission(
         )
 
     return result
+
+
+def write_runbook_outputs(
+    content_dict: dict[str, str], md_path: str | None, csv_path: str | None
+) -> dict[str, int]:
+    """Write runbook content to files.
+
+    Args:
+        content_dict: Dict with 'md' and 'csv' content.
+        md_path: Path to write markdown runbook.
+        csv_path: Path to write CSV runbook.
+
+    Returns:
+        Dict of path to byte count written.
+    """
+    result = {}
+    if md_path:
+        Path(md_path).parent.mkdir(parents=True, exist_ok=True)
+        with open(md_path, "w", encoding="utf-8") as f:
+            f.write(content_dict["md"])
+        result[md_path] = len(content_dict["md"].encode("utf-8"))
+    if csv_path:
+        Path(csv_path).parent.mkdir(parents=True, exist_ok=True)
+        with open(csv_path, "w", encoding="utf-8") as f:
+            f.write(content_dict["csv"])
+        result[csv_path] = len(content_dict["csv"].encode("utf-8"))
+    return result

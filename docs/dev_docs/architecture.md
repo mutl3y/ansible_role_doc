@@ -14,20 +14,92 @@ It is best understood as a contract-and-governance pipeline, not only a renderer
 3. compute variable insights and scanner counters
 4. render docs and machine-readable payloads
 
-## Primary Components
+## Architecture Overview Diagram
 
-- scanner core for role analysis
-- collection plugin catalog extraction
-- CLI orchestration (`role`, `collection`, `repo`)
-- output rendering (`md`, `json`, `html`, `pdf`)
+```mermaid
+graph TD
+    A[User/API Call] --> B[API Layer]
+    B --> C[Scanner Core]
+    C --> D[DI Container]
+    D --> E[Variable Discovery]
+    D --> F[Feature Detector]
+    D --> G[Output Orchestrator]
+    E --> H[Scanner Extract]
+    F --> H
+    G --> I[Scanner IO]
+    H --> J[Scanner Analysis]
+    I --> J
+    J --> K[Scanner Readme]
+    K --> L[Scanner Config]
+    L --> M[Final Output]
+    M --> N[Rendered Docs]
+    M --> O[JSON Payloads]
+
+    style A fill:#e1f5fe
+    style B fill:#b3e5fc
+    style C fill:#81d4fa
+    style D fill:#4fc3f7
+    style E fill:#29b6f6
+    style F fill:#03a9f4
+    style G fill:#039be5
+    style H fill:#0288d1
+    style I fill:#0277bd
+    style J fill:#01579b
+    style K fill:#014377
+    style L fill:#01354a
+    style M fill:#00acc1
+    style N fill:#4dd0e1
+    style O fill:#80deea
+```
 
 ## Current Architecture Status
 
-The current architecture is no longer in a transition-first state.
+The current architecture has been transformed through the gilfoyle-arch-reform-20260404 plan into a clean, immutable, DI-driven system with functional pipelines, comprehensive observability, and modular testing.
 
-- `prism.scanner`, `prism.api`, `prism.cli`, and `prism.repo_services` are the stable top-level facades
-- package-owned implementation is the default home for extension work
-- the `prism-architecture-review-top50-20260401` closure finalized the CLI/API/repo split and froze the intentional facade seam registers
+- **Immutability Enforced**: All data flows use immutable TypedDicts and tuples; builders construct complex objects without mutations.
+- **DI-Driven Orchestration**: Dependencies injected via explicit DIContainer with lifecycle management and cycle detection.
+- **Functional Pipelines**: Core logic decomposed into pure functions composed via strategy patterns; no side effects in pipelines.
+- **Observability**: Structured logging with context propagation, metrics collection, and proper error boundaries with recovery.
+- **Modular Testing**: Comprehensive test isolation with mocking; parallel execution and 95%+ coverage.
+- **Capability Evolution**: Pluggable extensions via registry; strategy patterns for configurable behaviors.
+
+## Architecture Principles
+
+### Immutability
+
+- All data structures are immutable TypedDicts or tuples.
+- Builders (e.g., `VariableRowBuilder`, `ScanPayloadBuilder`) construct objects fluently without mutations.
+- Runtime checks prevent immutability violations.
+
+### Dependency Injection
+
+- `DIContainer` provides explicit wiring with factory methods.
+- No global state; all dependencies passed via parameters or injection.
+- Cycle detection prevents import loops.
+
+### Functional Pipelines
+
+- Core logic as pure functions.
+- Pipelines composed via function composition and strategy patterns.
+- Hotspots optimized with algorithmic improvements.
+
+### Observability
+
+- Structured logging throughout with context propagation.
+- Metrics collected for performance and errors.
+- Error propagation with full context and recovery strategies.
+
+### Testing
+
+- Unit tests isolated with full mocking; no I/O.
+- Parallel execution; 95%+ code coverage.
+- Property-based tests for critical functions.
+
+### Evolution Framework
+
+- Extension registry for dynamic loading.
+- Strategy patterns for pluggable behaviors.
+- Backward compatibility and migration paths.
 
 ## Package Naming Standard
 

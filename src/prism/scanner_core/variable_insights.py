@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Callable
 
+from prism.scanner_plugins.interfaces import CommentDrivenDocumentationPlugin
 from prism.scanner_data.contracts_request import PolicyContext
 
 
@@ -24,10 +25,11 @@ def collect_variable_insights_and_default_filter_findings(
     non_authoritative_test_evidence_max_file_bytes: int,
     non_authoritative_test_evidence_max_files_scanned: int,
     non_authoritative_test_evidence_max_total_bytes: int,
+    non_authoritative_test_evidence_allowed_suffixes: set[str] | None = None,
     build_variable_insights: Callable[..., list[dict]],
     attach_external_vars_context: Callable[..., None],
     collect_yaml_parse_failures: Callable[..., list[dict[str, object]]],
-    extract_role_notes_from_comments: Callable[..., dict],
+    extract_role_notes_from_comments: CommentDrivenDocumentationPlugin,
     build_undocumented_default_filters: Callable[..., list[dict]],
     extract_scanner_counters: Callable[..., dict[str, int | dict[str, int]]],
     build_display_variables: Callable[[dict, list[dict]], dict],
@@ -52,6 +54,9 @@ def collect_variable_insights_and_default_filter_findings(
         non_authoritative_test_evidence_max_total_bytes=(
             non_authoritative_test_evidence_max_total_bytes
         ),
+        non_authoritative_test_evidence_allowed_suffixes=(
+            non_authoritative_test_evidence_allowed_suffixes
+        ),
     )
 
     attach_external_vars_context(metadata=metadata, vars_seed_paths=vars_seed_paths)
@@ -60,11 +65,25 @@ def collect_variable_insights_and_default_filter_findings(
         role_path,
         exclude_paths=exclude_path_patterns,
     )
-    metadata["role_notes"] = extract_role_notes_from_comments(
-        role_path,
-        exclude_paths=exclude_path_patterns,
-        marker_prefix=marker_prefix,
+    extractor = getattr(
+        extract_role_notes_from_comments,
+        "extract_role_notes",
+        None,
     )
+    if extractor is None:
+        extractor = getattr(
+            extract_role_notes_from_comments,
+            "extract_role_notes_from_comments",
+            None,
+        )
+    if callable(extractor):
+        metadata["role_notes"] = extractor(
+            role_path,
+            exclude_paths=exclude_path_patterns,
+            marker_prefix=marker_prefix,
+        )
+    else:
+        metadata["role_notes"] = {}
 
     undocumented_default_filters = build_undocumented_default_filters(
         variable_insights=variable_insights,
@@ -146,6 +165,7 @@ def build_variable_insights(
     style_readme_path: str | None,
     policy_context: PolicyContext | None,
     ignore_unresolved_internal_underscore_references: bool,
+    non_authoritative_test_evidence_allowed_suffixes: set[str] | None,
     non_authoritative_test_evidence_max_file_bytes: int,
     non_authoritative_test_evidence_max_files_scanned: int,
     non_authoritative_test_evidence_max_total_bytes: int,
@@ -184,6 +204,9 @@ def build_variable_insights(
         policy_context=policy_context,
         ignore_unresolved_internal_underscore_references=(
             ignore_unresolved_internal_underscore_references
+        ),
+        non_authoritative_test_evidence_allowed_suffixes=(
+            non_authoritative_test_evidence_allowed_suffixes
         ),
         non_authoritative_test_evidence_max_file_bytes=(
             non_authoritative_test_evidence_max_file_bytes

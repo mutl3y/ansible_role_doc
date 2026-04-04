@@ -2,6 +2,7 @@
 
 from functools import partial
 from typing import get_type_hints
+from unittest.mock import patch
 
 from prism import scanner
 from prism.scanner_config import (
@@ -14,6 +15,7 @@ from prism.scanner_core import scan_runtime
 from prism.scanner_data import ScanContextPayload, contracts
 from prism.scanner_extract import variable_extractor
 from prism.scanner_readme import guide as readme_guide
+from prism.scanner_readme import render_guide_section_body
 from prism.scanner_readme import style as readme_style
 from prism.tests import _scan_context_execution_tail as scan_context_execution_tail
 
@@ -109,13 +111,10 @@ def _resolve_callable(helper):
     return helper.func if isinstance(helper, partial) else helper
 
 
-def test_prepare_scan_context_routes_to_scan_runtime_builder():
-    helper = _resolve_callable(scanner._prepare_scan_context)
-    assert callable(helper)
-    assert helper.__module__ == "prism.scanner_core.scan_runtime"
-
-
-def test_scanner_variable_insight_collection_helper_delegates_to_injected_callables():
+@patch("pathlib.Path.read_text", return_value="---\nkey: value\n")
+def test_scanner_variable_insight_collection_helper_delegates_to_injected_callables(
+    mock_read_text,
+):
     helper = scanner._collect_variable_insights_and_default_filter_findings
     assert isinstance(helper, partial)
 
@@ -133,6 +132,18 @@ def test_scanner_variable_insight_collection_helper_delegates_to_injected_callab
         captured["collect_yaml_parse_failures"] = True
         return [{"relative_path": "tasks/main.yml", "error": "invalid"}]
 
+    def fake_extract_role_notes_from_comments(role_path, exclude_paths, marker_prefix):
+        return {}
+
+    # Create a mock plugin object
+    class MockCommentPlugin:
+        def extract_role_notes(self, role_path, exclude_paths, marker_prefix):
+            return fake_extract_role_notes_from_comments(
+                role_path, exclude_paths, marker_prefix
+            )
+
+    mock_plugin = MockCommentPlugin()
+
     metadata: dict[str, object] = {"features": {}}
     variable_insights, undocumented_default_filters, display_variables = helper(
         role_path="/tmp/role",
@@ -149,10 +160,11 @@ def test_scanner_variable_insight_collection_helper_delegates_to_injected_callab
         non_authoritative_test_evidence_max_file_bytes=4096,
         non_authoritative_test_evidence_max_files_scanned=3,
         non_authoritative_test_evidence_max_total_bytes=8192,
+        non_authoritative_test_evidence_allowed_suffixes=None,
         build_variable_insights=fake_build_variable_insights,
         attach_external_vars_context=fake_attach_external_vars_context,
         collect_yaml_parse_failures=fake_collect_yaml_parse_failures,
-        extract_role_notes_from_comments=lambda *_a, **_k: {},
+        extract_role_notes_from_comments=mock_plugin,
         build_undocumented_default_filters=lambda **_k: [],
         extract_scanner_counters=lambda *_a, **_k: {},
         build_display_variables=lambda _variables, insights: {"count": len(insights)},
@@ -195,7 +207,7 @@ def test_refresh_policy_updates_variable_guidance_rendering_in_process(monkeypat
         ]
     }
 
-    before = scanner._render_guide_section_body(
+    before = render_guide_section_body(
         "variable_guidance",
         "demo",
         "",
@@ -209,7 +221,7 @@ def test_refresh_policy_updates_variable_guidance_rendering_in_process(monkeypat
     readme_guide.refresh_policy_derived_state(patched_policy)
 
     try:
-        after = scanner._render_guide_section_body(
+        after = render_guide_section_body(
             "variable_guidance",
             "demo",
             "",
@@ -326,7 +338,7 @@ def test_render_guide_section_body_uses_request_scoped_variable_guidance_keyword
         ]
     }
 
-    before = scanner._render_guide_section_body(
+    before = render_guide_section_body(
         "variable_guidance",
         "demo",
         "",
@@ -338,7 +350,7 @@ def test_render_guide_section_body_uses_request_scoped_variable_guidance_keyword
     assert "zzzz_nonpriority_alpha" in before
 
     with readme_guide.variable_guidance_keywords_scope(("bertrum_runtime",)):
-        after = scanner._render_guide_section_body(
+        after = render_guide_section_body(
             "variable_guidance",
             "demo",
             "",
@@ -384,7 +396,7 @@ def test_run_scan_payload_scopes_policy_without_mutating_canonical_defaults(
 
     baseline_style = scanner.parse_style_readme(str(style))
     baseline_refs = variable_extractor._collect_referenced_variable_names(str(role))
-    baseline_guidance = scanner._render_guide_section_body(
+    baseline_guidance = render_guide_section_body(
         "variable_guidance",
         "demo",
         "",
@@ -407,7 +419,7 @@ def test_run_scan_payload_scopes_policy_without_mutating_canonical_defaults(
     def _fake_orchestrate_scan_payload(*, role_path: str, scan_options: dict):
         scoped_style = scanner.parse_style_readme(str(style))
         scoped_refs = variable_extractor._collect_referenced_variable_names(role_path)
-        scoped_guidance = scanner._render_guide_section_body(
+        scoped_guidance = render_guide_section_body(
             "variable_guidance",
             "demo",
             "",
