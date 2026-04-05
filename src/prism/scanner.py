@@ -111,6 +111,9 @@ from prism.scanner_readme import (
     parse_style_readme,
     render_guide_section_body as _readme_render_guide_section_body,
 )
+from prism.scanner_plugins.defaults import (
+    resolve_comment_driven_documentation_plugin as _resolve_comment_driven_documentation_plugin,
+)
 from prism.scanner_readme import guide as _readme_guide
 from prism.scanner_readme import render_readme as _readme_render_readme
 from prism.scanner_readme import style as _readme_style
@@ -733,17 +736,7 @@ def _collect_variable_insights_and_default_filter_findings_with_di(
     di_container, **kwargs
 ):
     """Collect variable insights using plugin from DI container."""
-    plugin = None
-    if di_container is not None:
-        factory = getattr(di_container, "factory_comment_driven_doc_plugin", None)
-        if callable(factory):
-            plugin = factory()
-    if plugin is None:
-        from prism.scanner_plugins.defaults import (
-            DefaultCommentDrivenDocumentationPlugin,
-        )
-
-        plugin = DefaultCommentDrivenDocumentationPlugin()
+    plugin = _resolve_comment_driven_documentation_plugin(di_container)
     return _collect_variable_insights_and_default_filter_findings(
         extract_role_notes_from_comments=plugin, **kwargs
     )

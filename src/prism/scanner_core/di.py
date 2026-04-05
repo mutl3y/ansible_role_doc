@@ -247,6 +247,22 @@ class DIContainer:
             return None
         return self._invoke_factory(override, [self._role_path, self._scan_options])
 
+    def factory_comment_driven_doc_plugin(self) -> Any:
+        """Return a comment-driven documentation plugin instance.
+
+        The default contract returns the canonical plugin implementation. Callers
+        may override the factory to provide a custom plugin.
+        """
+        override = self._factory_overrides.get("comment_driven_doc_plugin_factory")
+        if override is not None:
+            return self._invoke_factory(override, [self._role_path, self._scan_options])
+
+        from prism.scanner_plugins.defaults import (
+            DefaultCommentDrivenDocumentationPlugin,
+        )
+
+        return DefaultCommentDrivenDocumentationPlugin(di=self)
+
     def factory_output_orchestrator(self, output_path: str) -> OutputOrchestrator:
         cache_key = f"output_orchestrator:{output_path}"
         if cache_key not in self._cache:

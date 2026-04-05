@@ -110,6 +110,9 @@ class DefaultOutputOrchestrationPlugin(OutputOrchestrationPlugin):
 class DefaultCommentDrivenDocumentationPlugin(CommentDrivenDocumentationPlugin):
     """Default comment-driven documentation plugin using existing extraction logic."""
 
+    def __init__(self, di: Any | None = None) -> None:
+        self._di = di
+
     def extract_role_notes_from_comments(
         self,
         role_path: str,
@@ -125,3 +128,15 @@ class DefaultCommentDrivenDocumentationPlugin(CommentDrivenDocumentationPlugin):
             exclude_paths=exclude_paths,
             marker_prefix=marker_prefix,
         )
+
+
+def resolve_comment_driven_documentation_plugin(
+    di: Any | None,
+) -> CommentDrivenDocumentationPlugin:
+    """Resolve comment-driven documentation plugin from DI with safe fallback."""
+    factory = getattr(di, "factory_comment_driven_doc_plugin", None)
+    if callable(factory):
+        plugin = factory()
+        if plugin is not None:
+            return plugin
+    return DefaultCommentDrivenDocumentationPlugin(di=di)

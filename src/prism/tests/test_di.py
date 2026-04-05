@@ -325,3 +325,25 @@ class TestDIContainerPluginFactoryContract:
         )
 
         assert container.factory_feature_detection_plugin() is marker
+
+    def test_comment_driven_doc_plugin_factory_returns_default_plugin(self) -> None:
+        container = DIContainer(
+            role_path="/path/to/role",
+            scan_options={"include_vars_main": True},
+        )
+
+        plugin = container.factory_comment_driven_doc_plugin()
+
+        assert hasattr(plugin, "extract_role_notes_from_comments")
+
+    def test_comment_driven_doc_plugin_factory_uses_override(self) -> None:
+        marker = object()
+        container = DIContainer(
+            role_path="/path/to/role",
+            scan_options={"include_vars_main": True},
+            factory_overrides={
+                "comment_driven_doc_plugin_factory": lambda *_args: marker
+            },
+        )
+
+        assert container.factory_comment_driven_doc_plugin() is marker

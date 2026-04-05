@@ -11,6 +11,7 @@ import prism.scanner_core.scanner_context as scanner_context_module
 from prism.scanner_plugins.defaults import (
     DefaultFeatureDetectionPlugin,
     DefaultOutputOrchestrationPlugin,
+    resolve_comment_driven_documentation_plugin,
 )
 
 
@@ -139,3 +140,21 @@ def test_plugin_registry_remains_utility_module() -> None:
     registry.register_feature_detection_plugin("demo", _Plugin)
 
     assert registry.get_feature_detection_plugin("demo") is _Plugin
+
+
+def test_resolve_comment_driven_documentation_plugin_uses_di_factory() -> None:
+    marker = object()
+
+    class _FakeContainer:
+        def factory_comment_driven_doc_plugin(self):
+            return marker
+
+    plugin = resolve_comment_driven_documentation_plugin(_FakeContainer())
+
+    assert plugin is marker
+
+
+def test_resolve_comment_driven_documentation_plugin_falls_back_without_di() -> None:
+    plugin = resolve_comment_driven_documentation_plugin(None)
+
+    assert hasattr(plugin, "extract_role_notes_from_comments")
