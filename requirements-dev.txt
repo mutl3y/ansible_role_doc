@@ -4,6 +4,7 @@ tox
 pytest
 pytest-cov
 pytest-xdist
+hypothesis
 ruff==0.15.6
 black==25.1.0
 markdown

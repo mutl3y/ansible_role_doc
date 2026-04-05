@@ -25,12 +25,17 @@ To add a new capability:
 
 ### Plugin System
 
-Prism now supports fully pluggable scan logic through the plugin system:
+Prism exposes plugin interfaces and defaults, but the registry is currently
+utility-only and not wired into the scanner runtime path by default.
+
+Supported runtime plugin seam for this cycle:
 
 - **VariableDiscoveryPlugin**: Handles variable discovery (static, referenced, type inference, unresolved resolution)
 - **FeatureDetectionPlugin**: Analyzes role features (tasks, handlers, collections, etc.)
-- **OutputOrchestrationPlugin**: Orchestrates final output rendering and emission
-- **ScanPipelinePlugin**: Complete scan pipeline orchestration
+
+Interfaces for `OutputOrchestrationPlugin` and `ScanPipelinePlugin` remain
+available, but they are not selected by scanner runtime wiring unless you add
+an explicit integration seam.
 
 #### Creating a Custom Plugin
 
@@ -51,7 +56,7 @@ class MyVariableDiscoveryPlugin(VariableDiscoveryPlugin):
         return {}
 ```
 
-#### Registering a Plugin
+#### Registering a Plugin (Utility Registry)
 
 ```python
 from prism.scanner_plugins.registry import plugin_registry
@@ -59,16 +64,26 @@ from prism.scanner_plugins.registry import plugin_registry
 plugin_registry.register_variable_discovery_plugin("my_plugin", MyVariableDiscoveryPlugin)
 ```
 
-#### Configuring Plugins
+Registry registration above is for utility/discovery workflows and does not
+automatically activate runtime scan behavior.
 
-Set plugin names in scan options:
+#### Configuring Runtime Plugin Overrides
+
+Set plugin factory overrides on `DIContainer` when you explicitly want runtime
+plugin behavior. Current runtime wiring honors `variable_discovery_plugin_factory`
+and `feature_detection_plugin_factory` overrides.
 
 ```python
-scan_options = {
-    "variable_discovery_plugin": "my_plugin",
-    "feature_detection_plugin": "my_plugin",
-    "output_orchestration_plugin": "my_plugin",
-}
+from prism.scanner_core.di import DIContainer
+
+container = DIContainer(
+    role_path="/path/to/role",
+    scan_options={"include_vars_main": True},
+    factory_overrides={
+        "variable_discovery_plugin_factory": lambda role_path, options: MyVariableDiscoveryPlugin(container),
+        "feature_detection_plugin_factory": lambda role_path, options: MyFeaturePlugin(container),
+    },
+)
 ```
 
 ### Strategy Patterns

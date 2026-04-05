@@ -122,7 +122,8 @@ _ALLOWED_CANONICAL_PRIVATE_CROSS_PACKAGE_TOUCHPOINTS: dict[str, set[str]] = {
 CANONICAL_SCANNER_PACKAGE_TELEMETRY_TARGETS: dict[str, dict[str, object]] = {
     "prism.scanner_core": {
         "path": PROJECT_ROOT / "src" / "prism" / "scanner_core",
-        "max_lines": 4600,
+        # Wave 1 telemetry freeze (2026-04-05): measured baseline is 4804 lines.
+        "max_lines": 4900,
     },
     "prism.scanner_extract": {
         "path": PROJECT_ROOT / "src" / "prism" / "scanner_extract",

@@ -35,6 +35,7 @@ dev = [
   "pre-commit",
   "markdown",
   "hypothesis",
+  "pyfakefs",
 ]
 
 [tool.ruff]

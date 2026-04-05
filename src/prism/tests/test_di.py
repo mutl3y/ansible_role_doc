@@ -277,3 +277,51 @@ class TestDIContainerComposability:
         discovery_3 = container.factory_variable_discovery()
         # Identity is not guaranteed after clear, only functionality
         assert discovery_3 is not None
+
+
+class TestDIContainerPluginFactoryContract:
+    """Test explicit plugin-factory seam behavior for scanner context integration."""
+
+    def test_variable_discovery_plugin_factory_returns_none_by_default(self) -> None:
+        container = DIContainer(
+            role_path="/path/to/role",
+            scan_options={"include_vars_main": True},
+        )
+
+        assert container.factory_variable_discovery_plugin() is None
+
+    def test_feature_detection_plugin_factory_returns_none_by_default(self) -> None:
+        container = DIContainer(
+            role_path="/path/to/role",
+            scan_options={"include_vars_main": True},
+        )
+
+        assert container.factory_feature_detection_plugin() is None
+
+    def test_variable_discovery_plugin_factory_uses_override(self) -> None:
+        marker = object()
+
+        class _Plugin:
+            pass
+
+        container = DIContainer(
+            role_path="/path/to/role",
+            scan_options={"include_vars_main": True},
+            factory_overrides={
+                "variable_discovery_plugin_factory": lambda *_args: marker
+            },
+        )
+
+        assert container.factory_variable_discovery_plugin() is marker
+
+    def test_feature_detection_plugin_factory_uses_override(self) -> None:
+        marker = object()
+        container = DIContainer(
+            role_path="/path/to/role",
+            scan_options={"include_vars_main": True},
+            factory_overrides={
+                "feature_detection_plugin_factory": lambda *_args: marker
+            },
+        )
+
+        assert container.factory_feature_detection_plugin() is marker

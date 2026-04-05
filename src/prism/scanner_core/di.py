@@ -54,7 +54,7 @@ class DIContainer:
 
     def _normalize_wiring_registry(
         self,
-        registry: dict[str, WiringSpec | dict[str, Any]],
+        registry: dict[str, WiringSpec | dict[str, Any]] | dict[str, WiringSpec],
     ) -> dict[str, WiringSpec]:
         normalized: dict[str, WiringSpec] = {}
         for name, spec in registry.items():
@@ -224,6 +224,28 @@ class DIContainer:
 
     def factory_extension_registry(self) -> ExtensionRegistry:
         return self._resolve("extension_registry")
+
+    def factory_variable_discovery_plugin(self) -> Any | None:
+        """Return an optional variable-discovery plugin instance.
+
+        The default container contract is deterministic: no plugin override means
+        ``None`` so scanner runtime falls back to canonical orchestrators.
+        """
+        override = self._factory_overrides.get("variable_discovery_plugin_factory")
+        if override is None:
+            return None
+        return self._invoke_factory(override, [self._role_path, self._scan_options])
+
+    def factory_feature_detection_plugin(self) -> Any | None:
+        """Return an optional feature-detection plugin instance.
+
+        The default container contract is deterministic: no plugin override means
+        ``None`` so scanner runtime falls back to canonical orchestrators.
+        """
+        override = self._factory_overrides.get("feature_detection_plugin_factory")
+        if override is None:
+            return None
+        return self._invoke_factory(override, [self._role_path, self._scan_options])
 
     def factory_output_orchestrator(self, output_path: str) -> OutputOrchestrator:
         cache_key = f"output_orchestrator:{output_path}"

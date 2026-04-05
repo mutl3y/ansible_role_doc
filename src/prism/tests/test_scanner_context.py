@@ -41,6 +41,7 @@ def _canonical_scan_options(
         "fail_on_unconstrained_dynamic_includes": None,
         "fail_on_yaml_like_task_annotations": None,
         "ignore_unresolved_internal_underscore_references": None,
+        "enforce_role_path_exists": False,
     }
 
 
@@ -593,6 +594,129 @@ class TestScannerContextPhaseCoordination:
         assert payload["display_variables"] == {}
         assert payload["requirements_display"] == []
         assert payload["undocumented_default_filters"] == []
+
+    def test_discovery_phase_uses_canonical_factory_when_plugin_absent(self) -> None:
+        """Absent discovery plugin factory must deterministically fall back to canonical discovery."""
+
+        class _Discovery:
+            def discover(self) -> tuple[object, ...]:
+                return ("canonical",)
+
+        scan_options = _canonical_scan_options()
+        di = DIContainer(role_path="/path/to/role", scan_options=scan_options)
+        calls = {"canonical": 0}
+
+        def _canonical_factory() -> _Discovery:
+            calls["canonical"] += 1
+            return _Discovery()
+
+        di.factory_variable_discovery = _canonical_factory  # type: ignore[method-assign]
+        di.factory_variable_discovery_plugin = lambda: None  # type: ignore[method-assign]
+
+        context = ScannerContext(
+            di=di,
+            role_path="/path/to/role",
+            scan_options=scan_options,
+            prepare_scan_context_fn=_prepare_scan_context_stub,
+        )
+
+        assert context._discover_variables() == ("canonical",)
+        assert calls["canonical"] == 1
+
+    def test_discovery_phase_prefers_plugin_factory_when_present(self) -> None:
+        """Present discovery plugin factory must deterministically override canonical discovery."""
+
+        class _Plugin:
+            def discover_static_variables(self, role_path, options):
+                assert role_path == "/path/to/role"
+                assert options["role_path"] == "/path/to/role"
+                return ({"name": "from_plugin"},)
+
+            def discover_referenced_variables(self, role_path, options, readme_content):
+                assert role_path == "/path/to/role"
+                return frozenset({"from_plugin"})
+
+            def resolve_unresolved_variables(self, static_names, referenced, options):
+                assert static_names == frozenset({"from_plugin"})
+                assert referenced == frozenset({"from_plugin"})
+                return {}
+
+        scan_options = _canonical_scan_options()
+        di = DIContainer(role_path="/path/to/role", scan_options=scan_options)
+
+        def _should_not_run_canonical():
+            raise AssertionError(
+                "canonical discovery should not run when plugin exists"
+            )
+
+        di.factory_variable_discovery = _should_not_run_canonical  # type: ignore[method-assign]
+        di.factory_variable_discovery_plugin = lambda: _Plugin()  # type: ignore[method-assign]
+
+        context = ScannerContext(
+            di=di,
+            role_path="/path/to/role",
+            scan_options=scan_options,
+            prepare_scan_context_fn=_prepare_scan_context_stub,
+        )
+
+        assert context._discover_variables() == ({"name": "from_plugin"},)
+
+    def test_feature_phase_uses_canonical_factory_when_plugin_absent(self) -> None:
+        """Absent feature plugin factory must deterministically fall back to canonical detector."""
+
+        class _Detector:
+            def detect(self) -> dict[str, object]:
+                return {"tasks_scanned": 9}
+
+        scan_options = _canonical_scan_options()
+        di = DIContainer(role_path="/path/to/role", scan_options=scan_options)
+        calls = {"canonical": 0}
+
+        def _canonical_factory() -> _Detector:
+            calls["canonical"] += 1
+            return _Detector()
+
+        di.factory_feature_detector = _canonical_factory  # type: ignore[method-assign]
+        di.factory_feature_detection_plugin = lambda: None  # type: ignore[method-assign]
+
+        context = ScannerContext(
+            di=di,
+            role_path="/path/to/role",
+            scan_options=scan_options,
+            prepare_scan_context_fn=_prepare_scan_context_stub,
+        )
+
+        assert context._detect_features() == {"tasks_scanned": 9}
+        assert calls["canonical"] == 1
+
+    def test_feature_phase_prefers_plugin_factory_when_present(self) -> None:
+        """Present feature plugin factory must deterministically override canonical detector."""
+
+        class _Plugin:
+            def detect_features(self, role_path, options):
+                assert role_path == "/path/to/role"
+                assert options["role_path"] == "/path/to/role"
+                return {"tasks_scanned": 42}
+
+        scan_options = _canonical_scan_options()
+        di = DIContainer(role_path="/path/to/role", scan_options=scan_options)
+
+        def _should_not_run_canonical():
+            raise AssertionError(
+                "canonical feature detector should not run when plugin exists"
+            )
+
+        di.factory_feature_detector = _should_not_run_canonical  # type: ignore[method-assign]
+        di.factory_feature_detection_plugin = lambda: _Plugin()  # type: ignore[method-assign]
+
+        context = ScannerContext(
+            di=di,
+            role_path="/path/to/role",
+            scan_options=scan_options,
+            prepare_scan_context_fn=_prepare_scan_context_stub,
+        )
+
+        assert context._detect_features() == {"tasks_scanned": 42}
 
 
 class TestScannerContextDataFlow:

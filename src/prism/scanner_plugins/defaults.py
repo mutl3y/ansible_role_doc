@@ -65,14 +65,18 @@ class DefaultFeatureDetectionPlugin(FeatureDetectionPlugin):
     def detect_features(
         self, role_path: str, options: Dict[str, Any]
     ) -> Dict[str, Any]:
-        # TODO: Implement proper feature detection
-        return {}
+        from prism.scanner_core.feature_detector import FeatureDetector
+
+        detector = FeatureDetector(self._di, role_path, options)
+        return detector.detect()
 
     def analyze_task_catalog(
         self, role_path: str, options: Dict[str, Any]
     ) -> Dict[str, Any]:
-        # TODO: Implement proper task catalog analysis
-        return {}
+        from prism.scanner_core.feature_detector import FeatureDetector
+
+        detector = FeatureDetector(self._di, role_path, options)
+        return detector.analyze_task_catalog()
 
 
 class DefaultOutputOrchestrationPlugin(OutputOrchestrationPlugin):
@@ -87,8 +91,20 @@ class DefaultOutputOrchestrationPlugin(OutputOrchestrationPlugin):
         metadata: Dict[str, Any],
         discovered_variables: list[VariableRow],
     ) -> Any:  # RunScanOutputPayload
-        # For now, return the payload as-is; TODO: implement proper orchestration
-        return scan_payload
+        from prism.scanner_io import build_scan_output_payload
+
+        merged_metadata = dict(scan_payload.get("metadata") or {})
+        merged_metadata.update(metadata)
+        merged_metadata["discovered_variables_count"] = len(discovered_variables)
+
+        return build_scan_output_payload(
+            role_name=scan_payload["role_name"],
+            description=scan_payload["description"],
+            display_variables=scan_payload["display_variables"],
+            requirements_display=scan_payload["requirements_display"],
+            undocumented_default_filters=scan_payload["undocumented_default_filters"],
+            metadata=merged_metadata,
+        )
 
 
 class DefaultCommentDrivenDocumentationPlugin(CommentDrivenDocumentationPlugin):

@@ -101,6 +101,19 @@ The current architecture has been transformed through the gilfoyle-arch-reform-2
 - Strategy patterns for pluggable behaviors.
 - Backward compatibility and migration paths.
 
+### Plugin Runtime Boundary
+
+`prism.scanner_plugins.registry.plugin_registry` is a utility registry and is
+not automatically wired into canonical scan runtime selection.
+
+Current runtime plugin overrides are explicit DI seams on `DIContainer`:
+
+- `factory_variable_discovery_plugin`
+- `factory_feature_detection_plugin`
+
+If no override is provided, scanner runtime deterministically falls back to
+canonical orchestrators in `prism.scanner_core`.
+
 ## Package Naming Standard
 
 Use fully qualified package names when describing ownership or extension targets.

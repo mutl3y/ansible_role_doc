@@ -310,33 +310,34 @@ class ScannerContext:
             tuple[Any, ...]: Discovered variables (immutable collection).
         """
         try:
+            plugin_factory = getattr(
+                self._di, "factory_variable_discovery_plugin", None
+            )
+            if callable(plugin_factory):
+                plugin = plugin_factory()
+                if plugin is not None:
+                    static_vars = plugin.discover_static_variables(
+                        self._role_path, self._scan_options
+                    )
+                    readme_content = load_readme_content(self._role_path)
+                    referenced_vars = plugin.discover_referenced_variables(
+                        self._role_path,
+                        self._scan_options,
+                        readme_content,
+                    )
+                    plugin.resolve_unresolved_variables(
+                        frozenset(v["name"] for v in static_vars),
+                        referenced_vars,
+                        self._scan_options,
+                    )
+                    return tuple(static_vars)
+
             factory = getattr(self._di, "factory_variable_discovery", None)
             if callable(factory):
                 discovery = factory()
                 discover = getattr(discovery, "discover", None)
                 if callable(discover):
                     return tuple(discover())
-
-            plugin_factory = getattr(
-                self._di, "factory_variable_discovery_plugin", None
-            )
-            if callable(plugin_factory):
-                plugin = plugin_factory()
-                static_vars = plugin.discover_static_variables(
-                    self._role_path, self._scan_options
-                )
-                readme_content = load_readme_content(self._role_path)
-                referenced_vars = plugin.discover_referenced_variables(
-                    self._role_path,
-                    self._scan_options,
-                    readme_content,
-                )
-                plugin.resolve_unresolved_variables(
-                    frozenset(v["name"] for v in static_vars),
-                    referenced_vars,
-                    self._scan_options,
-                )
-                return tuple(static_vars)
 
             raise AttributeError(
                 "DIContainer does not provide variable discovery factory"
@@ -383,17 +384,20 @@ class ScannerContext:
             dict[str, Any]: Detected features (immutable dict).
         """
         try:
+            plugin_factory = getattr(self._di, "factory_feature_detection_plugin", None)
+            if callable(plugin_factory):
+                plugin = plugin_factory()
+                if plugin is not None:
+                    return dict(
+                        plugin.detect_features(self._role_path, self._scan_options)
+                    )
+
             factory = getattr(self._di, "factory_feature_detector", None)
             if callable(factory):
                 detector = factory()
                 detect = getattr(detector, "detect", None)
                 if callable(detect):
                     return dict(detect())
-
-            plugin_factory = getattr(self._di, "factory_feature_detection_plugin", None)
-            if callable(plugin_factory):
-                plugin = plugin_factory()
-                return dict(plugin.detect_features(self._role_path, self._scan_options))
 
             raise AttributeError(
                 "DIContainer does not provide feature detection factory"
