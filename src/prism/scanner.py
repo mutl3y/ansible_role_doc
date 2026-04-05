@@ -50,6 +50,7 @@ from prism.scanner_core import scan_context_builder
 from prism.scanner_core import scan_facade_helpers as _scan_facade_helpers
 from prism.scanner_core import scan_request
 from prism.scanner_core import scan_runtime as _scan_runtime
+from prism.scanner_core import scan_state as _scan_state
 from prism.scanner_core import variable_insights as _variable_insights
 from prism.scanner_core import variable_pipeline as _variable_pipeline
 from prism.scanner_data.contracts_output import (
@@ -891,6 +892,7 @@ def _orchestrate_scan_payload(
 
 _build_runtime_scan_state = partial(
     _scan_runtime.build_runtime_scan_state,
+    build_runtime_scan_state_fn=_scan_state.build_runtime_scan_state,
     load_pattern_policy_with_context=load_pattern_policy_with_context,
     build_run_scan_options_fn=scan_request.build_run_scan_options_canonical,
     resolve_scan_request_for_runtime_fn=scan_request.resolve_scan_request_for_runtime,
@@ -900,6 +902,7 @@ _build_runtime_scan_state = partial(
 
 _scan_policy_scope = partial(
     _scan_runtime.scan_policy_scope,
+    scan_policy_scope_fn=_scan_state.scan_policy_scope,
     variable_policy_scope=_variable_extractor.policy_override_scope,
     style_section_aliases_scope=_readme_style.style_section_aliases_scope,
     variable_guidance_keywords_scope=_readme_guide.variable_guidance_keywords_scope,

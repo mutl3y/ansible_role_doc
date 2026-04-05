@@ -6,7 +6,7 @@ major scanner behaviors that can be customized or extended.
 
 from __future__ import annotations
 
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 
 from prism.scanner_data.contracts_variables import VariableRow
 
@@ -40,7 +40,7 @@ class StrategyRegistry:
     """Registry for pluggable strategies."""
 
     def __init__(self) -> None:
-        self._strategies: dict[str, type[VariableDiscoveryStrategy]] = {}
+        self._strategies: dict[str, type[Any]] = {}
 
     def _ensure_defaults(self) -> None:
         """Ensure default strategies are registered."""
@@ -52,9 +52,7 @@ class StrategyRegistry:
 
             self._strategies["default"] = DefaultVariableDiscoveryStrategy
 
-    def register(
-        self, name: str, strategy_class: type[VariableDiscoveryStrategy]
-    ) -> None:
+    def register(self, name: str, strategy_class: type[Any]) -> None:
         """Register a strategy class by name."""
         self._strategies[name] = strategy_class
 
@@ -65,16 +63,19 @@ class StrategyRegistry:
         if strategy_class is None:
             raise ValueError(f"Unknown strategy: {name}")
         if di_container is None:
-            return strategy_class()
+            return cast(VariableDiscoveryStrategy, strategy_class())
         # For strategies that need DI dependencies
         if name == "default":
-            return strategy_class(
-                data_loader=di_container.factory_data_loader(),
-                discovery=di_container.factory_discovery(),
-                task_parser=di_container.factory_task_parser(),
-                variable_extractor=di_container.factory_variable_extractor(),
+            return cast(
+                VariableDiscoveryStrategy,
+                strategy_class(
+                    data_loader=di_container.factory_data_loader(),
+                    discovery=di_container.factory_discovery(),
+                    task_parser=di_container.factory_task_parser(),
+                    variable_extractor=di_container.factory_variable_extractor(),
+                ),
             )
-        return strategy_class()
+        return cast(VariableDiscoveryStrategy, strategy_class())
 
     def list_strategies(self) -> list[str]:
         """List available strategy names."""

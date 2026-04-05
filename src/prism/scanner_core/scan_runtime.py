@@ -159,6 +159,8 @@ def emit_scan_outputs(
             mapped_kwargs["render_runbook_fn"] = v
         elif k == "render_runbook_csv":
             mapped_kwargs["render_runbook_csv_fn"] = v
+        elif k == "render_and_write_scan_output":
+            mapped_kwargs["render_and_write_output"] = v
         else:
             mapped_kwargs[k] = v
     return emit_scan_outputs_fn(args, **mapped_kwargs)

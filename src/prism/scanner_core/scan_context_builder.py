@@ -21,9 +21,6 @@ CollectScanIdentityAndArtifacts = Callable[..., tuple[Any, ...]]
 ApplyScanMetadataConfiguration = Callable[..., tuple[list, dict]]
 ApplyUnconstrainedDynamicIncludePolicy = Callable[..., dict]
 ApplyYamlLikeTaskAnnotationPolicy = Callable[..., dict]
-ApplyScanMetadataConfiguration = Callable[..., tuple[list, dict]]
-ApplyUnconstrainedDynamicIncludePolicy = Callable[..., dict]
-ApplyYamlLikeTaskAnnotationPolicy = Callable[..., dict]
 
 
 FinalizeScanContextPayload = Callable[..., ScanContextPayload]

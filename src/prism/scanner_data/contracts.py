@@ -6,7 +6,7 @@ import surface for existing consumers by re-exporting the curated public set.
 """
 
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, Callable, Protocol
 
 from prism.scanner_data.contracts_errors import (
     CollectionScanResult as CollectionScanResult,
