@@ -2,7 +2,7 @@ plan_id: architecture-extensibility-review-20260421
 title: "Architecture & Extensibility — Resumable Execution Plan"
 status: active
 created: "2026-04-21"
-last_updated: "2026-04-22"
+last_updated: "2026-04-23"
 origin: "Fresh full-codebase review, architecture and extensibility focus"
 
 # ---------------------------------------------------------------------------
@@ -22,7 +22,7 @@ origin: "Fresh full-codebase review, architecture and extensibility focus"
 
 resumption_pointer:
   current_tier: 1
-  next_action: "T1-02: Raise scanner_core test coverage to >=70% on production paths"
+  next_action: "T2-01: Plugin system hardening (begin Tier 2)"
   blocking_issues: []
   notes: |
     Plan rewritten 2026-04-22 after fsrc->src promotion. 13 of 14 original
@@ -89,7 +89,8 @@ tier_1_production_hardening:
 
   - id: T1-02
     title: "Raise scanner_core test coverage to >=70% on production paths"
-    status: not_started
+    status: done
+    completed_at: "2026-04-23"
     severity: high
     supersedes: [F01]
     summary: |
