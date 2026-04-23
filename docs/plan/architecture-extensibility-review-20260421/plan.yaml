@@ -23,7 +23,7 @@ origin: "Fresh full-codebase review, architecture and extensibility focus"
 
 resumption_pointer:
   current_tier: 1
-  next_action: "T3-04: Error boundary audit"
+  next_action: "T4-01: Performance benchmark suite"
   blocking_issues: []
   notes: |
     Plan rewritten 2026-04-22 after fsrc->src promotion. 13 of 14 original
@@ -285,7 +285,8 @@ tier_3_extensibility:
 
   - id: T3-04
     title: "Error boundary audit"
-    status: not_started
+    status: done
+    completed_at: "2026-04-24"
     severity: medium
     supersedes: [G02]
     summary: |
