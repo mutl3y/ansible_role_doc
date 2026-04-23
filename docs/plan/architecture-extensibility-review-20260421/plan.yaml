@@ -23,7 +23,7 @@ origin: "Fresh full-codebase review, architecture and extensibility focus"
 
 resumption_pointer:
   current_tier: 1
-  next_action: "T4-03: CLI streaming progress output"
+  next_action: "T3-05: Structured scan telemetry"
   blocking_issues: []
   notes: |
     Plan rewritten 2026-04-22 after fsrc->src promotion. 13 of 14 original
@@ -386,7 +386,8 @@ tier_4_quality_and_polish:
 
   - id: T4-03
     title: "CLI streaming progress output"
-    status: not_started
+    status: done
+    completed_at: "2026-04-24"
     severity: low
     supersedes: [E03]
     summary: |
@@ -400,6 +401,14 @@ tier_4_quality_and_polish:
       - "Long scans show phase-by-phase progress on stderr"
     estimated_effort: trivial
     depends_on: [T3-01]
+    resolution: |
+      Added prism/progress.py with ProgressReporter and
+      progress_reporter_enabled() context manager. Added module-level
+      DEFAULT_LISTENERS registry to scanner_core/events.py with
+      register/unregister/get/clear helpers. DIContainer consumes the
+      registry by default; explicit event_listeners=[] still wins.
+      CLI gained --progress/--no-progress flag (BooleanOptionalAction,
+      default False) wired in main() around scan dispatch.
 
   - id: T4-04
     title: "Property/fuzz testing for YAML and Jinja parsers"

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Callable, Mapping
 
-from prism.scanner_core.events import EventBus, EventListener
+from prism.scanner_core.events import EventBus, EventListener, get_default_listeners
 from prism.scanner_data.builders import VariableRowBuilder
 
 if TYPE_CHECKING:
@@ -80,7 +80,12 @@ class DIContainer:
         self._mocks: dict[str, Any] = {}
         self._scanner_context_wiring = scanner_context_wiring or {}
         self._factory_overrides = factory_overrides or {}
-        self._event_bus = EventBus(listeners=event_listeners)
+        effective_listeners = (
+            list(event_listeners)
+            if event_listeners is not None
+            else list(get_default_listeners())
+        )
+        self._event_bus = EventBus(listeners=effective_listeners)
 
     @property
     def scan_options(self) -> dict[str, Any]:

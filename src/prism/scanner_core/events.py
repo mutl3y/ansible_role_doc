@@ -122,4 +122,38 @@ __all__ = [
     "PHASE_OUTPUT_RENDER",
     "PHASE_VARIABLE_DISCOVERY",
     "ScanPhaseEvent",
+    "register_default_listener",
+    "unregister_default_listener",
+    "get_default_listeners",
+    "clear_default_listeners",
 ]
+
+
+_DEFAULT_LISTENERS: list[EventListener] = []
+
+
+def register_default_listener(listener: EventListener) -> None:
+    """Register a process-level listener that every new EventBus inherits.
+
+    Used by the CLI progress reporter and integration tests. Prefer passing
+    ``event_listeners=`` to :class:`~prism.scanner_core.di.DIContainer`
+    directly when you need per-scan isolation.
+    """
+    if not callable(listener):
+        raise TypeError("default listener must be callable")
+    _DEFAULT_LISTENERS.append(listener)
+
+
+def unregister_default_listener(listener: EventListener) -> None:
+    try:
+        _DEFAULT_LISTENERS.remove(listener)
+    except ValueError:
+        pass
+
+
+def get_default_listeners() -> tuple[EventListener, ...]:
+    return tuple(_DEFAULT_LISTENERS)
+
+
+def clear_default_listeners() -> None:
+    _DEFAULT_LISTENERS.clear()

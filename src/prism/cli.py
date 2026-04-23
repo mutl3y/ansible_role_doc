@@ -186,6 +186,12 @@ def _add_shared_scan_arguments(parser: argparse.ArgumentParser) -> None:
         action="store_true",
         help=f"Exit with code {EXIT_CODE_AUDIT_VIOLATIONS} if audit policy violations are found.",
     )
+    parser.add_argument(
+        "--progress",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Stream phase-by-phase scan progress to stderr (stdout stays clean).",
+    )
 
 
 def _add_output_arguments(
@@ -550,20 +556,35 @@ def main(argv: Sequence[str] | None = None) -> int:
         return int(exc.code) if exc.code is not None else 0
 
     try:
-        if args.command == "role":
-            return _handle_role_command(args)
-        if args.command == "collection":
-            return _handle_collection_command(args)
-        if args.command == "repo":
-            return _handle_repo_command(args)
         if args.command == "completion":
             return _handle_completion_command(args)
+        progress_enabled = getattr(args, "progress", False) and args.command in (
+            "role",
+            "collection",
+            "repo",
+        )
+        if progress_enabled:
+            from prism.progress import progress_reporter_enabled
+
+            with progress_reporter_enabled():
+                return _dispatch_scan_command(args)
+        return _dispatch_scan_command(args)
     except KeyboardInterrupt:
         return _EXIT_CODE_INTERRUPTED
     except Exception as exc:
         print(_format_top_level_exception(exc), file=sys.stderr)
         return _map_top_level_exception_to_exit_code(exc)
 
+    return 0
+
+
+def _dispatch_scan_command(args: argparse.Namespace) -> int:
+    if args.command == "role":
+        return _handle_role_command(args)
+    if args.command == "collection":
+        return _handle_collection_command(args)
+    if args.command == "repo":
+        return _handle_repo_command(args)
     return 0
 
 
