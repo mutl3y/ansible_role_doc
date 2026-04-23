@@ -29,6 +29,11 @@ from prism.scanner_plugins.parsers.comment_doc.role_notes_parser import (
 )
 from prism.scanner_plugins.registry import PluginRegistry
 from prism.scanner_plugins.registry import plugin_registry as canonical_plugin_registry
+from prism.scanner_plugins.registry import (
+    PRISM_PLUGIN_API_VERSION,
+    PluginAPIVersionMismatch,
+    validate_plugin_api_version,
+)
 from prism.scanner_plugins.interfaces import ScanPipelinePlugin
 
 
@@ -128,7 +133,10 @@ DEFAULT_PLUGIN_REGISTRY = bootstrap_default_plugins()
 
 __all__ = [
     "DEFAULT_PLUGIN_REGISTRY",
+    "PRISM_PLUGIN_API_VERSION",
+    "PluginAPIVersionMismatch",
     "bootstrap_default_plugins",
     "interfaces",
     "registry",
+    "validate_plugin_api_version",
 ]

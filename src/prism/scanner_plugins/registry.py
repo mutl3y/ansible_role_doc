@@ -12,6 +12,52 @@ from prism.scanner_plugins.interfaces import ScanPipelinePlugin
 from prism.scanner_plugins.interfaces import VariableDiscoveryPlugin
 
 
+PRISM_PLUGIN_API_VERSION: tuple[int, int] = (1, 0)
+
+
+class PluginAPIVersionMismatch(ValueError):
+    """Raised when a plugin declares an incompatible PRISM_PLUGIN_API_VERSION."""
+
+
+def _coerce_version(value: object) -> tuple[int, int] | None:
+    if isinstance(value, tuple) and len(value) == 2:
+        major, minor = value
+        if isinstance(major, int) and isinstance(minor, int):
+            return (major, minor)
+    return None
+
+
+def validate_plugin_api_version(
+    plugin_class: type[Any],
+    *,
+    name: str,
+    slot: str,
+    core_version: tuple[int, int] = PRISM_PLUGIN_API_VERSION,
+) -> None:
+    """Validate a plugin class declares a compatible PRISM_PLUGIN_API_VERSION.
+
+    Compatibility rule: same major version, plugin minor <= core minor.
+    Plugins that omit the attribute are accepted (backward-compatible).
+    """
+    declared = getattr(plugin_class, "PRISM_PLUGIN_API_VERSION", None)
+    if declared is None:
+        return
+    parsed = _coerce_version(declared)
+    if parsed is None:
+        raise PluginAPIVersionMismatch(
+            f"Plugin '{name}' for slot '{slot}' declared an invalid "
+            f"PRISM_PLUGIN_API_VERSION: {declared!r} (expected (major, minor) ints)"
+        )
+    plugin_major, plugin_minor = parsed
+    core_major, core_minor = core_version
+    if plugin_major != core_major or plugin_minor > core_minor:
+        raise PluginAPIVersionMismatch(
+            f"Plugin '{name}' for slot '{slot}' declares API version "
+            f"{plugin_major}.{plugin_minor} which is incompatible with core "
+            f"version {core_major}.{core_minor}"
+        )
+
+
 class PluginRegistry:
     """Registry for scanner plugin classes and dynamic plugin loaders."""
 
@@ -38,6 +84,7 @@ class PluginRegistry:
         name: str,
         plugin_class: type[VariableDiscoveryPlugin],
     ) -> None:
+        validate_plugin_api_version(plugin_class, name=name, slot="variable_discovery")
         self._variable_discovery_plugins[name] = plugin_class
 
     def register_deferred_variable_discovery_plugin(
@@ -53,6 +100,7 @@ class PluginRegistry:
         name: str,
         plugin_class: type[FeatureDetectionPlugin],
     ) -> None:
+        validate_plugin_api_version(plugin_class, name=name, slot="feature_detection")
         self._feature_detection_plugins[name] = plugin_class
 
     def register_deferred_feature_detection_plugin(
@@ -68,6 +116,9 @@ class PluginRegistry:
         name: str,
         plugin_class: type[OutputOrchestrationPlugin],
     ) -> None:
+        validate_plugin_api_version(
+            plugin_class, name=name, slot="output_orchestration"
+        )
         self._output_orchestration_plugins[name] = plugin_class
 
     def register_scan_pipeline_plugin(
@@ -75,6 +126,7 @@ class PluginRegistry:
         name: str,
         plugin_class: type[ScanPipelinePlugin],
     ) -> None:
+        validate_plugin_api_version(plugin_class, name=name, slot="scan_pipeline")
         self._scan_pipeline_plugins[name] = plugin_class
 
     def register_comment_driven_doc_plugin(
@@ -82,6 +134,7 @@ class PluginRegistry:
         name: str,
         plugin_class: type[CommentDrivenDocumentationPlugin],
     ) -> None:
+        validate_plugin_api_version(plugin_class, name=name, slot="comment_driven_doc")
         self._comment_driven_doc_plugins[name] = plugin_class
 
     def register_extract_policy_plugin(
@@ -89,6 +142,7 @@ class PluginRegistry:
         name: str,
         plugin_class: type[Any],
     ) -> None:
+        validate_plugin_api_version(plugin_class, name=name, slot="extract_policy")
         self._extract_policy_plugins[name] = plugin_class
 
     def register_yaml_parsing_policy_plugin(
@@ -96,6 +150,7 @@ class PluginRegistry:
         name: str,
         plugin_class: type[Any],
     ) -> None:
+        validate_plugin_api_version(plugin_class, name=name, slot="yaml_parsing_policy")
         self._yaml_parsing_policy_plugins[name] = plugin_class
 
     def register_jinja_analysis_policy_plugin(
@@ -103,6 +158,9 @@ class PluginRegistry:
         name: str,
         plugin_class: type[Any],
     ) -> None:
+        validate_plugin_api_version(
+            plugin_class, name=name, slot="jinja_analysis_policy"
+        )
         self._jinja_analysis_policy_plugins[name] = plugin_class
 
     def register_reserved_unsupported_platform(self, name: str) -> None:
