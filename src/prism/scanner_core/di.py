@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Callable, Mapping
 
+from prism.scanner_core.events import EventBus, EventListener
 from prism.scanner_data.builders import VariableRowBuilder
 
 if TYPE_CHECKING:
@@ -63,6 +64,7 @@ class DIContainer:
         platform_key: str | None = None,
         scanner_context_wiring: dict[str, Any] | None = None,
         factory_overrides: dict[str, Callable[..., Any]] | None = None,
+        event_listeners: list[EventListener] | None = None,
     ) -> None:
         """Initialize container with role path and scan options."""
         if not role_path:
@@ -78,10 +80,15 @@ class DIContainer:
         self._mocks: dict[str, Any] = {}
         self._scanner_context_wiring = scanner_context_wiring or {}
         self._factory_overrides = factory_overrides or {}
+        self._event_bus = EventBus(listeners=event_listeners)
 
     @property
     def scan_options(self) -> dict[str, Any]:
         return self._scan_options
+
+    def factory_event_bus(self) -> EventBus:
+        """Return the per-container :class:`EventBus`."""
+        return self._event_bus
 
     def factory_scanner_context(self) -> ScannerContext:
         """Create ScannerContext only when runtime seam wiring is provided."""

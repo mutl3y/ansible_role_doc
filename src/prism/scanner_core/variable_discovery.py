@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from prism.scanner_core.di import DIContainer
+from prism.scanner_core.events import PHASE_VARIABLE_DISCOVERY
 from prism.scanner_data.contracts_request import validate_variable_discovery_inputs
 from prism.scanner_data.contracts_variables import VariableRow
 
@@ -44,10 +45,19 @@ class VariableDiscovery:
         """Discover static variables from defaults/vars/argument_specs/set_fact."""
         plugin = self._resolve_plugin()
         if plugin is not None:
-            discovered = plugin.discover_static_variables(
-                self._role_path,
-                self._options,
-            )
+            event_bus = getattr(self._di, "factory_event_bus", lambda: None)()
+            ctx = {"role_path": self._role_path, "step": "static"}
+            if event_bus is not None:
+                with event_bus.phase(PHASE_VARIABLE_DISCOVERY, context=ctx):
+                    discovered = plugin.discover_static_variables(
+                        self._role_path,
+                        self._options,
+                    )
+            else:
+                discovered = plugin.discover_static_variables(
+                    self._role_path,
+                    self._options,
+                )
             return tuple(discovered)
 
         raise ValueError(
@@ -58,10 +68,19 @@ class VariableDiscovery:
         """Discover referenced variable names from tasks/templates/handlers/README."""
         plugin = self._resolve_plugin()
         if plugin is not None:
-            discovered = plugin.discover_referenced_variables(
-                self._role_path,
-                self._options,
-            )
+            event_bus = getattr(self._di, "factory_event_bus", lambda: None)()
+            ctx = {"role_path": self._role_path, "step": "referenced"}
+            if event_bus is not None:
+                with event_bus.phase(PHASE_VARIABLE_DISCOVERY, context=ctx):
+                    discovered = plugin.discover_referenced_variables(
+                        self._role_path,
+                        self._options,
+                    )
+            else:
+                discovered = plugin.discover_referenced_variables(
+                    self._role_path,
+                    self._options,
+                )
             return frozenset(discovered)
 
         raise ValueError(

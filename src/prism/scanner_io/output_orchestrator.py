@@ -73,6 +73,40 @@ class OutputOrchestrator:
             render_runbook_csv=render_runbook_csv,
         )
 
+    def render_and_emit_with_events(
+        self,
+        payload: RunScanOutputPayload,
+        dry_run: bool = False,
+        *,
+        render_and_write: ScanOutputRenderer,
+        render_scanner_report: ScanReportRenderer,
+        render_runbook: Callable[[str, dict[str, Any] | None], str],
+        render_runbook_csv: Callable[[dict[str, Any] | None], str],
+    ) -> str | bytes:
+        """Same as :meth:`render_and_emit` but emits PHASE_OUTPUT_RENDER events."""
+        from prism.scanner_core.events import PHASE_OUTPUT_RENDER
+
+        event_bus = getattr(self._di, "factory_event_bus", lambda: None)()
+        ctx = {"output_path": self._output_path}
+        if event_bus is None:
+            return self.render_and_emit(
+                payload,
+                dry_run,
+                render_and_write=render_and_write,
+                render_scanner_report=render_scanner_report,
+                render_runbook=render_runbook,
+                render_runbook_csv=render_runbook_csv,
+            )
+        with event_bus.phase(PHASE_OUTPUT_RENDER, context=ctx):
+            return self.render_and_emit(
+                payload,
+                dry_run,
+                render_and_write=render_and_write,
+                render_scanner_report=render_scanner_report,
+                render_runbook=render_runbook,
+                render_runbook_csv=render_runbook_csv,
+            )
+
     def emit_runbook_sidecars(
         self,
         md_path: str,

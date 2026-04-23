@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from prism.scanner_core.di import DIContainer
+from prism.scanner_core.events import PHASE_FEATURE_DETECTION
 from prism.scanner_data.contracts_request import (
     FeaturesContext,
     validate_feature_detector_inputs,
@@ -46,6 +47,11 @@ class FeatureDetector:
     def detect(self) -> FeaturesContext:
         plugin = self._resolve_plugin()
         if plugin is not None:
+            event_bus = getattr(self._di, "factory_event_bus", lambda: None)()
+            ctx = {"role_path": self._role_path}
+            if event_bus is not None:
+                with event_bus.phase(PHASE_FEATURE_DETECTION, context=ctx):
+                    return plugin.detect_features(self._role_path, self._options)
             return plugin.detect_features(self._role_path, self._options)
 
         raise ValueError(
