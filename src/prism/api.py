@@ -29,6 +29,7 @@ from prism.scanner_readme import render_readme
 from prism.scanner_reporting import render_runbook, render_runbook_csv
 from prism.scanner_core.di import DIContainer
 from prism.scanner_core.feature_detector import FeatureDetector
+from prism.scanner_core.scan_cache import ScanCacheBackend
 from prism.scanner_core.scanner_context import ScannerContext
 from prism.scanner_data import CollectionScanResult, RepoScanResult, RoleScanResult
 
@@ -100,6 +101,7 @@ def run_scan(
     policy_context: dict[str, object] | None = None,
     strict_phase_failures: bool = True,
     scan_pipeline_plugin: str | None = None,
+    cache_backend: ScanCacheBackend | None = None,
 ) -> dict[str, object]:
     """Run the non-collection scanner orchestration through the package seam."""
     assert_safe_role_path(role_path, field_name="role_path")
@@ -133,6 +135,7 @@ def run_scan(
         policy_context=policy_context,
         strict_phase_failures=strict_phase_failures,
         scan_pipeline_plugin=scan_pipeline_plugin,
+        cache_backend=cache_backend,
         build_run_scan_options_canonical_fn=build_run_scan_options_canonical,
         route_scan_payload_orchestration_fn=route_scan_payload_orchestration,
         orchestrate_scan_payload_with_selected_plugin_fn=(
