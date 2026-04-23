@@ -12,6 +12,7 @@ from prism.api_layer import collection as api_collection
 from prism.api_layer import non_collection as api_non_collection
 from prism.errors import PrismRuntimeError
 from prism.errors import FailurePolicy
+from prism.path_safety import assert_safe_role_path
 from prism.collection_plugins import scan_collection_plugins
 from prism.scanner_io.collection_payload import (
     build_collection_identity,
@@ -101,6 +102,7 @@ def run_scan(
     scan_pipeline_plugin: str | None = None,
 ) -> dict[str, object]:
     """Run the non-collection scanner orchestration through the package seam."""
+    assert_safe_role_path(role_path, field_name="role_path")
     return api_non_collection.run_scan(
         role_path,
         role_name_override=role_name_override,
@@ -177,6 +179,7 @@ def scan_collection(
     include_traceback: bool = False,
 ) -> CollectionScanResult:
     """Scan every role under a collection's roles/ folder and return a payload."""
+    assert_safe_role_path(collection_path, field_name="collection_path")
     return api_collection.scan_collection(
         collection_path,
         compare_role_path=compare_role_path,
@@ -262,6 +265,7 @@ def scan_role(
     failure_policy: FailurePolicy | None = None,
 ) -> RoleScanResult:
     """Objective-critical role scan facade for fsrc API consumers."""
+    assert_safe_role_path(role_path, field_name="role_path")
     return api_non_collection.scan_role(
         role_path,
         compare_role_path=compare_role_path,

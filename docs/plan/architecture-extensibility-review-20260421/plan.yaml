@@ -23,7 +23,7 @@ origin: "Fresh full-codebase review, architecture and extensibility focus"
 
 resumption_pointer:
   current_tier: 1
-  next_action: "T3-06: Path traversal validation"
+  next_action: "T3-04: Error boundary audit"
   blocking_issues: []
   notes: |
     Plan rewritten 2026-04-22 after fsrc->src promotion. 13 of 14 original
@@ -323,7 +323,8 @@ tier_3_extensibility:
 
   - id: T3-06
     title: "Path traversal validation at API boundary"
-    status: not_started
+    status: done
+    completed_at: "2026-04-24"
     severity: medium
     supersedes: [H01]
     summary: |
