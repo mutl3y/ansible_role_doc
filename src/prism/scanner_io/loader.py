@@ -8,8 +8,6 @@ from typing import Callable
 
 import yaml
 
-from prism.scanner_data.di_helpers import get_prepared_policy_or_none
-
 
 def _resolve_plugin_registry(di: object | None = None):
     if di is None:
@@ -34,6 +32,8 @@ def _resolve_policy_with_registry(resolver, di: object | None = None):
 
 
 def _get_yaml_parsing_policy(di: object | None = None):
+    from prism.scanner_core.di_helpers import get_prepared_policy_or_none
+
     policy = get_prepared_policy_or_none(di, "yaml_parsing")
     if policy is not None:
         return policy

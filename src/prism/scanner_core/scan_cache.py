@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from collections import OrderedDict
 from typing import Any, Mapping, Protocol
 
@@ -24,6 +25,16 @@ class ScanCacheBackend(Protocol):
     def invalidate(self, key: str) -> None: ...
 
     def clear(self) -> None: ...
+
+
+class _StatsAware(Protocol):
+    """Internal protocol for cache backends that expose hit/miss counters."""
+
+    @property
+    def hits(self) -> int: ...
+
+    @property
+    def misses(self) -> int: ...
 
 
 class InMemoryLRUScanCache:
@@ -95,8 +106,40 @@ def compute_scan_cache_key(
     return f"{role_content_hash}:{options_hash}"
 
 
+def compute_role_content_hash(role_path: str) -> str:
+    """Compute a stable sha256 hash of a role directory's file tree and contents."""
+    h = hashlib.sha256()
+    root = os.path.abspath(role_path)
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames.sort()
+        for filename in sorted(filenames):
+            abs_path = os.path.join(dirpath, filename)
+            rel_path = os.path.relpath(abs_path, root)
+            h.update(rel_path.encode("utf-8"))
+            try:
+                with open(abs_path, "rb") as fh:
+                    h.update(fh.read())
+            except OSError:
+                pass
+    return h.hexdigest()
+
+
+def report_cache_stats(backend: _StatsAware) -> dict[str, Any]:
+    """Return hit/miss stats for measurement."""
+    total = backend.hits + backend.misses
+    hit_rate = backend.hits / total if total > 0 else 0.0
+    return {
+        "hits": backend.hits,
+        "misses": backend.misses,
+        "total": total,
+        "hit_rate_pct": round(hit_rate * 100, 1),
+    }
+
+
 __all__ = [
     "InMemoryLRUScanCache",
     "ScanCacheBackend",
+    "compute_role_content_hash",
     "compute_scan_cache_key",
+    "report_cache_stats",
 ]

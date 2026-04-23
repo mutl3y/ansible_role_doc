@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import threading
 from typing import TYPE_CHECKING, Any, Callable, Mapping
 
 from prism.scanner_core.events import EventBus, EventListener, get_default_listeners
@@ -9,6 +10,7 @@ from prism.scanner_data.builders import VariableRowBuilder
 
 if TYPE_CHECKING:
     from prism.scanner_core.feature_detector import FeatureDetector
+    from prism.scanner_core.scan_cache import ScanCacheBackend
     from prism.scanner_core.scanner_context import ScannerContext
     from prism.scanner_core.variable_discovery import VariableDiscovery
     from prism.scanner_io.output_orchestrator import OutputOrchestrator
@@ -65,6 +67,7 @@ class DIContainer:
         scanner_context_wiring: dict[str, Any] | None = None,
         factory_overrides: dict[str, Callable[..., Any]] | None = None,
         event_listeners: list[EventListener] | None = None,
+        cache_backend: ScanCacheBackend | None = None,
     ) -> None:
         """Initialize container with role path and scan options."""
         if not role_path:
@@ -77,9 +80,11 @@ class DIContainer:
         self._registry = registry
         self._platform_key = platform_key
         self._cache: dict[str, Any] = {}
+        self._cache_lock = threading.Lock()
         self._mocks: dict[str, Any] = {}
         self._scanner_context_wiring = scanner_context_wiring or {}
         self._factory_overrides = factory_overrides or {}
+        self.cache_backend: ScanCacheBackend | None = cache_backend
         effective_listeners = (
             list(event_listeners)
             if event_listeners is not None
@@ -134,26 +139,28 @@ class DIContainer:
             return override(self, self._role_path, self._scan_options)
 
         key = "variable_discovery"
-        if key not in self._cache:
-            from prism.scanner_core.variable_discovery import VariableDiscovery
+        with self._cache_lock:
+            if key not in self._cache:
+                from prism.scanner_core.variable_discovery import VariableDiscovery
 
-            self._cache[key] = VariableDiscovery(
-                self, self._role_path, self._scan_options
-            )
+                self._cache[key] = VariableDiscovery(
+                    self, self._role_path, self._scan_options
+                )
 
         return self._cache[key]
 
     def factory_output_orchestrator(self, output_path: str) -> OutputOrchestrator:
         """Create OutputOrchestrator for a specific output path."""
         cache_key = f"output_orchestrator:{output_path}"
-        if cache_key not in self._cache:
-            from prism.scanner_io.output_orchestrator import OutputOrchestrator
+        with self._cache_lock:
+            if cache_key not in self._cache:
+                from prism.scanner_io.output_orchestrator import OutputOrchestrator
 
-            self._cache[cache_key] = OutputOrchestrator(
-                di=self,
-                output_path=output_path,
-                options=self._scan_options,
-            )
+                self._cache[cache_key] = OutputOrchestrator(
+                    di=self,
+                    output_path=output_path,
+                    options=self._scan_options,
+                )
 
         return self._cache[cache_key]
 
@@ -167,31 +174,34 @@ class DIContainer:
         if override is not None:
             return override(self, self._role_path, self._scan_options)
 
-        if key not in self._cache:
-            from prism.scanner_core.feature_detector import FeatureDetector
+        with self._cache_lock:
+            if key not in self._cache:
+                from prism.scanner_core.feature_detector import FeatureDetector
 
-            self._cache[key] = FeatureDetector(
-                self, self._role_path, self._scan_options
-            )
+                self._cache[key] = FeatureDetector(
+                    self, self._role_path, self._scan_options
+                )
 
         return self._cache[key]
 
     def factory_variable_row_builder(self) -> VariableRowBuilder:
         """Create cached VariableRowBuilder for row construction helpers."""
         key = "variable_row_builder"
-        if key not in self._cache:
-            self._cache[key] = VariableRowBuilder()
+        with self._cache_lock:
+            if key not in self._cache:
+                self._cache[key] = VariableRowBuilder()
         return self._cache[key]
 
     def factory_blocker_fact_builder(self) -> Callable[..., Any]:
         """Return the blocker-fact builder callable (plugin-layer owned)."""
         key = "blocker_fact_builder"
-        if key not in self._cache:
-            from prism.scanner_plugins.audit.blocker_fact_evaluator import (
-                build_scan_policy_blocker_facts,
-            )
+        with self._cache_lock:
+            if key not in self._cache:
+                from prism.scanner_plugins.audit.blocker_fact_evaluator import (
+                    build_scan_policy_blocker_facts,
+                )
 
-            self._cache[key] = build_scan_policy_blocker_facts
+                self._cache[key] = build_scan_policy_blocker_facts
         return self._cache[key]
 
     def _get_registry(self) -> Any:

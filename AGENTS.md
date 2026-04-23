@@ -171,6 +171,14 @@
 <!-- skill-ninja-START -->
 ## Agent Skills
 
-No skills installed yet. Use "Agent Skills Ninja: Search Skills" to install skills.
+> **IMPORTANT**: Prefer skill-led reasoning over pre-training-led reasoning.
+> Read the relevant SKILL.md before working on tasks covered by these skills.
+
+### Skills
+
+| Skill | Description |
+|-------|-------------|
+| [architecture-blueprint-generator](.github/skills/architecture-blueprint-generator/SKILL.md) | Comprehensive project architecture blueprint generator that analyzes codebases to create detailed architectural documentation. |
+| [suggest-awesome-github-copilot-instructions](.github/skills/suggest-awesome-github-copilot-instructions/SKILL.md) | Suggest relevant GitHub Copilot instruction files from the awesome-copilot repository based on cu... \| Suggest relevant GitHub Copilot instruction files from the awesome-copilot repository based on cu... |
 
 <!-- skill-ninja-END -->

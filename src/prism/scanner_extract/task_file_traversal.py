@@ -7,7 +7,7 @@ from pathlib import Path
 import re
 
 
-from prism.scanner_data.di_helpers import require_prepared_policy
+from prism.scanner_core.di_helpers import require_prepared_policy
 from prism.scanner_io.loader import parse_yaml_candidate
 
 

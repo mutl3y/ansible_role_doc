@@ -14,6 +14,7 @@ production semantics.
 from __future__ import annotations
 
 import logging
+import threading
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Any, Callable, Iterator, Mapping
@@ -60,26 +61,31 @@ class EventBus:
 
     def __init__(self, listeners: list[EventListener] | None = None) -> None:
         self._listeners: list[EventListener] = list(listeners or [])
+        self._listeners_lock = threading.RLock()
 
     def subscribe(self, listener: EventListener) -> None:
         if not callable(listener):
             raise TypeError("EventBus listener must be callable")
-        self._listeners.append(listener)
+        with self._listeners_lock:
+            self._listeners.append(listener)
 
     def unsubscribe(self, listener: EventListener) -> None:
-        try:
-            self._listeners.remove(listener)
-        except ValueError:
-            pass
+        with self._listeners_lock:
+            try:
+                self._listeners.remove(listener)
+            except ValueError:
+                pass
 
     @property
     def listener_count(self) -> int:
         return len(self._listeners)
 
     def emit(self, event: ScanPhaseEvent) -> None:
-        if not self._listeners:
+        with self._listeners_lock:
+            listeners_snapshot = list(self._listeners)
+        if not listeners_snapshot:
             return
-        for listener in tuple(self._listeners):
+        for listener in listeners_snapshot:
             try:
                 listener(event)
             except Exception:  # pragma: no cover - defensive

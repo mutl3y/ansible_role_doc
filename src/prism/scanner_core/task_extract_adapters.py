@@ -6,7 +6,7 @@ marker-prefix injection adapters for annotation/catalog extraction.
 
 from __future__ import annotations
 
-from prism.scanner_data.di_helpers import scan_options_from_di
+from prism.scanner_core.di_helpers import scan_options_from_di
 from prism.scanner_extract.task_annotation_parsing import (
     extract_task_annotations_for_file as _extract_task_annotations_for_file,
 )

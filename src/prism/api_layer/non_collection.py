@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import importlib
 from pathlib import Path
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
+
+if TYPE_CHECKING:
+    from prism.scanner_core.scan_cache import ScanCacheBackend
 
 from prism.errors import FailurePolicy, PrismRuntimeError
 from prism.scanner_data.payload_helpers import normalize_scan_role_payload_shape
@@ -109,6 +112,7 @@ def run_scan(
     policy_context: dict[str, object] | None = None,
     strict_phase_failures: bool = True,
     scan_pipeline_plugin: str | None = None,
+    cache_backend: ScanCacheBackend | None = None,
     validate_role_path_fn=_validate_role_path,
     extract_role_description_fn=_extract_role_description,
     build_run_scan_options_canonical_fn=build_run_scan_options_canonical,
@@ -170,6 +174,27 @@ def run_scan(
         ensure_prepared_policy_bundle_fn=ensure_prepared_policy_bundle,
     )
 
+    _cache_key: str | None = None
+    if cache_backend is not None:
+        from prism.scanner_core.scan_cache import (
+            compute_role_content_hash,
+            compute_scan_cache_key,
+        )
+
+        _role_content_hash = compute_role_content_hash(execution_request.role_path)
+        _stable_opts = {
+            k: v
+            for k, v in execution_request.scan_options.items()
+            if k != "prepared_policy_bundle"
+        }
+        _cache_key = compute_scan_cache_key(
+            role_content_hash=_role_content_hash,
+            scan_options=_stable_opts,
+        )
+        _cached = cache_backend.get(_cache_key)
+        if _cached is not None:
+            return _cached
+
     def _kernel_orchestrator(
         *,
         role_path: str,
@@ -185,12 +210,17 @@ def run_scan(
             registry=execution_request.runtime_registry,
         )
 
-    return route_scan_payload_orchestration_fn(
+    result = route_scan_payload_orchestration_fn(
         role_path=execution_request.role_path,
         scan_options=execution_request.scan_options,
         kernel_orchestrator_fn=_kernel_orchestrator,
         registry=execution_request.runtime_registry,
     )
+
+    if cache_backend is not None and _cache_key is not None:
+        cache_backend.set(_cache_key, result)
+
+    return result
 
 
 def scan_role(

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from prism.scanner_data.di_helpers import require_prepared_policy
+from prism.scanner_core.di_helpers import require_prepared_policy
 
 
 def _get_task_annotation_policy(di: object | None = None):

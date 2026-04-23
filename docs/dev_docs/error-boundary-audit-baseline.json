@@ -9,6 +9,10 @@
       "kind": "ValueError"
     },
     {
+      "file": "src/prism/scanner_core/di_helpers.py",
+      "kind": "ValueError"
+    },
+    {
       "file": "src/prism/scanner_core/events.py",
       "kind": "TypeError"
     },

@@ -6,7 +6,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from prism.scanner_data.di_helpers import scan_options_from_di
+from prism.scanner_core.di_helpers import scan_options_from_di
 from prism.scanner_extract.task_file_traversal import (
     collect_task_files as _tft_collect_task_files,
     load_yaml_file as _tft_load_yaml_file,

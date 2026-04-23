@@ -372,7 +372,7 @@ def resolve_jinja_analysis_policy_plugin(
 
 
 def _make_standalone_di(role_path: str, exclude_paths=None):
-    from prism.scanner_data.standalone_di import make_standalone_di
+    from prism.scanner_core.standalone_di import make_standalone_di
 
     return make_standalone_di(role_path, exclude_paths)
 

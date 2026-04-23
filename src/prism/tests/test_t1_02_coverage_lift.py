@@ -205,7 +205,7 @@ class _FakeDI:
 
 
 def test_scan_options_from_di_variants() -> None:
-    from prism.scanner_data.di_helpers import scan_options_from_di
+    from prism.scanner_core.di_helpers import scan_options_from_di
 
     assert scan_options_from_di(None) is None
     assert scan_options_from_di(_FakeDI(None)) is None
@@ -213,7 +213,7 @@ def test_scan_options_from_di_variants() -> None:
 
 
 def test_get_prepared_policy_or_none_paths() -> None:
-    from prism.scanner_data.di_helpers import get_prepared_policy_or_none
+    from prism.scanner_core.di_helpers import get_prepared_policy_or_none
 
     assert get_prepared_policy_or_none(None, "p") is None
     assert get_prepared_policy_or_none(_FakeDI({}), "p") is None
@@ -229,7 +229,7 @@ def test_get_prepared_policy_or_none_paths() -> None:
 
 
 def test_require_prepared_policy_returns_or_raises() -> None:
-    from prism.scanner_data.di_helpers import require_prepared_policy
+    from prism.scanner_core.di_helpers import require_prepared_policy
 
     sentinel = object()
     di = _FakeDI({"prepared_policy_bundle": {"p": sentinel}})

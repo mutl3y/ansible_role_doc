@@ -40,7 +40,7 @@ class _FakeDI:
 
 
 def _load_helper():
-    mod = importlib.import_module("prism.scanner_data.di_helpers")
+    mod = importlib.import_module("prism.scanner_core.di_helpers")
     return mod.scan_options_from_di
 
 
