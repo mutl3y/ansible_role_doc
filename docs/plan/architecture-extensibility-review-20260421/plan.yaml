@@ -23,7 +23,7 @@ origin: "Fresh full-codebase review, architecture and extensibility focus"
 
 resumption_pointer:
   current_tier: 1
-  next_action: "T3-05: Structured scan telemetry"
+  next_action: "T3-02: Async I/O in scanner read paths (Wave C candidate)"
   blocking_issues: []
   notes: |
     Plan rewritten 2026-04-22 after fsrc->src promotion. 13 of 14 original
@@ -305,7 +305,8 @@ tier_3_extensibility:
 
   - id: T3-05
     title: "Structured scan telemetry"
-    status: not_started
+    status: done
+    completed_at: "2026-04-24"
     severity: medium
     supersedes: [G01]
     summary: |
@@ -321,6 +322,20 @@ tier_3_extensibility:
       - "JSON log mode emits one structured record per scan phase"
     estimated_effort: small
     depends_on: [T3-01]
+    resolution: |
+      Added prism/scanner_core/telemetry.py: ScanTelemetry + PhaseTelemetry
+      TypedDicts, TelemetryCollector listener (consumes T3-01 phase events
+      and aggregates per-phase durations + total scan duration), and
+      telemetry_session() context manager for opt-in registration via the
+      default-listener registry. JSON-mode logging is enabled by setting
+      PRISM_TELEMETRY_JSON_LOG=1; emits one JSON record per phase boundary
+      to stderr. Snapshot accepts optional plugin_key. 6 new tests in
+      test_t3_05_scan_telemetry.py cover collector recording, snapshot
+      shape, JSON log mode, session context manager, post-without-pre
+      handling, and DI integration. Direct injection of telemetry into
+      scan_role() result dict deferred (would require touching every
+      scan-result return path); collector is exposed via opt-in API.
+      metrics_sink plugin slot deferred.
 
   - id: T3-06
     title: "Path traversal validation at API boundary"
