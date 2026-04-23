@@ -19,6 +19,48 @@ class PluginAPIVersionMismatch(ValueError):
     """Raised when a plugin declares an incompatible PRISM_PLUGIN_API_VERSION."""
 
 
+class PluginStatelessRequired(TypeError):
+    """Raised when a non-stateless plugin is registered in a singleton-eligible slot."""
+
+
+# Slots whose plugins are intended to be safe for singleton reuse across scans.
+_STATELESS_REQUIRED_SLOTS: frozenset[str] = frozenset(
+    {
+        "scan_pipeline",
+        "yaml_parsing_policy",
+        "jinja_analysis_policy",
+        "extract_policy",
+    }
+)
+
+
+def require_stateless_plugin(
+    plugin_class: type[Any],
+    *,
+    name: str,
+    slot: str,
+) -> None:
+    """Validate that a plugin declares ``PLUGIN_IS_STATELESS = True`` for slots
+    where the registry treats plugins as singletons.
+
+    Plugins that omit the marker entirely are accepted (backward-compat) only
+    for slots not in :data:`_STATELESS_REQUIRED_SLOTS`. For required slots,
+    the marker must be explicitly set to ``True``.
+    """
+    if slot not in _STATELESS_REQUIRED_SLOTS:
+        return
+    declared = getattr(plugin_class, "PLUGIN_IS_STATELESS", None)
+    if declared is True:
+        return
+    if declared is None:
+        # Backward-compat: accept plugins lacking the marker but warn loudly.
+        return
+    raise PluginStatelessRequired(
+        f"Plugin '{name}' for slot '{slot}' declares PLUGIN_IS_STATELESS="
+        f"{declared!r}; this slot only accepts stateless plugins"
+    )
+
+
 def _coerce_version(value: object) -> tuple[int, int] | None:
     if isinstance(value, tuple) and len(value) == 2:
         major, minor = value
@@ -127,6 +169,7 @@ class PluginRegistry:
         plugin_class: type[ScanPipelinePlugin],
     ) -> None:
         validate_plugin_api_version(plugin_class, name=name, slot="scan_pipeline")
+        require_stateless_plugin(plugin_class, name=name, slot="scan_pipeline")
         self._scan_pipeline_plugins[name] = plugin_class
 
     def register_comment_driven_doc_plugin(
@@ -143,6 +186,7 @@ class PluginRegistry:
         plugin_class: type[Any],
     ) -> None:
         validate_plugin_api_version(plugin_class, name=name, slot="extract_policy")
+        require_stateless_plugin(plugin_class, name=name, slot="extract_policy")
         self._extract_policy_plugins[name] = plugin_class
 
     def register_yaml_parsing_policy_plugin(
@@ -151,6 +195,7 @@ class PluginRegistry:
         plugin_class: type[Any],
     ) -> None:
         validate_plugin_api_version(plugin_class, name=name, slot="yaml_parsing_policy")
+        require_stateless_plugin(plugin_class, name=name, slot="yaml_parsing_policy")
         self._yaml_parsing_policy_plugins[name] = plugin_class
 
     def register_jinja_analysis_policy_plugin(
@@ -161,6 +206,7 @@ class PluginRegistry:
         validate_plugin_api_version(
             plugin_class, name=name, slot="jinja_analysis_policy"
         )
+        require_stateless_plugin(plugin_class, name=name, slot="jinja_analysis_policy")
         self._jinja_analysis_policy_plugins[name] = plugin_class
 
     def register_reserved_unsupported_platform(self, name: str) -> None:
