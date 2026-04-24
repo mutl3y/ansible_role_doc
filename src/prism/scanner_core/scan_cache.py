@@ -11,6 +11,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import threading
 from collections import OrderedDict
 from typing import Any, Mapping, Protocol
 
@@ -48,38 +49,44 @@ class InMemoryLRUScanCache:
             raise ValueError("maxsize must be >= 0")
         self._maxsize = maxsize
         self._store: OrderedDict[str, Any] = OrderedDict()
+        self._lock = threading.Lock()
         self._hits = 0
         self._misses = 0
 
     def get(self, key: str) -> Any | None:
         if self._maxsize == 0:
-            self._misses += 1
+            with self._lock:
+                self._misses += 1
             return None
-        try:
-            value = self._store.pop(key)
-        except KeyError:
-            self._misses += 1
-            return None
-        self._store[key] = value
-        self._hits += 1
+        with self._lock:
+            try:
+                value = self._store.pop(key)
+            except KeyError:
+                self._misses += 1
+                return None
+            self._store[key] = value
+            self._hits += 1
         return value
 
     def set(self, key: str, value: Any) -> None:
         if self._maxsize == 0:
             return
-        if key in self._store:
-            self._store.pop(key)
-        self._store[key] = value
-        while len(self._store) > self._maxsize:
-            self._store.popitem(last=False)
+        with self._lock:
+            if key in self._store:
+                self._store.pop(key)
+            self._store[key] = value
+            while len(self._store) > self._maxsize:
+                self._store.popitem(last=False)
 
     def invalidate(self, key: str) -> None:
-        self._store.pop(key, None)
+        with self._lock:
+            self._store.pop(key, None)
 
     def clear(self) -> None:
-        self._store.clear()
-        self._hits = 0
-        self._misses = 0
+        with self._lock:
+            self._store.clear()
+            self._hits = 0
+            self._misses = 0
 
     @property
     def hits(self) -> int:
@@ -118,7 +125,8 @@ def compute_role_content_hash(role_path: str) -> str:
             h.update(rel_path.encode("utf-8"))
             try:
                 with open(abs_path, "rb") as fh:
-                    h.update(fh.read())
+                    while chunk := fh.read(65536):
+                        h.update(chunk)
             except OSError:
                 pass
     return h.hexdigest()

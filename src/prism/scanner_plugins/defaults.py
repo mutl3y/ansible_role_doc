@@ -57,10 +57,11 @@ _FALLBACK_SINGLETONS = [
     _JINJA_ANALYSIS_FALLBACK,
 ]
 for _singleton in _FALLBACK_SINGLETONS:
-    assert getattr(type(_singleton), "PLUGIN_IS_STATELESS", False), (
-        f"{type(_singleton).__name__} must declare PLUGIN_IS_STATELESS = True "
-        "to be used as a module-level singleton fallback"
-    )
+    if not getattr(type(_singleton), "PLUGIN_IS_STATELESS", False):
+        raise RuntimeError(
+            f"{type(_singleton).__name__} must declare PLUGIN_IS_STATELESS = True "
+            "to be used as a module-level singleton fallback"
+        )
 
 
 def _raise_malformed_plugin_shape_error(

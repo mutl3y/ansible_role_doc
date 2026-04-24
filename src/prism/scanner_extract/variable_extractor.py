@@ -35,8 +35,10 @@ VAULT_KEY_RE = re.compile(r"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*:\s*!vault\b", re.MUL
 
 
 def looks_secret_name(name: str) -> bool:
-    token = name.lower()
-    return any(marker in token for marker in ("password", "secret", "token", "key"))
+    import re as _re
+
+    parts = _re.split(r"[_\W]+", name.lower())
+    return any(p in {"password", "secret", "token", "key"} for p in parts)
 
 
 def resembles_password_like(value: str) -> bool:

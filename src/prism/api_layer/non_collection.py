@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib
 from pathlib import Path
+import threading
 from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
@@ -30,14 +31,16 @@ from prism.scanner_plugins.bundle_resolver import ensure_prepared_policy_bundle
 from prism.scanner_plugins.defaults import resolve_comment_driven_documentation_plugin
 
 _repo_scan_facade: Any | None = None
+_repo_scan_facade_lock = threading.Lock()
 
 
 def _resolve_repo_scan_facade() -> Any:
     global _repo_scan_facade
-    if _repo_scan_facade is None:
-        _repo_scan_facade = importlib.import_module(
-            "prism.repo_services"
-        ).repo_scan_facade
+    with _repo_scan_facade_lock:
+        if _repo_scan_facade is None:
+            _repo_scan_facade = importlib.import_module(
+                "prism.repo_services"
+            ).repo_scan_facade
     return _repo_scan_facade
 
 

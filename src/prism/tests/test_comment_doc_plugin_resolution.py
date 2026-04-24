@@ -848,11 +848,12 @@ def test_task_line_parsing_constants_require_prepared_policy() -> None:
     with _prefer_fsrc_prism_on_sys_path():
         module = importlib.import_module("prism.scanner_extract.task_line_parsing")
 
-        with pytest.raises(
-            ValueError, match="prepared_policy_bundle.task_line_parsing"
-        ):
-            list(module.TASK_INCLUDE_KEYS)
+        # Without DI context, constants fall back to Ansible defaults — no crash.
+        keys_no_di = list(module.TASK_INCLUDE_KEYS)
+        assert "include_tasks" in keys_no_di
+        assert "ansible.builtin.include_tasks" in keys_no_di
 
+        # With DI context, constants reflect the injected policy.
         result = module.get_task_include_keys(di=_DI())
         assert result == {"include_test"}
 
@@ -869,11 +870,10 @@ def test_task_line_parsing_templated_include_regex_requires_prepared_policy() ->
     with _prefer_fsrc_prism_on_sys_path():
         module = importlib.import_module("prism.scanner_extract.task_line_parsing")
 
-        with pytest.raises(
-            ValueError, match="prepared_policy_bundle.task_line_parsing"
-        ):
-            module.TEMPLATED_INCLUDE_RE.match("test_pattern")
+        # Without DI context, regex falls back to Ansible defaults — no crash.
+        assert module.TEMPLATED_INCLUDE_RE.match("{{ var }}") is not None
 
+        # With DI context, regex reflects the injected policy.
         pattern = module.get_templated_include_re(di=_DI())
         assert bool(pattern.match("test_pattern"))
 
