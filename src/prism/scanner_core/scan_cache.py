@@ -90,11 +90,18 @@ class InMemoryLRUScanCache:
 
     @property
     def hits(self) -> int:
-        return self._hits
+        with self._lock:
+            return self._hits
 
     @property
     def misses(self) -> int:
-        return self._misses
+        with self._lock:
+            return self._misses
+
+    def stats(self) -> tuple[int, int]:
+        """Return (hits, misses) atomically under a single lock acquisition."""
+        with self._lock:
+            return self._hits, self._misses
 
     def __len__(self) -> int:
         return len(self._store)
@@ -133,7 +140,9 @@ def compute_role_content_hash(role_path: str) -> str:
                     while chunk := fh.read(65536):
                         h.update(chunk)
             except OSError:
-                pass
+                # Mark unreadable files in the hash so partial-read cases
+                # do not collide with complete-read cases for similar trees.
+                h.update(b"\x00UNREADABLE\x00")
     return h.hexdigest()
 
 

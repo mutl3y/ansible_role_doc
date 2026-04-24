@@ -136,6 +136,7 @@ __all__ = [
 
 
 _DEFAULT_LISTENERS: list[EventListener] = []
+_DEFAULT_LISTENERS_LOCK: threading.Lock = threading.Lock()
 
 
 def register_default_listener(listener: EventListener) -> None:
@@ -147,19 +148,23 @@ def register_default_listener(listener: EventListener) -> None:
     """
     if not callable(listener):
         raise TypeError("default listener must be callable")
-    _DEFAULT_LISTENERS.append(listener)
+    with _DEFAULT_LISTENERS_LOCK:
+        _DEFAULT_LISTENERS.append(listener)
 
 
 def unregister_default_listener(listener: EventListener) -> None:
-    try:
-        _DEFAULT_LISTENERS.remove(listener)
-    except ValueError:
-        pass
+    with _DEFAULT_LISTENERS_LOCK:
+        try:
+            _DEFAULT_LISTENERS.remove(listener)
+        except ValueError:
+            pass
 
 
 def get_default_listeners() -> tuple[EventListener, ...]:
-    return tuple(_DEFAULT_LISTENERS)
+    with _DEFAULT_LISTENERS_LOCK:
+        return tuple(_DEFAULT_LISTENERS)
 
 
 def clear_default_listeners() -> None:
-    _DEFAULT_LISTENERS.clear()
+    with _DEFAULT_LISTENERS_LOCK:
+        _DEFAULT_LISTENERS.clear()

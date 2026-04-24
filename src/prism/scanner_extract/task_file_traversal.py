@@ -262,8 +262,11 @@ def _collect_task_files_with_unresolved_includes(
     visited: set[Path] = set()
     unresolved_edges: list[dict[str, str]] = []
     unresolved_keys: set[tuple[str, str, str]] = set()
+    _MAX_INCLUDE_DEPTH = 64
 
-    def _visit(task_file: Path) -> None:
+    def _visit(task_file: Path, depth: int = 0) -> None:
+        if depth > _MAX_INCLUDE_DEPTH:
+            return
         if task_file in visited:
             return
         if _is_path_excluded(task_file, role_root, exclude_paths):
@@ -278,7 +281,7 @@ def _collect_task_files_with_unresolved_includes(
                 continue
             resolved = _resolve_task_include(role_root, task_file, include_target)
             if resolved is not None:
-                _visit(resolved)
+                _visit(resolved, depth + 1)
                 continue
 
             task_file_rel = task_file.relative_to(role_root).as_posix()

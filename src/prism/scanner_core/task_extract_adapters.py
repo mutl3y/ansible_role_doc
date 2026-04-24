@@ -32,24 +32,26 @@ from prism.scanner_extract.task_file_traversal import (  # noqa: F401
 )
 
 
+from prism.scanner_plugins.parsers.comment_doc.marker_utils import (  # noqa: F401
+    DEFAULT_DOC_MARKER_PREFIX,
+)
+
+
 def _resolve_marker_prefix(di: object | None) -> str:
     scan_options = scan_options_from_di(di)
     if not isinstance(scan_options, dict):
         raise ValueError(
-            "prepared_policy_bundle must be available via DI scan_options "
-            "before marker-prefix resolution"
+            "prepared_policy_bundle must be available in scan_options to resolve marker prefix"
         )
     bundle = scan_options.get("prepared_policy_bundle")
     if not isinstance(bundle, dict):
         raise ValueError(
-            "prepared_policy_bundle must be available in scan_options "
-            "before marker-prefix resolution"
+            "prepared_policy_bundle must be available in scan_options to resolve marker prefix"
         )
     bundle_prefix = bundle.get("comment_doc_marker_prefix")
     if not isinstance(bundle_prefix, str):
         raise ValueError(
-            "prepared_policy_bundle.comment_doc_marker_prefix must be set "
-            "before marker-prefix resolution"
+            "prepared_policy_bundle must provide comment_doc_marker_prefix to resolve marker prefix"
         )
     return bundle_prefix
 

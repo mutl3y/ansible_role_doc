@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 import logging
+import warnings
 from typing import Any, Callable, cast
 
 from prism.errors import PrismRuntimeError
@@ -70,8 +71,6 @@ def _require_prepared_policy_bundle(
             "ScannerContext orchestration"
         )
 
-    import warnings as _warnings
-
     for _key in (
         "task_traversal",
         "yaml_parsing",
@@ -79,7 +78,7 @@ def _require_prepared_policy_bundle(
         "task_annotation_parsing",
     ):
         if prepared_policy_bundle.get(_key) is None:
-            _warnings.warn(
+            warnings.warn(
                 f"prepared_policy_bundle.{_key} is absent — "
                 "downstream scan phases may use fallback behaviour. "
                 "Provide an explicit policy to suppress this warning.",

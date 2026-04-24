@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any, Collection, NotRequired, Protocol, Required, TypedDict
 
 
@@ -147,9 +148,9 @@ class PreparedTaskAnnotationPolicy(Protocol):
 class PreparedYAMLParsingPolicy(Protocol):
     """Minimum YAML parsing capability surface required after ingress."""
 
-    def load_yaml_file(self, path: str | Any) -> object: ...
+    def load_yaml_file(self, path: str | Path) -> object: ...
     def parse_yaml_candidate(
-        self, candidate: str | Any, role_root: str | Any
+        self, candidate: str | Path, role_root: str | Path
     ) -> dict[str, object] | None: ...
 
 
@@ -171,10 +172,10 @@ class PreparedPolicyBundle(TypedDict, total=False):
 
     task_line_parsing: Required[PreparedTaskLineParsingPolicy]
     jinja_analysis: Required[PreparedJinjaAnalysisPolicy]
-    task_traversal: Required[PreparedTaskTraversalPolicy]
-    yaml_parsing: Required[PreparedYAMLParsingPolicy]
-    variable_extractor: Required[PreparedVariableExtractorPolicy]
-    task_annotation_parsing: Required[PreparedTaskAnnotationPolicy]
+    task_traversal: NotRequired[PreparedTaskTraversalPolicy]
+    yaml_parsing: NotRequired[PreparedYAMLParsingPolicy]
+    variable_extractor: NotRequired[PreparedVariableExtractorPolicy]
+    task_annotation_parsing: NotRequired[PreparedTaskAnnotationPolicy]
     comment_doc_marker_prefix: str
     ignore_unresolved_internal_underscore_references: bool
 

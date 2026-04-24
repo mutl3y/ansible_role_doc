@@ -41,7 +41,13 @@ def format_inline_yaml(value: Any) -> str:
 
 def is_sensitive_variable(name: str, value: Any) -> bool:
     parts = re.split(r"[_\W]+", name.lower())
-    return any(p in {"password", "secret", "token", "key"} for p in parts)
+    if any(p in {"password", "secret", "token", "key"} for p in parts):
+        return True
+    if isinstance(value, str):
+        candidate = value.strip().lower()
+        if candidate and ("password" in candidate or candidate.startswith("$6$")):
+            return True
+    return False
 
 
 def find_variable_line_in_yaml(path: Path | None, name: str) -> int | None:

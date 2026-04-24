@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib
+import threading
 from typing import Any
 
 from prism.scanner_plugins.interfaces import CommentDrivenDocumentationPlugin
@@ -115,6 +116,7 @@ class PluginRegistry:
     """Registry for scanner plugin classes and dynamic plugin loaders."""
 
     def __init__(self) -> None:
+        self._lock = threading.RLock()
         self._variable_discovery_plugins: dict[str, type[VariableDiscoveryPlugin]] = {}
         self._feature_detection_plugins: dict[str, type[FeatureDetectionPlugin]] = {}
         self._output_orchestration_plugins: dict[
@@ -133,6 +135,7 @@ class PluginRegistry:
         self._loaded_plugins: dict[tuple[str, str], Any] = {}
         self._deferred_variable_discovery: dict[str, tuple[str, str]] = {}
         self._deferred_feature_detection: dict[str, tuple[str, str]] = {}
+        self._default_platform_key: str | None = None
 
     def register_variable_discovery_plugin(
         self,
@@ -235,12 +238,16 @@ class PluginRegistry:
         result = self._variable_discovery_plugins.get(name)
         if result is not None:
             return result
-        deferred = self._deferred_variable_discovery.get(name)
-        if deferred is not None:
-            module_path, class_name = deferred
-            cls = self.load_plugin_from_module(module_path, class_name)
-            self._variable_discovery_plugins[name] = cls
-            return cls
+        with self._lock:
+            result = self._variable_discovery_plugins.get(name)
+            if result is not None:
+                return result
+            deferred = self._deferred_variable_discovery.get(name)
+            if deferred is not None:
+                module_path, class_name = deferred
+                cls = self.load_plugin_from_module(module_path, class_name)
+                self._variable_discovery_plugins[name] = cls
+                return cls
         return None
 
     def get_feature_detection_plugin(
@@ -250,12 +257,16 @@ class PluginRegistry:
         result = self._feature_detection_plugins.get(name)
         if result is not None:
             return result
-        deferred = self._deferred_feature_detection.get(name)
-        if deferred is not None:
-            module_path, class_name = deferred
-            cls = self.load_plugin_from_module(module_path, class_name)
-            self._feature_detection_plugins[name] = cls
-            return cls
+        with self._lock:
+            result = self._feature_detection_plugins.get(name)
+            if result is not None:
+                return result
+            deferred = self._deferred_feature_detection.get(name)
+            if deferred is not None:
+                module_path, class_name = deferred
+                cls = self.load_plugin_from_module(module_path, class_name)
+                self._feature_detection_plugins[name] = cls
+                return cls
         return None
 
     def get_output_orchestration_plugin(
@@ -314,8 +325,14 @@ class PluginRegistry:
     def list_jinja_analysis_policy_plugins(self) -> list[str]:
         return list(self._jinja_analysis_policy_plugins.keys())
 
+    def set_default_platform_key(self, name: str) -> None:
+        """Explicitly nominate a platform key as the registry default."""
+        self._default_platform_key = name
+
     def get_default_platform_key(self) -> str | None:
-        """Return the first registered variable-discovery plugin key, or None."""
+        """Return the explicitly-set default platform key, or the first registered one."""
+        if self._default_platform_key is not None:
+            return self._default_platform_key
         all_keys = self.list_variable_discovery_plugins()
         if all_keys:
             return all_keys[0]
@@ -326,16 +343,20 @@ class PluginRegistry:
 
     def load_plugin_from_module(self, module_name: str, class_name: str) -> Any:
         cache_key = (module_name, class_name)
-        if cache_key in self._loaded_plugins:
-            return self._loaded_plugins[cache_key]
-
-        module = importlib.import_module(module_name)
-        if not hasattr(module, class_name):
-            raise ValueError(
-                f"Plugin class '{class_name}' not found in module '{module_name}'"
-            )
-        plugin_class = getattr(module, class_name)
-        self._loaded_plugins[cache_key] = plugin_class
+        cached = self._loaded_plugins.get(cache_key)
+        if cached is not None:
+            return cached
+        with self._lock:
+            cached = self._loaded_plugins.get(cache_key)
+            if cached is not None:
+                return cached
+            module = importlib.import_module(module_name)
+            if not hasattr(module, class_name):
+                raise ValueError(
+                    f"Plugin class '{class_name}' not found in module '{module_name}'"
+                )
+            plugin_class = getattr(module, class_name)
+            self._loaded_plugins[cache_key] = plugin_class
         return plugin_class
 
 

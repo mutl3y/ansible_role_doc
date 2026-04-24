@@ -76,13 +76,13 @@ def _extract_role_description(role_root: Path, role_name: str) -> str:
     readme_path = role_root / "README.md"
     if readme_path.is_file():
         try:
-            readme_text = readme_path.read_text(encoding="utf-8")
+            with readme_path.open("r", encoding="utf-8") as fh:
+                for raw_line in fh:
+                    stripped = raw_line.strip().lstrip("#").strip()
+                    if stripped:
+                        return stripped
         except (OSError, UnicodeDecodeError):
-            readme_text = ""
-        for line in readme_text.splitlines():
-            stripped = line.strip().lstrip("#").strip()
-            if stripped:
-                return stripped
+            pass
     return f"Auto-generated scan summary for {role_name}."
 
 
@@ -185,11 +185,20 @@ def run_scan(
         )
 
         _role_content_hash = compute_role_content_hash(execution_request.role_path)
+        _bundle = execution_request.scan_options.get("prepared_policy_bundle") or {}
+        _bundle_fingerprint = sorted(
+            (
+                str(_key),
+                f"{type(_value).__module__}.{type(_value).__qualname__}",
+            )
+            for _key, _value in _bundle.items()
+        )
         _stable_opts = {
             k: v
             for k, v in execution_request.scan_options.items()
             if k != "prepared_policy_bundle"
         }
+        _stable_opts["__bundle_fingerprint__"] = _bundle_fingerprint
         _cache_key = compute_scan_cache_key(
             role_content_hash=_role_content_hash,
             scan_options=_stable_opts,
