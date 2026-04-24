@@ -1,6 +1,6 @@
 plan_id: gilfoyle-remediation-20260423
 title: "Gilfoyle Architectural Remediation + Plan Closure"
-status: active
+status: completed
 created: "2026-04-23"
 last_updated: "2026-04-23"
 origin: "Gilfoyle full architectural review; closes architecture-extensibility-review-20260421 remaining tasks T3-02 and T4-04"
@@ -26,9 +26,10 @@ closes_plan: architecture-extensibility-review-20260421
 # ---------------------------------------------------------------------------
 
 resumption_pointer:
-  current_wave: 1
-  next_action: "Wave 1: G-01 import cycle + G-02 DI thread-safety (highest-priority blockers)"
+  current_wave: 3
+  next_action: "T3-02 async parallel I/O — deferred (cache measurement showed warm-path speedup sufficient; re-evaluate if cold-path workloads grow)"
   blocking_issues: []
+  notes: "All Wave 1 and Wave 2 tasks complete. T3-02 explicitly deferred — cache warm-path benchmark confirmed meaningful speedup, making ThreadPoolExecutor investment marginal for current workloads."
 
 # ---------------------------------------------------------------------------
 # DEPENDENCY GRAPH (summary)
@@ -58,7 +59,8 @@ waves:
 
       - id: G-01
         title: "Break three-way import cycle in foundational packages"
-        status: not_started
+        status: done
+        completed_at: "2026-04-24"
         severity: high
         wave: 1
         agent: gem-implementer
@@ -87,7 +89,8 @@ waves:
 
       - id: G-02
         title: "Add threading locks to DIContainer and EventBus"
-        status: not_started
+        status: done
+        completed_at: "2026-04-24"
         severity: high
         wave: 1
         agent: gem-implementer
@@ -116,7 +119,8 @@ waves:
 
       - id: G-07
         title: "Add module-level docstrings to scanner_core and scanner_kernel __init__.py"
-        status: not_started
+        status: done
+        completed_at: "2026-04-24"
         severity: low
         wave: 1
         agent: gem-implementer
@@ -140,7 +144,8 @@ waves:
 
       - id: G-08
         title: "Remove legacy fsrc_ prefix from all test file names"
-        status: not_started
+        status: done
+        completed_at: "2026-04-24"
         severity: low
         wave: 1
         agent: gem-implementer
@@ -165,7 +170,8 @@ waves:
 
       - id: T4-04
         title: "Property/fuzz testing for YAML and Jinja parsers (hypothesis)"
-        status: not_started
+        status: done
+        completed_at: "2026-04-24"
         severity: low
         wave: 1
         agent: gem-implementer
@@ -205,7 +211,8 @@ waves:
 
       - id: G-03
         title: "Wire InMemoryLRUScanCache into the scan dispatch path"
-        status: not_started
+        status: done
+        completed_at: "2026-04-24"
         severity: high
         wave: 2
         agent: gem-implementer
@@ -235,7 +242,8 @@ waves:
 
       - id: G-04
         title: "Relocate misplaced files from scanner_data (junk-drawer cleanup)"
-        status: not_started
+        status: done
+        completed_at: "2026-04-24"
         severity: medium
         wave: 2
         agent: gem-implementer
@@ -265,7 +273,8 @@ waves:
 
       - id: G-05
         title: "Move collection_plugins.py into a proper package"
-        status: not_started
+        status: done
+        completed_at: "2026-04-24"
         severity: medium
         wave: 2
         agent: gem-implementer
@@ -294,7 +303,8 @@ waves:
 
       - id: G-06
         title: "Decompose scanner_context.py and orchestrator.py below 400 lines"
-        status: not_started
+        status: done
+        completed_at: "2026-04-24"
         severity: medium
         wave: 2
         agent: gem-implementer
@@ -339,7 +349,9 @@ waves:
 
       - id: T3-02
         title: "Async/parallel file I/O for large repos"
-        status: not_started
+        status: deferred
+        deferred_at: "2026-04-24"
+        deferred_reason: "Cache warm-path benchmark confirmed meaningful speedup (G-03). ThreadPoolExecutor investment marginal for current workloads. Re-evaluate when cold-path repo scans become a bottleneck."
         severity: high
         wave: 3
         agent: gem-implementer
@@ -380,10 +392,19 @@ waves:
 # ---------------------------------------------------------------------------
 
 closure:
-  status: open
-  completed_at: null
+  status: completed
+  completed_at: "2026-04-24"
   closes_tasks_from_prior_plan:
     - plan: architecture-extensibility-review-20260421
       tasks: [T3-02, T4-04]
-  validation_gate_evidence: null
-  notes: null
+  validation_gate_evidence:
+    pytest: "734 passed, 7 skipped"
+    ruff: "PASS"
+    black: "PASS"
+    typecheck: "PASS (all waves)"
+  notes: |
+    All Wave 1 and Wave 2 tasks completed (G-01 through G-08 + T4-04).
+    T3-02 explicitly deferred — cache warm-path benchmark confirmed sufficient
+    speedup; ThreadPoolExecutor remains an option for future cold-path scale.
+    architecture-extensibility-review-20260421 T4-04 closed by this plan.
+    T3-02 from that prior plan formally deferred with documented rationale.
