@@ -56,7 +56,7 @@ def _is_path_excluded(
     return _is_relpath_excluded(relpath, exclude_paths)
 
 
-def _yaml_cache_identity(file_path: Path) -> tuple[str, int, int] | None:
+def _stat_yaml_file(file_path: Path) -> tuple[str, int, int] | None:
     try:
         stat = file_path.stat()
     except OSError:
@@ -97,7 +97,7 @@ def _load_yaml_file_with_metadata(
     role_root: Path | None = None,
     di: object | None = None,
 ) -> object | None:
-    identity = _yaml_cache_identity(file_path)
+    identity = _stat_yaml_file(file_path)
     if identity is None:
         if yaml_failure_collector is not None:
             collector_root = role_root or _derive_role_root_from_task_file(file_path)

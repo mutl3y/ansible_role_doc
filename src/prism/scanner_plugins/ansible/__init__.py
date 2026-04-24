@@ -18,6 +18,12 @@ from prism.scanner_plugins.ansible.extract_policies import (
 from prism.scanner_plugins.ansible.extract_policies import (
     AnsibleTaskLineParsingPolicyPlugin,
 )
+from prism.scanner_plugins.ansible.extract_policies import (
+    AnsibleTaskTraversalPolicyPlugin,
+)
+from prism.scanner_plugins.ansible.extract_policies import (
+    AnsibleVariableExtractorPolicyPlugin,
+)
 from prism.scanner_plugins.ansible.feature_detection import (
     AnsibleFeatureDetectionPlugin,
 )
@@ -25,6 +31,7 @@ from prism.scanner_plugins.ansible.variable_discovery import (
     AnsibleVariableDiscoveryPlugin,
 )
 from prism.scanner_plugins.parsers.jinja import JinjaAnalysisPolicyPlugin
+from prism.scanner_plugins.parsers.yaml import YAMLParsingPolicyPlugin
 from prism.scanner_data.contracts_request import PreparedPolicyBundle
 from prism.scanner_plugins.interfaces import (
     PlatformExecutionBundle,
@@ -108,6 +115,10 @@ def build_ansible_execution_bundle(
     """
     task_line_parsing = AnsibleTaskLineParsingPolicyPlugin()
     jinja_analysis = JinjaAnalysisPolicyPlugin()
+    task_traversal = AnsibleTaskTraversalPolicyPlugin()
+    yaml_parsing = YAMLParsingPolicyPlugin()
+    variable_extractor = AnsibleVariableExtractorPolicyPlugin()
+    task_annotation_parsing = AnsibleTaskAnnotationPolicyPlugin()
     participants: PlatformParticipants = {
         "task_line_parsing": task_line_parsing,
         "jinja_analysis": jinja_analysis,
@@ -115,6 +126,10 @@ def build_ansible_execution_bundle(
     prepared_policy: PreparedPolicyBundle = {
         "task_line_parsing": task_line_parsing,
         "jinja_analysis": jinja_analysis,
+        "task_traversal": task_traversal,
+        "yaml_parsing": yaml_parsing,
+        "variable_extractor": variable_extractor,
+        "task_annotation_parsing": task_annotation_parsing,
     }
     return PlatformExecutionBundle(
         prepared_policy=prepared_policy,

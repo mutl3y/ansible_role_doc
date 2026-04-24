@@ -70,6 +70,22 @@ def _require_prepared_policy_bundle(
             "ScannerContext orchestration"
         )
 
+    import warnings as _warnings
+
+    for _key in (
+        "task_traversal",
+        "yaml_parsing",
+        "variable_extractor",
+        "task_annotation_parsing",
+    ):
+        if prepared_policy_bundle.get(_key) is None:
+            _warnings.warn(
+                f"prepared_policy_bundle.{_key} is absent — "
+                "downstream scan phases may use fallback behaviour. "
+                "Provide an explicit policy to suppress this warning.",
+                stacklevel=3,
+            )
+
     return cast(dict[str, Any], prepared_policy_bundle)
 
 

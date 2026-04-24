@@ -118,8 +118,13 @@ def compute_role_content_hash(role_path: str) -> str:
     h = hashlib.sha256()
     root = os.path.abspath(role_path)
     for dirpath, dirnames, filenames in os.walk(root):
-        dirnames.sort()
+        # Skip hidden directories (e.g. .git) and __pycache__
+        dirnames[:] = sorted(
+            d for d in dirnames if not d.startswith(".") and d != "__pycache__"
+        )
         for filename in sorted(filenames):
+            if filename.startswith(".") or filename.endswith(".pyc"):
+                continue
             abs_path = os.path.join(dirpath, filename)
             rel_path = os.path.relpath(abs_path, root)
             h.update(rel_path.encode("utf-8"))

@@ -57,6 +57,14 @@ def require_stateless_plugin(
         return
     if declared is None:
         # Backward-compat: accept plugins lacking the marker but warn loudly.
+        import warnings
+
+        warnings.warn(
+            f"Plugin '{name}' registered in stateless-required slot '{slot}' "
+            "does not declare PLUGIN_IS_STATELESS = True. "
+            "Add PLUGIN_IS_STATELESS = True to suppress this warning.",
+            stacklevel=4,
+        )
         return
     raise PluginStatelessRequired(
         f"Plugin '{name}' for slot '{slot}' declares PLUGIN_IS_STATELESS="

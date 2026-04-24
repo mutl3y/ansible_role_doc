@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import threading
 from typing import Any
 
 from prism.scanner_core.di import DIContainer
@@ -32,16 +33,17 @@ class FeatureDetector:
         self._options = options
         self._plugin: Any | None = None
         self._plugin_resolved = False
+        self._plugin_lock = threading.Lock()
 
     def _resolve_plugin(self) -> Any | None:
         if self._plugin_resolved:
             return self._plugin
-
-        factory = getattr(self._di, "factory_feature_detection_plugin", None)
-        if callable(factory):
-            self._plugin = factory()
-
-        self._plugin_resolved = True
+        with self._plugin_lock:
+            if not self._plugin_resolved:
+                factory = getattr(self._di, "factory_feature_detection_plugin", None)
+                if callable(factory):
+                    self._plugin = factory()
+                self._plugin_resolved = True
         return self._plugin
 
     def detect(self) -> FeaturesContext:

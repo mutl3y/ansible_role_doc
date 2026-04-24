@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import types
 from typing import Any, Callable
 
 
@@ -11,17 +12,19 @@ PLUGIN_CONTRACT_VERSION = {"major": 1, "minor": 0}
 class AnsibleBaselineKernelPlugin:
     """Baseline contract-v1 plugin for ansible scan orchestration."""
 
-    contract_v1: dict[str, Any] = {
-        "plugin_id": "prism.ansible.baseline.v1",
-        "contract_version": dict(PLUGIN_CONTRACT_VERSION),
-        "capabilities": {
-            "platform": "ansible",
-            "supports_provenance": True,
-            "supports_dry_run": True,
-            "supports_incremental": False,
-        },
-        "lifecycle_phases": ["prepare", "scan", "analyze", "finalize"],
-    }
+    contract_v1: types.MappingProxyType[str, Any] = types.MappingProxyType(
+        {
+            "plugin_id": "prism.ansible.baseline.v1",
+            "contract_version": dict(PLUGIN_CONTRACT_VERSION),
+            "capabilities": {
+                "platform": "ansible",
+                "supports_provenance": True,
+                "supports_dry_run": True,
+                "supports_incremental": False,
+            },
+            "lifecycle_phases": ["prepare", "scan", "analyze", "finalize"],
+        }
+    )
 
     def __init__(
         self,

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Collection, NotRequired, Protocol, TypedDict
+from typing import Any, Collection, NotRequired, Protocol, Required, TypedDict
 
 
 class ScanPolicyWarning(TypedDict, total=False):
@@ -169,13 +169,13 @@ class PreparedVariableExtractorPolicy(Protocol):
 class PreparedPolicyBundle(TypedDict, total=False):
     """Runtime-scoped prepared policy instances carried with scan options."""
 
-    task_line_parsing: PreparedTaskLineParsingPolicy
-    jinja_analysis: PreparedJinjaAnalysisPolicy
+    task_line_parsing: Required[PreparedTaskLineParsingPolicy]
+    jinja_analysis: Required[PreparedJinjaAnalysisPolicy]
+    task_traversal: Required[PreparedTaskTraversalPolicy]
+    yaml_parsing: Required[PreparedYAMLParsingPolicy]
+    variable_extractor: Required[PreparedVariableExtractorPolicy]
+    task_annotation_parsing: Required[PreparedTaskAnnotationPolicy]
     comment_doc_marker_prefix: str
-    task_annotation_parsing: PreparedTaskAnnotationPolicy
-    task_traversal: PreparedTaskTraversalPolicy
-    yaml_parsing: PreparedYAMLParsingPolicy
-    variable_extractor: PreparedVariableExtractorPolicy
     ignore_unresolved_internal_underscore_references: bool
 
 

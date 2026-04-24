@@ -35,9 +35,7 @@ VAULT_KEY_RE = re.compile(r"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*:\s*!vault\b", re.MUL
 
 
 def looks_secret_name(name: str) -> bool:
-    import re as _re
-
-    parts = _re.split(r"[_\W]+", name.lower())
+    parts = re.split(r"[_\W]+", name.lower())
     return any(p in {"password", "secret", "token", "key"} for p in parts)
 
 
