@@ -6,10 +6,13 @@ import importlib
 from typing import Any
 
 from prism.scanner_plugins.interfaces import CommentDrivenDocumentationPlugin
+from prism.scanner_plugins.interfaces import ExtractPolicyPlugin
 from prism.scanner_plugins.interfaces import FeatureDetectionPlugin
 from prism.scanner_plugins.interfaces import OutputOrchestrationPlugin
 from prism.scanner_plugins.interfaces import ScanPipelinePlugin
 from prism.scanner_plugins.interfaces import VariableDiscoveryPlugin
+from prism.scanner_plugins.parsers.jinja import JinjaAnalysisPolicyPlugin
+from prism.scanner_plugins.parsers.yaml import YAMLParsingPolicyPlugin
 
 
 PRISM_PLUGIN_API_VERSION: tuple[int, int] = (1, 0)
@@ -114,9 +117,11 @@ class PluginRegistry:
         self._comment_driven_doc_plugins: dict[
             str, type[CommentDrivenDocumentationPlugin]
         ] = {}
-        self._extract_policy_plugins: dict[str, type[Any]] = {}
-        self._yaml_parsing_policy_plugins: dict[str, type[Any]] = {}
-        self._jinja_analysis_policy_plugins: dict[str, type[Any]] = {}
+        self._extract_policy_plugins: dict[str, type[ExtractPolicyPlugin]] = {}
+        self._yaml_parsing_policy_plugins: dict[str, type[YAMLParsingPolicyPlugin]] = {}
+        self._jinja_analysis_policy_plugins: dict[
+            str, type[JinjaAnalysisPolicyPlugin]
+        ] = {}
         self._loaded_plugins: dict[tuple[str, str], Any] = {}
         self._deferred_variable_discovery: dict[str, tuple[str, str]] = {}
         self._deferred_feature_detection: dict[str, tuple[str, str]] = {}
@@ -183,7 +188,7 @@ class PluginRegistry:
     def register_extract_policy_plugin(
         self,
         name: str,
-        plugin_class: type[Any],
+        plugin_class: type[ExtractPolicyPlugin],
     ) -> None:
         validate_plugin_api_version(plugin_class, name=name, slot="extract_policy")
         require_stateless_plugin(plugin_class, name=name, slot="extract_policy")
@@ -192,7 +197,7 @@ class PluginRegistry:
     def register_yaml_parsing_policy_plugin(
         self,
         name: str,
-        plugin_class: type[Any],
+        plugin_class: type[YAMLParsingPolicyPlugin],
     ) -> None:
         validate_plugin_api_version(plugin_class, name=name, slot="yaml_parsing_policy")
         require_stateless_plugin(plugin_class, name=name, slot="yaml_parsing_policy")
@@ -201,7 +206,7 @@ class PluginRegistry:
     def register_jinja_analysis_policy_plugin(
         self,
         name: str,
-        plugin_class: type[Any],
+        plugin_class: type[JinjaAnalysisPolicyPlugin],
     ) -> None:
         validate_plugin_api_version(
             plugin_class, name=name, slot="jinja_analysis_policy"
@@ -260,13 +265,17 @@ class PluginRegistry:
     ) -> type[CommentDrivenDocumentationPlugin] | None:
         return self._comment_driven_doc_plugins.get(name)
 
-    def get_extract_policy_plugin(self, name: str) -> type[Any] | None:
+    def get_extract_policy_plugin(self, name: str) -> type[ExtractPolicyPlugin] | None:
         return self._extract_policy_plugins.get(name)
 
-    def get_yaml_parsing_policy_plugin(self, name: str) -> type[Any] | None:
+    def get_yaml_parsing_policy_plugin(
+        self, name: str
+    ) -> type[YAMLParsingPolicyPlugin] | None:
         return self._yaml_parsing_policy_plugins.get(name)
 
-    def get_jinja_analysis_policy_plugin(self, name: str) -> type[Any] | None:
+    def get_jinja_analysis_policy_plugin(
+        self, name: str
+    ) -> type[JinjaAnalysisPolicyPlugin] | None:
         return self._jinja_analysis_policy_plugins.get(name)
 
     def list_variable_discovery_plugins(self) -> list[str]:

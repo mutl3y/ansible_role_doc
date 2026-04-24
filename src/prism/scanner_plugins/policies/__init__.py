@@ -5,16 +5,16 @@ from __future__ import annotations
 from prism.scanner_plugins.parsers.jinja import JinjaAnalysisPolicyPlugin
 from prism.scanner_plugins.parsers.yaml import YAMLParsingPolicyPlugin
 from prism.scanner_plugins.policies.extract_defaults import (
-    DefaultTaskAnnotationPolicyPlugin,
+    AnsibleDefaultTaskAnnotationPolicyPlugin,
 )
 from prism.scanner_plugins.policies.extract_defaults import (
-    DefaultTaskLineParsingPolicyPlugin,
+    AnsibleDefaultTaskLineParsingPolicyPlugin,
 )
 from prism.scanner_plugins.policies.extract_defaults import (
-    DefaultTaskTraversalPolicyPlugin,
+    AnsibleDefaultTaskTraversalPolicyPlugin,
 )
 from prism.scanner_plugins.policies.extract_defaults import (
-    DefaultVariableExtractorPolicyPlugin,
+    AnsibleDefaultVariableExtractorPolicyPlugin,
 )
 from prism.scanner_plugins.policies.default_scan_pipeline import (
     DefaultScanPipelinePlugin,
@@ -22,10 +22,10 @@ from prism.scanner_plugins.policies.default_scan_pipeline import (
 
 __all__ = [
     "DefaultScanPipelinePlugin",
-    "DefaultTaskAnnotationPolicyPlugin",
-    "DefaultTaskLineParsingPolicyPlugin",
-    "DefaultTaskTraversalPolicyPlugin",
-    "DefaultVariableExtractorPolicyPlugin",
+    "AnsibleDefaultTaskAnnotationPolicyPlugin",
+    "AnsibleDefaultTaskLineParsingPolicyPlugin",
+    "AnsibleDefaultTaskTraversalPolicyPlugin",
+    "AnsibleDefaultVariableExtractorPolicyPlugin",
     "JinjaAnalysisPolicyPlugin",
     "YAMLParsingPolicyPlugin",
 ]

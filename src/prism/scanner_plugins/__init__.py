@@ -11,16 +11,16 @@ from typing import cast
 from prism.scanner_plugins.policies import DefaultScanPipelinePlugin
 from prism.scanner_plugins.ansible import AnsibleScanPipelinePlugin
 from prism.scanner_plugins.policies import (
-    DefaultTaskAnnotationPolicyPlugin,
+    AnsibleDefaultTaskAnnotationPolicyPlugin,
 )
 from prism.scanner_plugins.policies import (
-    DefaultTaskLineParsingPolicyPlugin,
+    AnsibleDefaultTaskLineParsingPolicyPlugin,
 )
 from prism.scanner_plugins.policies import (
-    DefaultTaskTraversalPolicyPlugin,
+    AnsibleDefaultTaskTraversalPolicyPlugin,
 )
 from prism.scanner_plugins.policies import (
-    DefaultVariableExtractorPolicyPlugin,
+    AnsibleDefaultVariableExtractorPolicyPlugin,
 )
 from prism.scanner_plugins.parsers.jinja import JinjaAnalysisPolicyPlugin
 from prism.scanner_plugins.parsers.yaml import YAMLParsingPolicyPlugin
@@ -66,25 +66,25 @@ def bootstrap_default_plugins(registry: PluginRegistry | None = None) -> PluginR
     if "task_line_parsing" not in active_registry.list_extract_policy_plugins():
         active_registry.register_extract_policy_plugin(
             "task_line_parsing",
-            DefaultTaskLineParsingPolicyPlugin,
+            AnsibleDefaultTaskLineParsingPolicyPlugin,
         )
 
     if "task_traversal" not in active_registry.list_extract_policy_plugins():
         active_registry.register_extract_policy_plugin(
             "task_traversal",
-            DefaultTaskTraversalPolicyPlugin,
+            AnsibleDefaultTaskTraversalPolicyPlugin,
         )
 
     if "variable_extractor" not in active_registry.list_extract_policy_plugins():
         active_registry.register_extract_policy_plugin(
             "variable_extractor",
-            DefaultVariableExtractorPolicyPlugin,
+            AnsibleDefaultVariableExtractorPolicyPlugin,
         )
 
     if "task_annotation_parsing" not in active_registry.list_extract_policy_plugins():
         active_registry.register_extract_policy_plugin(
             "task_annotation_parsing",
-            DefaultTaskAnnotationPolicyPlugin,
+            AnsibleDefaultTaskAnnotationPolicyPlugin,
         )
 
     if "yaml_parsing" not in active_registry.list_yaml_parsing_policy_plugins():

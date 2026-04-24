@@ -252,7 +252,9 @@ def test_fsrc_api_scan_repo_uses_fsrc_repo_services_facade(monkeypatch) -> None:
             def run_repo_scan(self, **kwargs: object) -> object:
                 return fake_run_repo_scan(**kwargs)
 
-        monkeypatch.setattr(api_module, "_repo_scan_facade", _FakeFacade())
+        monkeypatch.setattr(
+            api_module.api_non_collection, "_repo_scan_facade", _FakeFacade()
+        )
         payload = api_module.scan_repo(
             "https://example.invalid/demo.git",
             repo_role_path="roles/demo",
@@ -279,7 +281,7 @@ def test_fsrc_api_scan_repo_uses_non_collection_repo_resolver_when_unset(
                 captured.update(kwargs)
                 return {"role_name": "delegated-role", "metadata": {}}
 
-        monkeypatch.setattr(api_module, "_repo_scan_facade", None)
+        monkeypatch.setattr(api_module.api_non_collection, "_repo_scan_facade", None)
         monkeypatch.setattr(
             api_module.api_non_collection,
             "_resolve_repo_scan_facade",
@@ -311,7 +313,9 @@ def test_fsrc_api_scan_repo_forwards_role_name_override_to_scan_role_fn(
                     role_name_override="derived-role-name",
                 )
 
-        monkeypatch.setattr(api_module, "_repo_scan_facade", _FakeFacade())
+        monkeypatch.setattr(
+            api_module.api_non_collection, "_repo_scan_facade", _FakeFacade()
+        )
 
         def _fake_scan_role(
             role_path: str,
@@ -367,7 +371,9 @@ def test_fsrc_api_scan_repo_forwards_policy_config_path_to_scan_role_fn(
                 assert callable(scan_role_fn)
                 return scan_role_fn("/tmp/repo-role")
 
-        monkeypatch.setattr(api_module, "_repo_scan_facade", _FakeFacade())
+        monkeypatch.setattr(
+            api_module.api_non_collection, "_repo_scan_facade", _FakeFacade()
+        )
 
         def _fake_scan_role(
             role_path: str,
@@ -428,7 +434,9 @@ def test_fsrc_api_scan_repo_forwards_non_collection_output_options_to_scan_role_
                 assert callable(scan_role_fn)
                 return scan_role_fn("/tmp/repo-role", role_name_override="repo-role")
 
-        monkeypatch.setattr(api_module, "_repo_scan_facade", _FakeFacade())
+        monkeypatch.setattr(
+            api_module.api_non_collection, "_repo_scan_facade", _FakeFacade()
+        )
 
         def _fake_scan_role(
             role_path: str,

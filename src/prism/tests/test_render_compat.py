@@ -1,14 +1,16 @@
-"""Tests for fsrc scanner_compat.render_compat compatibility shim."""
+"""Tests for scanner_readme render and guide helpers (formerly via render_compat shim)."""
 
 from __future__ import annotations
 
 
-def test_render_compat_importable() -> None:
-    import prism.scanner_compat.render_compat  # noqa: F401
+def test_scanner_readme_render_importable() -> None:
+    import prism.scanner_readme.render  # noqa: F401
 
 
 def test_generated_merge_markers_returns_list_of_tuples() -> None:
-    from prism.scanner_compat.render_compat import generated_merge_markers
+    from prism.scanner_readme.render import (
+        _generated_merge_markers as generated_merge_markers,
+    )
 
     result = generated_merge_markers("requirements")
     assert isinstance(result, list)
@@ -22,7 +24,9 @@ def test_generated_merge_markers_returns_list_of_tuples() -> None:
 
 
 def test_strip_prior_generated_merge_block_passthrough() -> None:
-    from prism.scanner_compat.render_compat import strip_prior_generated_merge_block
+    from prism.scanner_readme.render import (
+        _strip_prior_generated_merge_block as strip_prior_generated_merge_block,
+    )
 
     section = {"id": "purpose"}
     guide_body = "This is the guide body with no markers."
@@ -31,7 +35,9 @@ def test_strip_prior_generated_merge_block_passthrough() -> None:
 
 
 def test_resolve_section_content_mode_returns_string() -> None:
-    from prism.scanner_compat.render_compat import resolve_section_content_mode
+    from prism.scanner_readme.render import (
+        _resolve_section_content_mode as resolve_section_content_mode,
+    )
 
     section = {"id": "purpose", "body": "some content"}
     modes: dict[str, str] = {}
@@ -41,7 +47,9 @@ def test_resolve_section_content_mode_returns_string() -> None:
 
 
 def test_render_guide_identity_sections_callable() -> None:
-    from prism.scanner_compat.render_compat import render_guide_identity_sections
+    from prism.scanner_readme.guide import (
+        _render_guide_identity_sections as render_guide_identity_sections,
+    )
 
     result = render_guide_identity_sections(
         section_id="sponsors",

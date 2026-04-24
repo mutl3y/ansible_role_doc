@@ -119,39 +119,19 @@ IGNORED_IDENTIFIERS: frozenset[str] = frozenset(
 )
 
 
-def _require_prepared_policy(
-    options: dict[str, Any] | None,
-    policy_name: str,
-    context_name: str,
-) -> Any:
-    if not isinstance(options, dict):
-        raise ValueError(
-            "prepared_policy_bundle must be provided before "
-            f"{context_name} native execution"
-        )
-    bundle = options.get("prepared_policy_bundle")
-    if not isinstance(bundle, dict):
-        raise ValueError(
-            "prepared_policy_bundle must be provided before "
-            f"{context_name} native execution"
-        )
-    policy = bundle.get(policy_name)
-    if policy is None:
-        raise ValueError(
-            f"prepared_policy_bundle.{policy_name} must be provided before "
-            f"{context_name} native execution"
-        )
-    return policy
-
-
 def _get_task_line_parsing_policy(
     options: dict[str, Any] | None = None,
 ) -> Any:
-    return _require_prepared_policy(
-        options,
-        "task_line_parsing",
-        "VariableDiscovery",
+    bundle = (
+        options.get("prepared_policy_bundle") if isinstance(options, dict) else None
     )
+    policy = bundle.get("task_line_parsing") if isinstance(bundle, dict) else None
+    if policy is None:
+        raise ValueError(
+            "prepared_policy_bundle.task_line_parsing must be provided before "
+            "VariableDiscovery canonical execution"
+        )
+    return policy
 
 
 JINJA_VARIABLE_RE = re.compile(r"\{\{\s*([A-Za-z_][A-Za-z0-9_\.]*)")
@@ -411,11 +391,15 @@ def _collect_undeclared_jinja_variables(
     *,
     options: dict[str, Any] | None = None,
 ) -> set[str]:
-    plugin = _require_prepared_policy(
-        options,
-        "jinja_analysis",
-        "VariableDiscovery",
+    bundle = (
+        options.get("prepared_policy_bundle") if isinstance(options, dict) else None
     )
+    plugin = bundle.get("jinja_analysis") if isinstance(bundle, dict) else None
+    if plugin is None:
+        raise ValueError(
+            "prepared_policy_bundle.jinja_analysis must be provided before "
+            "VariableDiscovery canonical execution"
+        )
     analyzer = getattr(plugin, "collect_undeclared_jinja_variables", None)
     if not callable(analyzer):
         raise ValueError(

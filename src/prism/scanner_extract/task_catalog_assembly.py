@@ -11,12 +11,10 @@ from prism.scanner_core.di_helpers import require_prepared_policy
 from prism.scanner_extract.variable_helpers import format_inline_yaml
 
 
-def _get_task_line_parsing_policy(di: object | None = None):
-    return require_prepared_policy(di, "task_line_parsing", "task_catalog_assembly")
-
-
 def _detect_task_module(task: dict, *, di: object | None = None) -> str | None:
-    return _get_task_line_parsing_policy(di).detect_task_module(task)
+    return require_prepared_policy(
+        di, "task_line_parsing", "task_catalog_assembly"
+    ).detect_task_module(task)
 
 
 def _extract_collection_from_module_name(
@@ -138,7 +136,9 @@ def _collect_task_handler_catalog(
                 }
             )
 
-            for include_key in _get_task_line_parsing_policy(di).TASK_INCLUDE_KEYS:
+            for include_key in require_prepared_policy(
+                di, "task_line_parsing", "task_catalog_assembly"
+            ).TASK_INCLUDE_KEYS:
                 if include_key not in task:
                     continue
                 include_target = task[include_key]

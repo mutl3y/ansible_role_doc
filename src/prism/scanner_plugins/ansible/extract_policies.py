@@ -13,6 +13,9 @@ from prism.scanner_plugins.ansible import (
 from prism.scanner_plugins.parsers.jinja import (
     collect_undeclared_jinja_variables as _collect_undeclared_jinja_variables,
 )
+from prism.scanner_plugins.parsers.comment_doc.marker_utils import (
+    NormalizesMarkerPrefix,
+)
 
 
 DEFAULT_DOC_MARKER_PREFIX = task_annotation_strategy.DEFAULT_DOC_MARKER_PREFIX
@@ -132,7 +135,7 @@ class AnsibleVariableExtractorPolicyPlugin:
         return _collect_undeclared_jinja_variables(text)
 
 
-class AnsibleTaskAnnotationPolicyPlugin:
+class AnsibleTaskAnnotationPolicyPlugin(NormalizesMarkerPrefix):
     """Expose ansible task-annotation parsing via a policy plugin object."""
 
     COMMENT_CONTINUATION_RE = task_annotation_strategy.COMMENT_CONTINUATION_RE
@@ -144,10 +147,6 @@ class AnsibleTaskAnnotationPolicyPlugin:
     @staticmethod
     def split_task_annotation_label(text: str) -> tuple[str, str]:
         return task_annotation_strategy.split_task_annotation_label(text)
-
-    @staticmethod
-    def normalize_marker_prefix(marker_prefix: str | None) -> str:
-        return task_annotation_strategy.normalize_marker_prefix(marker_prefix)
 
     @staticmethod
     def get_marker_line_re(marker_prefix: str = DEFAULT_DOC_MARKER_PREFIX):

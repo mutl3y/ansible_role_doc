@@ -405,7 +405,7 @@ def test_fsrc_variable_discovery_discover_referenced_requires_ingress_prepared_j
             ValueError,
             match=(
                 "prepared_policy_bundle.jinja_analysis must be provided before "
-                "VariableDiscovery native execution"
+                "VariableDiscovery canonical execution"
             ),
         ):
             discovery.discover_referenced()

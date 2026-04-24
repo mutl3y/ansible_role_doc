@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterable
 from pathlib import Path
+from typing import ClassVar
 
 from prism.scanner_plugins.policies.constants import (
     COMMENT_CONTINUATION_RE,
@@ -48,6 +49,7 @@ from prism.scanner_plugins.ansible.task_traversal_bare import (
     iter_task_mappings,
 )
 from prism.scanner_plugins.parsers.comment_doc.marker_utils import (
+    NormalizesMarkerPrefix,
     get_marker_line_re,
     normalize_marker_prefix,
 )
@@ -60,9 +62,10 @@ from prism.scanner_plugins.policies.annotation_parsing import (
 )
 
 
-class DefaultTaskLineParsingPolicyPlugin:
-    """Default task-line parsing policy implementation."""
+class AnsibleDefaultTaskLineParsingPolicyPlugin:
+    """Ansible-specific default task-line parsing policy; registered as the 'ansible' platform default."""
 
+    PLUGIN_IS_STATELESS: ClassVar[bool] = True
     TASK_INCLUDE_KEYS = TASK_INCLUDE_KEYS
     ROLE_INCLUDE_KEYS = ROLE_INCLUDE_KEYS
     INCLUDE_VARS_KEYS = INCLUDE_VARS_KEYS
@@ -80,8 +83,10 @@ class DefaultTaskLineParsingPolicyPlugin:
         return detect_task_module(task)
 
 
-class DefaultVariableExtractorPolicyPlugin:
-    """Default variable-extractor policy implementation."""
+class AnsibleDefaultVariableExtractorPolicyPlugin:
+    """Ansible-specific default variable-extractor policy; registered as the 'ansible' platform default."""
+
+    PLUGIN_IS_STATELESS: ClassVar[bool] = True
 
     @staticmethod
     def collect_include_vars_files(
@@ -121,9 +126,10 @@ class DefaultVariableExtractorPolicyPlugin:
         return sorted(include_files)
 
 
-class DefaultTaskAnnotationPolicyPlugin:
-    """Default task-annotation parsing policy implementation."""
+class AnsibleDefaultTaskAnnotationPolicyPlugin(NormalizesMarkerPrefix):
+    """Ansible-specific default task-annotation parsing policy; registered as the 'ansible' platform default."""
 
+    PLUGIN_IS_STATELESS: ClassVar[bool] = True
     COMMENT_CONTINUATION_RE = COMMENT_CONTINUATION_RE
     COMMENTED_TASK_ENTRY_RE = COMMENTED_TASK_ENTRY_RE
     TASK_ENTRY_RE = TASK_ENTRY_RE
@@ -133,10 +139,6 @@ class DefaultTaskAnnotationPolicyPlugin:
     @staticmethod
     def split_task_annotation_label(text: str) -> tuple[str, str]:
         return split_task_annotation_label(text)
-
-    @staticmethod
-    def normalize_marker_prefix(marker_prefix: str | None) -> str:
-        return normalize_marker_prefix(marker_prefix)
 
     @staticmethod
     def get_marker_line_re(marker_prefix: str = DEFAULT_DOC_MARKER_PREFIX):
@@ -167,8 +169,10 @@ class DefaultTaskAnnotationPolicyPlugin:
         return task_anchor(file_path, task_name, index)
 
 
-class DefaultTaskTraversalPolicyPlugin:
-    """Ansible-backed default task-traversal policy delegating to task_traversal_bare."""
+class AnsibleDefaultTaskTraversalPolicyPlugin:
+    """Ansible-specific default task-traversal policy delegating to task_traversal_bare; registered as the 'ansible' platform default."""
+
+    PLUGIN_IS_STATELESS: ClassVar[bool] = True
 
     @staticmethod
     def iter_task_mappings(data: object):
@@ -219,10 +223,10 @@ __all__ = [
     "COMMENT_CONTINUATION_RE",
     "COMMENTED_TASK_ENTRY_RE",
     "DEFAULT_DOC_MARKER_PREFIX",
-    "DefaultTaskAnnotationPolicyPlugin",
-    "DefaultTaskLineParsingPolicyPlugin",
-    "DefaultTaskTraversalPolicyPlugin",
-    "DefaultVariableExtractorPolicyPlugin",
+    "AnsibleDefaultTaskAnnotationPolicyPlugin",
+    "AnsibleDefaultTaskLineParsingPolicyPlugin",
+    "AnsibleDefaultTaskTraversalPolicyPlugin",
+    "AnsibleDefaultVariableExtractorPolicyPlugin",
     "INCLUDE_VARS_KEYS",
     "ROLE_INCLUDE_KEYS",
     "SET_FACT_KEYS",

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import ClassVar
+
 import jinja2
 import jinja2.nodes
 from jinja2 import meta
@@ -16,6 +18,8 @@ _JINJA_ENV = SandboxedEnvironment()
 
 class JinjaAnalysisPolicyPlugin:
     """Default Jinja analysis policy implementation for fsrc."""
+
+    PLUGIN_IS_STATELESS: ClassVar[bool] = True
 
     @staticmethod
     def collect_undeclared_jinja_variables(text: str) -> set[str]:

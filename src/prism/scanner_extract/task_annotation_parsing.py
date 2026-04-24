@@ -5,18 +5,14 @@ from __future__ import annotations
 from prism.scanner_core.di_helpers import require_prepared_policy
 
 
-def _get_task_annotation_policy(di: object | None = None):
-    return require_prepared_policy(
-        di, "task_annotation_parsing", "task_annotation_parsing"
-    )
-
-
 def _split_task_annotation_label(
     text: str,
     *,
     di: object | None = None,
 ) -> tuple[str, str]:
-    return _get_task_annotation_policy(di).split_task_annotation_label(text)
+    return require_prepared_policy(
+        di, "task_annotation_parsing", "task_annotation_parsing"
+    ).split_task_annotation_label(text)
 
 
 def _split_task_target_payload(
@@ -24,7 +20,9 @@ def _split_task_target_payload(
     *,
     di: object | None = None,
 ) -> tuple[str, str]:
-    return _get_task_annotation_policy(di).split_task_target_payload(text)
+    return require_prepared_policy(
+        di, "task_annotation_parsing", "task_annotation_parsing"
+    ).split_task_target_payload(text)
 
 
 def _annotation_payload_looks_yaml(
@@ -32,7 +30,9 @@ def _annotation_payload_looks_yaml(
     *,
     di: object | None = None,
 ) -> bool:
-    return _get_task_annotation_policy(di).annotation_payload_looks_yaml(payload)
+    return require_prepared_policy(
+        di, "task_annotation_parsing", "task_annotation_parsing"
+    ).annotation_payload_looks_yaml(payload)
 
 
 def _extract_task_annotations_for_file(
@@ -42,7 +42,9 @@ def _extract_task_annotations_for_file(
     *,
     di: object | None = None,
 ) -> tuple[list[dict[str, object]], dict[str, list[dict[str, object]]]]:
-    return _get_task_annotation_policy(di).extract_task_annotations_for_file(
+    return require_prepared_policy(
+        di, "task_annotation_parsing", "task_annotation_parsing"
+    ).extract_task_annotations_for_file(
         lines=lines,
         marker_prefix=marker_prefix,
         include_task_index=include_task_index,
@@ -56,7 +58,9 @@ def _task_anchor(
     *,
     di: object | None = None,
 ) -> str:
-    return _get_task_annotation_policy(di).task_anchor(
+    return require_prepared_policy(
+        di, "task_annotation_parsing", "task_annotation_parsing"
+    ).task_anchor(
         file_path=file_path,
         task_name=task_name,
         index=index,

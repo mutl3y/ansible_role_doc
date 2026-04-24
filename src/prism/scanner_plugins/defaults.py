@@ -6,16 +6,16 @@ from typing import Any
 
 from prism.errors import PrismRuntimeError
 from prism.scanner_plugins.policies import (
-    DefaultTaskAnnotationPolicyPlugin,
+    AnsibleDefaultTaskAnnotationPolicyPlugin,
 )
 from prism.scanner_plugins.policies import (
-    DefaultTaskLineParsingPolicyPlugin,
+    AnsibleDefaultTaskLineParsingPolicyPlugin,
 )
 from prism.scanner_plugins.policies import (
-    DefaultTaskTraversalPolicyPlugin,
+    AnsibleDefaultTaskTraversalPolicyPlugin,
 )
 from prism.scanner_plugins.policies import (
-    DefaultVariableExtractorPolicyPlugin,
+    AnsibleDefaultVariableExtractorPolicyPlugin,
 )
 from prism.scanner_plugins.parsers.yaml import YAMLParsingPolicyPlugin
 from prism.scanner_plugins.parsers.jinja import JinjaAnalysisPolicyPlugin
@@ -41,12 +41,26 @@ def _resolve_registry(di: object | None = None, registry: Any | None = None):
 # INVARIANT: All plugin classes below must remain stateless (no mutable instance
 # state, caches, or registries). If any plugin class acquires mutable state,
 # replace with per-call factory functions to prevent cross-caller contamination.
-_TASK_LINE_PARSING_FALLBACK = DefaultTaskLineParsingPolicyPlugin()
-_TASK_ANNOTATION_FALLBACK = DefaultTaskAnnotationPolicyPlugin()
-_TASK_TRAVERSAL_FALLBACK = DefaultTaskTraversalPolicyPlugin()
-_VARIABLE_EXTRACTOR_FALLBACK = DefaultVariableExtractorPolicyPlugin()
+_TASK_LINE_PARSING_FALLBACK = AnsibleDefaultTaskLineParsingPolicyPlugin()
+_TASK_ANNOTATION_FALLBACK = AnsibleDefaultTaskAnnotationPolicyPlugin()
+_TASK_TRAVERSAL_FALLBACK = AnsibleDefaultTaskTraversalPolicyPlugin()
+_VARIABLE_EXTRACTOR_FALLBACK = AnsibleDefaultVariableExtractorPolicyPlugin()
 _YAML_PARSING_FALLBACK = YAMLParsingPolicyPlugin()
 _JINJA_ANALYSIS_FALLBACK = JinjaAnalysisPolicyPlugin()
+
+_FALLBACK_SINGLETONS = [
+    _TASK_LINE_PARSING_FALLBACK,
+    _TASK_ANNOTATION_FALLBACK,
+    _TASK_TRAVERSAL_FALLBACK,
+    _VARIABLE_EXTRACTOR_FALLBACK,
+    _YAML_PARSING_FALLBACK,
+    _JINJA_ANALYSIS_FALLBACK,
+]
+for _singleton in _FALLBACK_SINGLETONS:
+    assert getattr(type(_singleton), "PLUGIN_IS_STATELESS", False), (
+        f"{type(_singleton).__name__} must declare PLUGIN_IS_STATELESS = True "
+        "to be used as a module-level singleton fallback"
+    )
 
 
 def _raise_malformed_plugin_shape_error(

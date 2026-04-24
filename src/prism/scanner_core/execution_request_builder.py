@@ -25,12 +25,39 @@ class NonCollectionRunScanExecutionRequest:
     build_payload_fn: Callable[[], dict[str, Any]]
 
 
+class _RecordingVariableDiscovery:
+    """Records discovered variable rows for use in scan context preparation."""
+
+    def __init__(self, inner: Any, bridge: "_ScanStateBridge") -> None:
+        self._inner = inner
+        self._bridge = bridge
+
+    def discover(self) -> tuple[dict[str, Any], ...]:
+        rows = tuple(self._inner.discover())
+        self._bridge._discovered_rows = rows
+        return rows
+
+
+class _RecordingFeatureDetector:
+    """Records detected features for use in scan context preparation."""
+
+    def __init__(self, inner: Any, bridge: "_ScanStateBridge") -> None:
+        self._inner = inner
+        self._bridge = bridge
+
+    def detect(self) -> dict[str, Any]:
+        features = dict(self._inner.detect())
+        self._bridge._features = features
+        return features
+
+
 class _ScanStateBridge:
     """Bridge mutable scan state between recording wrappers and context preparation."""
 
     def __init__(
         self,
         *,
+        container: Any,
         variable_discovery_cls: Callable[..., Any],
         feature_detector_cls: Callable[..., Any],
         extract_role_description_fn: Callable[[Path, str], str],
@@ -42,10 +69,7 @@ class _ScanStateBridge:
         self._feature_detector_cls = feature_detector_cls
         self._extract_role_description_fn = extract_role_description_fn
         self._resolve_cdd_plugin_fn = resolve_comment_driven_documentation_plugin_fn
-        self._container: Any = None
-
-    def set_container(self, container: Any) -> None:
-        self._container = container
+        self._container: Any = container
 
     def variable_discovery_factory(
         self,
@@ -53,16 +77,8 @@ class _ScanStateBridge:
         resolved_role_path: str,
         options: dict[str, Any],
     ) -> Any:
-        discovery = self._variable_discovery_cls(di, resolved_role_path, options)
-        bridge = self
-
-        class _RecordingVariableDiscovery:
-            def discover(self) -> tuple[dict[str, Any], ...]:
-                rows = tuple(discovery.discover())
-                bridge._discovered_rows = rows
-                return rows
-
-        return _RecordingVariableDiscovery()
+        inner = self._variable_discovery_cls(di, resolved_role_path, options)
+        return _RecordingVariableDiscovery(inner, self)
 
     def feature_detector_factory(
         self,
@@ -70,26 +86,14 @@ class _ScanStateBridge:
         resolved_role_path: str,
         options: dict[str, Any],
     ) -> Any:
-        detector = self._feature_detector_cls(di, resolved_role_path, options)
-        bridge = self
-
-        class _RecordingFeatureDetector:
-            def detect(self) -> dict[str, Any]:
-                features = dict(detector.detect())
-                bridge._features = features
-                return features
-
-        return _RecordingFeatureDetector()
+        inner = self._feature_detector_cls(di, resolved_role_path, options)
+        return _RecordingFeatureDetector(inner, self)
 
     def prepare_scan_context(
         self,
         scan_options: ScanOptionsDict,
         canonical_options: ScanOptionsDict,
     ) -> ScanContextPayload:
-        if self._container is None:
-            raise ValueError(
-                "_ScanStateBridge.set_container() must be called before prepare_scan_context()"
-            )
         resolved_role_path = str(scan_options["role_path"])
         role_root = Path(resolved_role_path).resolve()
         role_name = str(scan_options.get("role_name_override") or role_root.name)
@@ -236,18 +240,12 @@ def build_non_collection_run_scan_execution_request(
         build_run_scan_options_canonical_fn=build_run_scan_options_canonical_fn,
     )
 
-    bridge = _ScanStateBridge(
+    return _assemble_execution_request(
+        canonical_options=canonical_options,
         variable_discovery_cls=variable_discovery_cls,
         feature_detector_cls=feature_detector_cls,
         extract_role_description_fn=extract_role_description_fn,
-        resolve_comment_driven_documentation_plugin_fn=(
-            resolve_comment_driven_documentation_plugin_fn
-        ),
-    )
-
-    return _assemble_execution_request(
-        canonical_options=canonical_options,
-        bridge=bridge,
+        resolve_comment_driven_documentation_plugin_fn=resolve_comment_driven_documentation_plugin_fn,
         di_container_cls=di_container_cls,
         scanner_context_cls=scanner_context_cls,
         build_run_scan_options_canonical_fn=build_run_scan_options_canonical_fn,
@@ -325,7 +323,10 @@ def _build_canonical_options(
 def _assemble_execution_request(
     *,
     canonical_options: ScanOptionsDict,
-    bridge: _ScanStateBridge,
+    variable_discovery_cls: Callable[..., Any],
+    feature_detector_cls: Callable[..., Any],
+    extract_role_description_fn: Callable[[Path, str], str],
+    resolve_comment_driven_documentation_plugin_fn: Callable[[Any], Any],
     di_container_cls: Callable[..., Any],
     scanner_context_cls: Callable[..., ScannerContext],
     build_run_scan_options_canonical_fn: Callable[..., ScanOptionsDict],
@@ -336,6 +337,10 @@ def _assemble_execution_request(
         canonical_options, default_plugin_registry
     )
 
+    # _bridge_slot resolves the forward reference: container needs bridge methods
+    # as factory overrides, but bridge requires container at construction time.
+    _bridge_slot: list[_ScanStateBridge] = []
+
     container = di_container_cls(
         role_path=str(canonical_options["role_path"]),
         scan_options=canonical_options,
@@ -343,17 +348,28 @@ def _assemble_execution_request(
         platform_key=resolved_platform_key,
         scanner_context_wiring={
             "scanner_context_cls": scanner_context_cls,
-            "prepare_scan_context_fn": lambda opts: bridge.prepare_scan_context(
-                opts, canonical_options
-            ),
+            "prepare_scan_context_fn": lambda opts: _bridge_slot[
+                0
+            ].prepare_scan_context(opts, canonical_options),
             "build_run_scan_options_fn": build_run_scan_options_canonical_fn,
         },
         factory_overrides={
-            "variable_discovery_factory": bridge.variable_discovery_factory,
-            "feature_detector_factory": bridge.feature_detector_factory,
+            "variable_discovery_factory": lambda di, rp, opts: _bridge_slot[
+                0
+            ].variable_discovery_factory(di, rp, opts),
+            "feature_detector_factory": lambda di, rp, opts: _bridge_slot[
+                0
+            ].feature_detector_factory(di, rp, opts),
         },
     )
-    bridge.set_container(container)
+    bridge = _ScanStateBridge(
+        container=container,
+        variable_discovery_cls=variable_discovery_cls,
+        feature_detector_cls=feature_detector_cls,
+        extract_role_description_fn=extract_role_description_fn,
+        resolve_comment_driven_documentation_plugin_fn=resolve_comment_driven_documentation_plugin_fn,
+    )
+    _bridge_slot.append(bridge)
 
     if ensure_prepared_policy_bundle_fn is None:
         raise ValueError(

@@ -98,6 +98,15 @@ class CommentDrivenDocumentationPlugin(Protocol):
     ) -> dict[str, list[str]]: ...
 
 
+class ExtractPolicyPlugin(Protocol):
+    """Protocol marker for extract-policy plugin slot.
+
+    Extract policy plugins cover task-line parsing, task annotation parsing,
+    task traversal, and variable extraction. Each sub-type has its own
+    specific interface; this Protocol serves as the registry slot type.
+    """
+
+
 class YAMLParsingPolicyPlugin(Protocol):
     """Protocol for YAML parsing/loading policy implementations."""
 

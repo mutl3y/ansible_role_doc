@@ -63,14 +63,6 @@ DEFAULT_PLUGIN_REGISTRY = api_non_collection.DEFAULT_PLUGIN_REGISTRY
 
 __all__ = ["scan_collection", "scan_repo", "scan_role"]
 
-_repo_scan_facade: Any = None
-
-
-def _resolve_repo_scan_facade() -> Any:
-    if _repo_scan_facade is not None:
-        return _repo_scan_facade
-    return api_non_collection._resolve_repo_scan_facade()
-
 
 def run_scan(
     role_path: str,
@@ -365,7 +357,7 @@ def scan_repo(
         inline_task_runbooks=inline_task_runbooks,
         failure_policy=failure_policy,
         scan_role_fn=scan_role,
-        resolve_repo_scan_facade_fn=_resolve_repo_scan_facade,
+        resolve_repo_scan_facade_fn=api_non_collection._resolve_repo_scan_facade,
     )
 
 

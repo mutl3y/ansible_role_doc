@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import ClassVar
 
 import yaml
 
@@ -16,6 +17,8 @@ def _format_candidate_failure_path(candidate: Path, role_root: Path) -> str:
 
 class YAMLParsingPolicyPlugin:
     """Default YAML policy preserving current safe_load behavior and failure shape."""
+
+    PLUGIN_IS_STATELESS: ClassVar[bool] = True
 
     @staticmethod
     def load_yaml_file(path: str | Path) -> object:

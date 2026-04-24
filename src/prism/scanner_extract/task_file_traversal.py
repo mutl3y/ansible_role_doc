@@ -11,14 +11,6 @@ from prism.scanner_core.di_helpers import require_prepared_policy
 from prism.scanner_io.loader import parse_yaml_candidate
 
 
-def _get_task_traversal_policy(di: object | None = None):
-    return require_prepared_policy(di, "task_traversal", "task_file_traversal")
-
-
-def _get_yaml_parsing_policy(di: object | None = None):
-    return require_prepared_policy(di, "yaml_parsing", "yaml_parsing")
-
-
 def _normalize_exclude_patterns(exclude_paths: list[str] | None) -> list[str]:
     if not exclude_paths:
         return []
@@ -115,7 +107,9 @@ def _load_yaml_file_with_metadata(
             if isinstance(failure, dict):
                 yaml_failure_collector.append(failure)
         return None
-    parsed = _get_yaml_parsing_policy(di).load_yaml_file(Path(identity[0]))
+    parsed = require_prepared_policy(di, "yaml_parsing", "yaml_parsing").load_yaml_file(
+        Path(identity[0])
+    )
     if parsed is None and yaml_failure_collector is not None:
         collector_root = role_root or _derive_role_root_from_task_file(file_path)
         if collector_root is None:
@@ -127,17 +121,21 @@ def _load_yaml_file_with_metadata(
 
 
 def _iter_task_mappings(data: object, *, di: object | None = None):
-    yield from _get_task_traversal_policy(di).iter_task_mappings(data)
+    yield from require_prepared_policy(
+        di, "task_traversal", "task_file_traversal"
+    ).iter_task_mappings(data)
 
 
 def _iter_task_include_targets(data: object, *, di: object | None = None) -> list[str]:
-    return _get_task_traversal_policy(di).iter_task_include_targets(data)
+    return require_prepared_policy(
+        di, "task_traversal", "task_file_traversal"
+    ).iter_task_include_targets(data)
 
 
 def _iter_task_include_edges(
     data: object, *, di: object | None = None
 ) -> list[dict[str, str]]:
-    plugin = _get_task_traversal_policy(di)
+    plugin = require_prepared_policy(di, "task_traversal", "task_file_traversal")
     iter_edges = getattr(plugin, "iter_task_include_edges", None)
     if callable(iter_edges):
         edges = iter_edges(data)
@@ -159,13 +157,15 @@ def _expand_include_target_candidates(
     *,
     di: object | None = None,
 ) -> list[str]:
-    return _get_task_traversal_policy(di).expand_include_target_candidates(
-        task, include_target
-    )
+    return require_prepared_policy(
+        di, "task_traversal", "task_file_traversal"
+    ).expand_include_target_candidates(task, include_target)
 
 
 def _iter_role_include_targets(task: dict, *, di: object | None = None) -> list[str]:
-    return _get_task_traversal_policy(di).iter_role_include_targets(task)
+    return require_prepared_policy(
+        di, "task_traversal", "task_file_traversal"
+    ).iter_role_include_targets(task)
 
 
 def _iter_dynamic_role_include_targets(
@@ -173,7 +173,9 @@ def _iter_dynamic_role_include_targets(
     *,
     di: object | None = None,
 ) -> list[str]:
-    return _get_task_traversal_policy(di).iter_dynamic_role_include_targets(task)
+    return require_prepared_policy(
+        di, "task_traversal", "task_file_traversal"
+    ).iter_dynamic_role_include_targets(task)
 
 
 def _resolve_task_include(
@@ -308,7 +310,9 @@ def _collect_unconstrained_dynamic_task_includes(
     di: object | None = None,
 ) -> list[dict[str, str]]:
     role_root = Path(role_path).resolve()
-    return _get_task_traversal_policy(di).collect_unconstrained_dynamic_task_includes(
+    return require_prepared_policy(
+        di, "task_traversal", "task_file_traversal"
+    ).collect_unconstrained_dynamic_task_includes(
         role_root=role_root,
         task_files=_collect_task_files(
             role_root,
@@ -326,7 +330,9 @@ def _collect_unconstrained_dynamic_role_includes(
     di: object | None = None,
 ) -> list[dict[str, str]]:
     role_root = Path(role_path).resolve()
-    return _get_task_traversal_policy(di).collect_unconstrained_dynamic_role_includes(
+    return require_prepared_policy(
+        di, "task_traversal", "task_file_traversal"
+    ).collect_unconstrained_dynamic_role_includes(
         role_root=role_root,
         task_files=_collect_task_files(
             role_root,

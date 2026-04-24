@@ -47,10 +47,10 @@ class TestExtractDefaultsDomainNeutrality:
 
     def test_default_policy_plugin_uses_generic_keys_only(self):
         from prism.scanner_plugins.policies.extract_defaults import (
-            DefaultTaskLineParsingPolicyPlugin,
+            AnsibleDefaultTaskLineParsingPolicyPlugin,
         )
 
-        plugin = DefaultTaskLineParsingPolicyPlugin()
+        plugin = AnsibleDefaultTaskLineParsingPolicyPlugin()
         all_keys = (
             plugin.TASK_INCLUDE_KEYS
             | plugin.ROLE_INCLUDE_KEYS
@@ -85,13 +85,13 @@ class TestExtractDefaultsDomainNeutrality:
 
     def test_ansible_plugin_superset_of_defaults(self):
         from prism.scanner_plugins.policies.extract_defaults import (
-            DefaultTaskLineParsingPolicyPlugin,
+            AnsibleDefaultTaskLineParsingPolicyPlugin,
         )
         from prism.scanner_plugins.ansible.extract_policies import (
             AnsibleTaskLineParsingPolicyPlugin,
         )
 
-        default_p = DefaultTaskLineParsingPolicyPlugin()
+        default_p = AnsibleDefaultTaskLineParsingPolicyPlugin()
         ansible_p = AnsibleTaskLineParsingPolicyPlugin()
 
         assert default_p.TASK_INCLUDE_KEYS <= ansible_p.TASK_INCLUDE_KEYS
