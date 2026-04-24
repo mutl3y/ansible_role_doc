@@ -23,7 +23,7 @@ from prism.errors import (
 )
 
 
-from prism.collection_plugins import PLUGIN_TYPES as _PLUGIN_TYPES
+from prism.scanner_io.collection_plugins import PLUGIN_TYPES as _PLUGIN_TYPES
 
 _PLUGIN_CATALOG_SCHEMA_VERSION = 1
 

@@ -313,7 +313,7 @@ def test_fsrc_style_alias_defaults_are_single_source() -> None:
             "prism.scanner_plugins.parsers.markdown.style_parser"
         )
         shared_alias_module = importlib.import_module(
-            "prism.scanner_data.style_aliases"
+            "prism.scanner_config.style_aliases"
         )
 
         config_snapshot = style_config_module.get_style_section_aliases_snapshot()

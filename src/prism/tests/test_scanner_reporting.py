@@ -198,7 +198,7 @@ def test_w2_t01_scanner_reporting_import_boundary() -> None:
         line
         for line in imports
         if "prism.scanner_readme." in line
-        and "prism.scanner_data.rendering_seams" not in line
+        and "prism.scanner_readme.rendering_seams" not in line
     ]
 
     assert not forbidden

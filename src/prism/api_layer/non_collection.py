@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from prism.scanner_core.scan_cache import ScanCacheBackend
 
 from prism.errors import FailurePolicy, PrismRuntimeError
-from prism.scanner_data.payload_helpers import normalize_scan_role_payload_shape
+from prism.api_layer.payload_helpers import normalize_scan_role_payload_shape
 from prism.scanner_core.di import DIContainer
 from prism.scanner_core.feature_detector import FeatureDetector
 from prism.scanner_core.scan_request import build_run_scan_options_canonical

@@ -10,7 +10,7 @@ import io
 from pathlib import Path
 from typing import Any
 
-from prism.scanner_data.rendering_seams import build_render_jinja_environment
+from prism.scanner_readme.rendering_seams import build_render_jinja_environment
 
 
 def render_runbook(

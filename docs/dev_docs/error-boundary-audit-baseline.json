@@ -21,6 +21,10 @@
       "kind": "ValueError"
     },
     {
+      "file": "src/prism/scanner_core/execution_request_builder.py",
+      "kind": "ValueError"
+    },
+    {
       "file": "src/prism/scanner_core/feature_detector.py",
       "kind": "ValueError"
     },

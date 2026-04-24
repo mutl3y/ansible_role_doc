@@ -6,11 +6,11 @@ import re
 from pathlib import Path
 from typing import Any, NamedTuple
 
-from prism.scanner_data.variable_helpers import format_inline_yaml
-from prism.scanner_data.variable_helpers import find_variable_line_in_yaml
-from prism.scanner_data.variable_helpers import infer_variable_type
-from prism.scanner_data.variable_helpers import is_sensitive_variable
-from prism.scanner_data.variable_helpers import JINJA_IDENTIFIER_RE
+from prism.scanner_extract.variable_helpers import format_inline_yaml
+from prism.scanner_extract.variable_helpers import find_variable_line_in_yaml
+from prism.scanner_extract.variable_helpers import infer_variable_type
+from prism.scanner_extract.variable_helpers import is_sensitive_variable
+from prism.scanner_extract.variable_helpers import JINJA_IDENTIFIER_RE
 from prism.scanner_data.builders import VariableRowBuilder
 from prism.scanner_data.contracts_variables import VariableRow
 from prism.scanner_extract.task_file_traversal import collect_task_files

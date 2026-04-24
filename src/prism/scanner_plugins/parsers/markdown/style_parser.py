@@ -6,7 +6,7 @@ from pathlib import Path
 import re
 from typing import TypedDict
 
-from prism.scanner_data.style_aliases import (
+from prism.scanner_config.style_aliases import (
     get_default_style_section_aliases_snapshot,
 )
 

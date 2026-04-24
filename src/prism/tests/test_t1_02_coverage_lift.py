@@ -169,11 +169,11 @@ def test_refresh_policy_derived_state_no_change_when_missing() -> None:
     refresh_policy_derived_state({})
 
 
-# ---- scanner_data/payload_helpers.py --------------------------------------
+# ---- api_layer/payload_helpers.py ----------------------------------------
 
 
 def test_normalize_scan_role_payload_shape_aliases_and_warnings() -> None:
-    from prism.scanner_data.payload_helpers import normalize_scan_role_payload_shape
+    from prism.api_layer.payload_helpers import normalize_scan_role_payload_shape
 
     payload = {
         "display_variables": [1, 2],
@@ -190,7 +190,7 @@ def test_normalize_scan_role_payload_shape_aliases_and_warnings() -> None:
 
 
 def test_normalize_scan_role_payload_shape_handles_non_dict_metadata() -> None:
-    from prism.scanner_data.payload_helpers import normalize_scan_role_payload_shape
+    from prism.api_layer.payload_helpers import normalize_scan_role_payload_shape
 
     out = normalize_scan_role_payload_shape({"metadata": "ignored"})
     assert "warnings" not in out

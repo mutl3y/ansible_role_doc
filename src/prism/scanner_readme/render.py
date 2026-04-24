@@ -7,7 +7,7 @@ from typing import Any, NamedTuple
 
 from prism.scanner_readme.guide import render_guide_section_body
 from prism.scanner_readme.style import format_heading
-from prism.scanner_data.rendering_seams import build_render_jinja_environment
+from prism.scanner_readme.rendering_seams import build_render_jinja_environment
 
 
 DEFAULT_SECTION_SPECS = [

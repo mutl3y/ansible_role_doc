@@ -17,7 +17,7 @@ from pathlib import Path
 import jinja2
 from jinja2.sandbox import SandboxedEnvironment
 
-from prism.scanner_data.rendering_seams import build_render_jinja_environment
+from prism.scanner_readme.rendering_seams import build_render_jinja_environment
 from prism.scanner_plugins.parsers.jinja.analysis_policy import _JINJA_ENV
 
 

@@ -107,7 +107,11 @@ def test_fsrc_runtime_modules_do_not_import_src_facade_packages() -> None:
             "prism.repo_layer",
             "prism.repo_services",
         ),
-        allowed_import_pairs=(("prism.api", "prism.api_layer"),),
+        allowed_import_pairs=(
+            ("prism.api", "prism.api_layer"),
+            ("prism.api_layer.common", "prism.api_layer.payload_helpers"),
+            ("prism.api_layer.non_collection", "prism.api_layer.payload_helpers"),
+        ),
     )
 
     assert (

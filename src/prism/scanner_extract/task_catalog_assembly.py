@@ -8,7 +8,7 @@ from pathlib import Path
 import prism.scanner_extract.task_annotation_parsing as tap
 import prism.scanner_extract.task_file_traversal as tft
 from prism.scanner_core.di_helpers import require_prepared_policy
-from prism.scanner_data.variable_helpers import format_inline_yaml
+from prism.scanner_extract.variable_helpers import format_inline_yaml
 
 
 def _get_task_line_parsing_policy(di: object | None = None):

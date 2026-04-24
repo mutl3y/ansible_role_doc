@@ -117,7 +117,9 @@ def test_fsrc_variable_pipeline_build_static_rows_override_shape(tmp_path) -> No
     var_path.write_text("---\nshared: from_vars\n", encoding="utf-8")
 
     with _prefer_fsrc_prism_on_sys_path():
-        pipeline_module = importlib.import_module("prism.scanner_data.variable_helpers")
+        pipeline_module = importlib.import_module(
+            "prism.scanner_extract.variable_helpers"
+        )
         rows, by_name = pipeline_module.build_static_variable_rows(
             role_root=role_root,
             defaults_data={"shared": "from_default"},
@@ -137,7 +139,9 @@ def test_fsrc_variable_pipeline_build_static_rows_override_shape(tmp_path) -> No
 
 def test_fsrc_variable_pipeline_collect_dynamic_include_var_tokens() -> None:
     with _prefer_fsrc_prism_on_sys_path():
-        pipeline_module = importlib.import_module("prism.scanner_data.variable_helpers")
+        pipeline_module = importlib.import_module(
+            "prism.scanner_extract.variable_helpers"
+        )
         tokens = pipeline_module.collect_dynamic_include_var_tokens(
             ["{{ include_vars_file }}", "{{ hostvars[inventory_hostname].role_file }}"],
             ignored_identifiers={"hostvars", "inventory_hostname"},
@@ -411,7 +415,7 @@ def test_fsrc_variable_discovery_discover_referenced_requires_ingress_prepared_j
 
 def test_gf8_h001_variable_helpers_importable_from_scanner_data() -> None:
     with _prefer_fsrc_prism_on_sys_path():
-        helpers = importlib.import_module("prism.scanner_data.variable_helpers")
+        helpers = importlib.import_module("prism.scanner_extract.variable_helpers")
 
     assert callable(getattr(helpers, "infer_variable_type", None))
     assert callable(getattr(helpers, "format_inline_yaml", None))
@@ -421,7 +425,7 @@ def test_gf8_h001_variable_helpers_importable_from_scanner_data() -> None:
 
 def test_gf8_h001_variable_helpers_canonical_exports() -> None:
     with _prefer_fsrc_prism_on_sys_path():
-        helpers = importlib.import_module("prism.scanner_data.variable_helpers")
+        helpers = importlib.import_module("prism.scanner_extract.variable_helpers")
 
     assert callable(helpers.infer_variable_type)
     assert callable(helpers.format_inline_yaml)

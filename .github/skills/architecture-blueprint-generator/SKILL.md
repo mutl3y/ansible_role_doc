@@ -290,7 +290,7 @@ For each decision, note:
 - Context that made the decision necessary
 - Factors considered in making the decision
 - Resulting consequences (positive and negative)
-- Future flexibility or limitations introduced" : ""}
+- Future flexibility or limitations introduced : ""}
 
 ### ${INCLUDES_DECISION_RECORDS ? "16" : INCLUDES_CODE_EXAMPLES ? "15" : "14"}. Architecture Governance
 - Document how architectural consistency is maintained

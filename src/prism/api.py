@@ -13,7 +13,7 @@ from prism.api_layer import non_collection as api_non_collection
 from prism.errors import PrismRuntimeError
 from prism.errors import FailurePolicy
 from prism.path_safety import assert_safe_role_path
-from prism.collection_plugins import scan_collection_plugins
+from prism.scanner_io.collection_plugins import scan_collection_plugins
 from prism.scanner_io.collection_payload import (
     build_collection_identity,
     build_collection_failure_record,
