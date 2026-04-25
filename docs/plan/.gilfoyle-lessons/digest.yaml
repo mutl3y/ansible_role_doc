@@ -1,23 +1,20 @@
 # Gilfoyle review-loop digest — index for next cycle's Phase 0 sweep
 # Last updated: g3 close (2026-04-25)
 
-closed_findings_count: 13  # g1=7 + g2=5 + g3=1
-deferred_findings_count: 4  # g2=1 (FIND-G2-LOADER-DUAL-PATH) + g3=3 (FIND-G3-04/05/06); g1 carry-overs all closed in g2/g3
+closed_findings_count: 14  # g1=7 + g2=5 + g3=1 + g4=1
+deferred_findings_count: 3  # g2=1 (FIND-G2-LOADER-DUAL-PATH still open) + g3=2 (FIND-G3-04/05 still open via g4 disposition); FIND-G3-06 closed in g4 as FIND-G4-03
 needs_replan_count: 1
 
 open_in_other_cycles:
   - id: FIND-G2-LOADER-DUAL-PATH
-    deferred_to: gilfoyle-g4
-    note: "Bundle with FIND-G3-04 into a single registry-routed defaults slice for g4."
+    deferred_to: gilfoyle-g5
+    note: "Still bundled with FIND-G3-04 / FIND-G4-01 for any future registry-routed defaults slice; G4-01 confirmed routing already passes through the registry, so the slice would be a contract reshape, not a leak fix."
   - id: FIND-G3-04
-    deferred_to: gilfoyle-g4
-    note: "scanner_io/loader.py:46 → registry-routed YAML policy. Pair with FIND-G2-LOADER-DUAL-PATH."
+    deferred_to: gilfoyle-g5
+    note: "loader.py:46 — superseded by FIND-G4-01 do_not_re_flag ruling; only re-flag bundled with FIND-G2-LOADER-DUAL-PATH for a contract reshape."
   - id: FIND-G3-05
-    deferred_to: gilfoyle-g4
-    note: "scanner_plugins/__init__.py decorator-based self-registration. Closes LESSON-08 at source."
-  - id: FIND-G3-06
-    deferred_to: gilfoyle-g4
-    note: "DIContainer 12 inject_mock_* wrappers → collapse to single inject_mock; test-suite migration required."
+    deferred_to: gilfoyle-g5
+    note: "Renamed FIND-G4-02 in g4. Decorator-based self-registration. Closes LESSON-08 at source. Architectural — needs planning slice."
   # FIND-10: closed (subsumed by FIND-G3-01 close + FIND-G3-03 do_not_re_flag rulings).
 
 active_lessons:
@@ -70,6 +67,19 @@ do_not_re_flag:
       scanner_data/patterns_jinja.py (side-effect-free). Do not re-locate them under
       scanner_plugins/parsers/jinja/ — that path is eagerly loaded and triggers a
       load-time cycle for any consumer below the plugin layer (LESSON-08).
+  - find_id: FIND-G4-01-loader-defaults-lazy-import
+    reason: >
+      scanner_io/loader.py:46 lazy imports scanner_plugins.defaults.resolve_yaml_parsing_policy_plugin —
+      a generic resolver that already routes through the plugin registry via
+      _resolve_plugin_with_precedence. The "soft fallback" is intentional pre-scan-path
+      semantics, not a layer leak. Only re-flag bundled with FIND-G2-LOADER-DUAL-PATH
+      for a registry-routed defaults contract reshape.
+  - find_id: FIND-G4-03-inject-mock-wrappers
+    reason: >
+      The 12 inject_mock_* wrappers on DIContainer were collapsed to the generic
+      inject_mock(name, mock) helper in g4. Do not re-introduce per-key wrappers —
+      the generic helper is the single shape, per LESSON-04 (generic-helper-first
+      surface design).
 
 open_questions_for_next_cycle:
   - >

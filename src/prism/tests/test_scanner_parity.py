@@ -382,9 +382,12 @@ def test_w2_t05_scanner_context_payload_shape_parity() -> None:
             container = di_module.DIContainer(
                 role_path="/tmp/role", scan_options=options
             )
-            container.inject_mock_variable_discovery(_DiscoveryStub(({"name": "x"},)))
-            container.inject_mock_feature_detector(
-                _FeatureStub({"task_files_scanned": 1, "tasks_scanned": 2})
+            container.inject_mock(
+                "variable_discovery", _DiscoveryStub(({"name": "x"},))
+            )
+            container.inject_mock(
+                "feature_detector",
+                _FeatureStub({"task_files_scanned": 1, "tasks_scanned": 2}),
             )
             context = scanner_context_module.ScannerContext(
                 di=container,
@@ -434,17 +437,19 @@ def test_w2_t05_scanner_context_error_envelope_parity() -> None:
         )
 
         container = di_module.DIContainer(role_path="/tmp/role", scan_options=options)
-        container.inject_mock_variable_discovery(
+        container.inject_mock(
+            "variable_discovery",
             _DiscoveryStub(
                 errors_module.PrismRuntimeError(
                     code="role_scan_runtime_error",
                     category="runtime",
                     message="boom",
                 )
-            )
+            ),
         )
-        container.inject_mock_feature_detector(
-            _FeatureStub({"task_files_scanned": 0, "tasks_scanned": 0})
+        container.inject_mock(
+            "feature_detector",
+            _FeatureStub({"task_files_scanned": 0, "tasks_scanned": 0}),
         )
 
         context = scanner_context_module.ScannerContext(

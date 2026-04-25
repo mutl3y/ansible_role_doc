@@ -140,16 +140,17 @@ def test_fsrc_scanner_context_orchestrates_payload_shape_parity() -> None:
         container = di_module.DIContainer(
             role_path=options["role_path"], scan_options=options
         )
-        container.inject_mock_variable_discovery(
-            _DiscoveryStub(({"name": "demo_var"},))
+        container.inject_mock(
+            "variable_discovery", _DiscoveryStub(({"name": "demo_var"},))
         )
-        container.inject_mock_feature_detector(
+        container.inject_mock(
+            "feature_detector",
             _FeatureStub(
                 {
                     "task_files_scanned": 1,
                     "tasks_scanned": 2,
                 }
-            )
+            ),
         )
 
         context = core_module.ScannerContext(
@@ -200,9 +201,10 @@ def test_fsrc_scanner_context_consumes_existing_canonical_options_without_rebuil
         container = di_module.DIContainer(
             role_path=options["role_path"], scan_options=options
         )
-        container.inject_mock_variable_discovery(_DiscoveryStub(tuple()))
-        container.inject_mock_feature_detector(
-            _FeatureStub({"task_files_scanned": 1, "tasks_scanned": 2})
+        container.inject_mock("variable_discovery", _DiscoveryStub(tuple()))
+        container.inject_mock(
+            "feature_detector",
+            _FeatureStub({"task_files_scanned": 1, "tasks_scanned": 2}),
         )
 
         observed_scan_options: list[dict[str, Any]] = []
@@ -247,9 +249,10 @@ def test_fsrc_scanner_context_dedupes_canonical_policy_warnings() -> None:
         container = di_module.DIContainer(
             role_path=options["role_path"], scan_options=options
         )
-        container.inject_mock_variable_discovery(_DiscoveryStub(tuple()))
-        container.inject_mock_feature_detector(
-            _FeatureStub({"task_files_scanned": 1, "tasks_scanned": 2})
+        container.inject_mock("variable_discovery", _DiscoveryStub(tuple()))
+        container.inject_mock(
+            "feature_detector",
+            _FeatureStub({"task_files_scanned": 1, "tasks_scanned": 2}),
         )
 
         context = core_module.ScannerContext(
@@ -291,9 +294,10 @@ def test_fsrc_scanner_context_underscore_filter_uses_canonical_ingress_state() -
         container = di_module.DIContainer(
             role_path=options["role_path"], scan_options=options
         )
-        container.inject_mock_variable_discovery(_DiscoveryStub(tuple()))
-        container.inject_mock_feature_detector(
-            _FeatureStub({"task_files_scanned": 1, "tasks_scanned": 2})
+        container.inject_mock("variable_discovery", _DiscoveryStub(tuple()))
+        container.inject_mock(
+            "feature_detector",
+            _FeatureStub({"task_files_scanned": 1, "tasks_scanned": 2}),
         )
 
         context = core_module.ScannerContext(
@@ -349,16 +353,19 @@ def test_fsrc_scanner_context_best_effort_records_error_envelope() -> None:
         container = di_module.DIContainer(
             role_path=options["role_path"], scan_options=options
         )
-        container.inject_mock_variable_discovery(
+        container.inject_mock(
+            "variable_discovery",
             _DiscoveryStub(
                 errors_module.PrismRuntimeError(
                     code="role_scan_runtime_error",
                     category="runtime",
                     message="boom",
                 )
-            )
+            ),
         )
-        container.inject_mock_feature_detector(_FeatureStub({"task_files_scanned": 0}))
+        container.inject_mock(
+            "feature_detector", _FeatureStub({"task_files_scanned": 0})
+        )
 
         context = core_module.ScannerContext(
             di=container,
@@ -390,16 +397,19 @@ def test_fsrc_scanner_context_strict_mode_reraises_recoverable_phase_error() -> 
         container = di_module.DIContainer(
             role_path=options["role_path"], scan_options=options
         )
-        container.inject_mock_variable_discovery(
+        container.inject_mock(
+            "variable_discovery",
             _DiscoveryStub(
                 errors_module.PrismRuntimeError(
                     code="role_scan_runtime_error",
                     category="runtime",
                     message="strict",
                 )
-            )
+            ),
         )
-        container.inject_mock_feature_detector(_FeatureStub({"task_files_scanned": 0}))
+        container.inject_mock(
+            "feature_detector", _FeatureStub({"task_files_scanned": 0})
+        )
 
         context = core_module.ScannerContext(
             di=container,
@@ -422,8 +432,10 @@ def test_fsrc_scanner_context_missing_required_keys_raises_shape_error() -> None
         options.pop("style_readme_path")
         recorder = _BuildOptionsRecorder(options)
         container = di_module.DIContainer(role_path="/tmp/role", scan_options=options)
-        container.inject_mock_variable_discovery(_DiscoveryStub(tuple()))
-        container.inject_mock_feature_detector(_FeatureStub({"task_files_scanned": 0}))
+        container.inject_mock("variable_discovery", _DiscoveryStub(tuple()))
+        container.inject_mock(
+            "feature_detector", _FeatureStub({"task_files_scanned": 0})
+        )
 
         context = core_module.ScannerContext(
             di=container,
@@ -476,9 +488,9 @@ def test_fsrc_di_plugin_factories_are_explicit_and_overridable() -> None:
         )
 
         container.clear_mocks()
-        container.inject_mock_variable_discovery_plugin("var-plugin")
-        container.inject_mock_feature_detection_plugin("feature-plugin")
-        container.inject_mock_comment_driven_doc_plugin("doc-plugin")
+        container.inject_mock("variable_discovery_plugin", "var-plugin")
+        container.inject_mock("feature_detection_plugin", "feature-plugin")
+        container.inject_mock("comment_driven_doc_plugin", "doc-plugin")
 
         assert container.factory_variable_discovery_plugin() == "var-plugin"
         assert container.factory_feature_detection_plugin() == "feature-plugin"
@@ -537,9 +549,10 @@ def test_fsrc_scanner_context_prepared_policy_bundle_rejects_invalid_bundle() ->
             role_path=options["role_path"],
             scan_options=options,
         )
-        container.inject_mock_variable_discovery(_DiscoveryStub(tuple()))
-        container.inject_mock_feature_detector(
-            _FeatureStub({"task_files_scanned": 1, "tasks_scanned": 2})
+        container.inject_mock("variable_discovery", _DiscoveryStub(tuple()))
+        container.inject_mock(
+            "feature_detector",
+            _FeatureStub({"task_files_scanned": 1, "tasks_scanned": 2}),
         )
 
         context = core_module.ScannerContext(
@@ -604,9 +617,10 @@ def test_fsrc_scanner_context_emits_dynamic_include_blocker_facts_with_contract_
             role_path=options["role_path"],
             scan_options=options,
         )
-        container.inject_mock_variable_discovery(_DiscoveryStub(tuple()))
-        container.inject_mock_feature_detector(
-            _FeatureStub({"task_files_scanned": 1, "tasks_scanned": 2})
+        container.inject_mock("variable_discovery", _DiscoveryStub(tuple()))
+        container.inject_mock(
+            "feature_detector",
+            _FeatureStub({"task_files_scanned": 1, "tasks_scanned": 2}),
         )
 
         monkeypatch.setattr(
@@ -684,9 +698,10 @@ def test_fsrc_scanner_context_emits_yaml_like_blocker_facts_with_contract_counts
             role_path=options["role_path"],
             scan_options=options,
         )
-        container.inject_mock_variable_discovery(_DiscoveryStub(tuple()))
-        container.inject_mock_feature_detector(
-            _FeatureStub({"task_files_scanned": 1, "tasks_scanned": 2})
+        container.inject_mock("variable_discovery", _DiscoveryStub(tuple()))
+        container.inject_mock(
+            "feature_detector",
+            _FeatureStub({"task_files_scanned": 1, "tasks_scanned": 2}),
         )
 
         context = core_module.ScannerContext(
@@ -750,9 +765,10 @@ def test_fsrc_scanner_context_does_not_translate_blocker_outcomes_locally(
             role_path=options["role_path"],
             scan_options=options,
         )
-        container.inject_mock_variable_discovery(_DiscoveryStub(tuple()))
-        container.inject_mock_feature_detector(
-            _FeatureStub({"task_files_scanned": 1, "tasks_scanned": 2})
+        container.inject_mock("variable_discovery", _DiscoveryStub(tuple()))
+        container.inject_mock(
+            "feature_detector",
+            _FeatureStub({"task_files_scanned": 1, "tasks_scanned": 2}),
         )
 
         monkeypatch.setattr(

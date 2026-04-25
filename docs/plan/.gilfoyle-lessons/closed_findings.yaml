@@ -152,6 +152,39 @@
     - src/prism/scanner_extract/variable_helpers.py
   evidence_one_line: "Canonical patterns relocated to scanner_data/patterns_jinja.py (side-effect-free; cycle-safe); scanner_plugins/parsers/jinja/patterns.py and scanner_extract sites re-export from canonical source; identity preserved."
 
+- id: FIND-G4-03
+  cycle: g4
+  category: surface_area
+  severity: medium
+  status: closed
+  title: "DIContainer carries 12 inject_mock_* convenience wrappers around generic inject_mock"
+  files_touched:
+    - src/prism/scanner_core/di.py
+    - src/prism/tests/test_scanner_core_di.py
+    - src/prism/tests/test_scanner_context.py
+    - src/prism/tests/test_scanner_parity.py
+    - src/prism/tests/test_di_registry_resolution.py
+    - src/prism/tests/test_policy_as_code_stubs.py
+  evidence_one_line: "Removed all 12 inject_mock_<plugin>(...) wrappers from DIContainer; migrated ~33 call sites to .inject_mock('<key>', value); rewrote parametrized test_inject_mock_helpers_thread_to_mocks to assert generic inject_mock + factory resolution; di.py 401→365 lines, tests net -84 lines."
+
+- id: FIND-G4-01
+  cycle: g4
+  category: graph
+  severity: low
+  status: do_not_re_flag
+  title: "scanner_io/loader.py:46 lazy import of scanner_plugins.defaults.resolve_yaml_parsing_policy_plugin"
+  files_touched: []
+  evidence_one_line: "Routing already passes through the registry via _resolve_plugin_with_precedence; the lazy import is to a generic resolver, not a platform plugin. Marked do_not_re_flag in digest.yaml; only re-flag bundled with FIND-G2-LOADER-DUAL-PATH for a contract reshape."
+
+- id: FIND-G4-02
+  cycle: g4
+  category: abstraction
+  severity: medium
+  status: deferred
+  title: "scanner_plugins/__init__.py eagerly imports every built-in plugin"
+  files_touched: []
+  evidence_one_line: "Deferred to g5 — decorator-based self-registration is the proper fix; closes LESSON-08 at source but affects every sub-package and order-sensitive deferred-string registration. Needs a dedicated lifecycle slice with planning step, not an axis-bounded fix wave."
+
 - id: FIND-G2-04
   cycle: g2
   category: ownership

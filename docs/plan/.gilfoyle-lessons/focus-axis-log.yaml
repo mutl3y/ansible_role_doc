@@ -64,3 +64,27 @@
     Three architectural lanes (loader registry routing, plugin self-registration,
     DIContainer surface shrink) deferred to g4 as bundled redesigns. Three
     consecutive thorough cycles (typing → architecture → coupling) all GREEN.
+
+- cycle: g4
+  date: 2026-04-25
+  focus_axis: registry_lifecycle
+  grade: B+
+  scope: g3-deferred lanes (loader routing, plugin self-registration, DI surface)
+  findings_total: 3
+  closed_count: 1
+  deferred_count: 1
+  do_not_re_flag_count: 1
+  needs_replan_count: 0
+  gate_state: GREEN
+  depth: thorough
+  notes: >
+    754 passed / 7 skipped (parity), ruff clean, black clean (2 test files
+    reformatted post-perl migration), mypy 0 errors in 133 source files. G4-03
+    collapsed 12 inject_mock_* wrappers in DIContainer to the existing generic
+    inject_mock(name, mock) helper — di.py shrank 401→365 lines; ~33 test sites
+    migrated via perl across 6 files; the parametrized
+    test_inject_mock_helpers_thread_to_mocks rewritten to assert the generic
+    helper + factory threading. G4-01 loader-path lazy import marked
+    do_not_re_flag (already registry-routed; intentional pre-scan-path
+    semantics). G4-02 (decorator self-registration) deferred to g5 as an
+    architectural slice. Four consecutive thorough cycles all GREEN.

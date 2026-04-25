@@ -346,39 +346,6 @@ class DIContainer:
         """Inject a mock for testing. Name must match a factory key."""
         self._mocks[name] = mock
 
-    def inject_mock_variable_discovery(self, mock: Any) -> None:
-        self.inject_mock("variable_discovery", mock)
-
-    def inject_mock_feature_detector(self, mock: Any) -> None:
-        self.inject_mock("feature_detector", mock)
-
-    def inject_mock_variable_discovery_plugin(self, mock: Any) -> None:
-        self.inject_mock("variable_discovery_plugin", mock)
-
-    def inject_mock_feature_detection_plugin(self, mock: Any) -> None:
-        self.inject_mock("feature_detection_plugin", mock)
-
-    def inject_mock_comment_driven_doc_plugin(self, mock: Any) -> None:
-        self.inject_mock("comment_driven_doc_plugin", mock)
-
-    def inject_mock_task_annotation_policy_plugin(self, mock: Any) -> None:
-        self.inject_mock("task_annotation_policy_plugin", mock)
-
-    def inject_mock_task_line_parsing_policy_plugin(self, mock: Any) -> None:
-        self.inject_mock("task_line_parsing_policy_plugin", mock)
-
-    def inject_mock_task_traversal_policy_plugin(self, mock: Any) -> None:
-        self.inject_mock("task_traversal_policy_plugin", mock)
-
-    def inject_mock_variable_extractor_policy_plugin(self, mock: Any) -> None:
-        self.inject_mock("variable_extractor_policy_plugin", mock)
-
-    def inject_mock_yaml_parsing_policy_plugin(self, mock: Any) -> None:
-        self.inject_mock("yaml_parsing_policy_plugin", mock)
-
-    def inject_mock_jinja_analysis_policy_plugin(self, mock: Any) -> None:
-        self.inject_mock("jinja_analysis_policy_plugin", mock)
-
     def factory_audit_plugin(self) -> Any | None:
         """Return the injected audit plugin, or None if audit is not configured (opt-in)."""
         if "audit_plugin" in self._mocks:
@@ -388,9 +355,6 @@ class DIContainer:
         if override is not None:
             return override(self, self._role_path, self._scan_options)
         return None
-
-    def inject_mock_audit_plugin(self, mock: Any) -> None:
-        self.inject_mock("audit_plugin", mock)
 
     def clear_mocks(self) -> None:
         """Clear all injected mocks."""

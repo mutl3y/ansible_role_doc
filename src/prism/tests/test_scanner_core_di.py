@@ -153,7 +153,7 @@ def test_factory_variable_discovery_uses_mock_when_injected():
         di = _load_di_module()
         c = di.DIContainer(role_path="/r", scan_options={})
         sentinel = object()
-        c.inject_mock_variable_discovery(sentinel)
+        c.inject_mock("variable_discovery", sentinel)
         assert c.factory_variable_discovery() is sentinel
 
 
@@ -180,7 +180,7 @@ def test_factory_feature_detector_uses_mock_when_injected():
         di = _load_di_module()
         c = di.DIContainer(role_path="/r", scan_options={})
         sentinel = object()
-        c.inject_mock_feature_detector(sentinel)
+        c.inject_mock("feature_detector", sentinel)
         assert c.factory_feature_detector() is sentinel
 
 
@@ -259,7 +259,7 @@ def test_factory_variable_discovery_plugin_uses_mock():
         di = _load_di_module()
         c = di.DIContainer(role_path="/r", scan_options={})
         sentinel = object()
-        c.inject_mock_variable_discovery_plugin(sentinel)
+        c.inject_mock("variable_discovery_plugin", sentinel)
         assert c.factory_variable_discovery_plugin() is sentinel
 
 
@@ -307,7 +307,7 @@ def test_factory_feature_detection_plugin_uses_mock_and_override():
         di = _load_di_module()
         c = di.DIContainer(role_path="/r", scan_options={})
         sentinel = object()
-        c.inject_mock_feature_detection_plugin(sentinel)
+        c.inject_mock("feature_detection_plugin", sentinel)
         assert c.factory_feature_detection_plugin() is sentinel
         c.clear_mocks()
         # After clearing mocks, override path activates
@@ -405,54 +405,29 @@ def test_pre_resolved_platform_key_is_used():
 
 
 # ---------------------------------------------------------------------------
-# inject_mock_* convenience helpers thread through to inject_mock.
+# Generic inject_mock(name, mock) threads through to factory resolution.
 # ---------------------------------------------------------------------------
 
 
 _INJECTOR_HELPERS = [
-    ("inject_mock_comment_driven_doc_plugin", "comment_driven_doc_plugin"),
+    ("comment_driven_doc_plugin", "factory_comment_driven_doc_plugin"),
+    ("task_annotation_policy_plugin", "factory_task_annotation_policy_plugin"),
+    ("task_line_parsing_policy_plugin", "factory_task_line_parsing_policy_plugin"),
+    ("task_traversal_policy_plugin", "factory_task_traversal_policy_plugin"),
     (
-        "inject_mock_task_annotation_policy_plugin",
-        "task_annotation_policy_plugin",
-    ),
-    (
-        "inject_mock_task_line_parsing_policy_plugin",
-        "task_line_parsing_policy_plugin",
-    ),
-    (
-        "inject_mock_task_traversal_policy_plugin",
-        "task_traversal_policy_plugin",
-    ),
-    (
-        "inject_mock_variable_extractor_policy_plugin",
         "variable_extractor_policy_plugin",
+        "factory_variable_extractor_policy_plugin",
     ),
-    (
-        "inject_mock_yaml_parsing_policy_plugin",
-        "yaml_parsing_policy_plugin",
-    ),
-    (
-        "inject_mock_jinja_analysis_policy_plugin",
-        "jinja_analysis_policy_plugin",
-    ),
+    ("yaml_parsing_policy_plugin", "factory_yaml_parsing_policy_plugin"),
+    ("jinja_analysis_policy_plugin", "factory_jinja_analysis_policy_plugin"),
 ]
 
 
-@pytest.mark.parametrize("helper_name,mock_key", _INJECTOR_HELPERS)
-def test_inject_mock_helpers_thread_to_mocks(helper_name, mock_key):
+@pytest.mark.parametrize("mock_key,factory_name", _INJECTOR_HELPERS)
+def test_inject_mock_helpers_thread_to_mocks(mock_key, factory_name):
     with _prefer_fsrc_prism_on_sys_path():
         di = _load_di_module()
         c = di.DIContainer(role_path="/r", scan_options={})
         sentinel = object()
-        getattr(c, helper_name)(sentinel)
-        # Resolve via the corresponding factory
-        factory_name = {
-            "comment_driven_doc_plugin": "factory_comment_driven_doc_plugin",
-            "task_annotation_policy_plugin": "factory_task_annotation_policy_plugin",
-            "task_line_parsing_policy_plugin": "factory_task_line_parsing_policy_plugin",
-            "task_traversal_policy_plugin": "factory_task_traversal_policy_plugin",
-            "variable_extractor_policy_plugin": "factory_variable_extractor_policy_plugin",
-            "yaml_parsing_policy_plugin": "factory_yaml_parsing_policy_plugin",
-            "jinja_analysis_policy_plugin": "factory_jinja_analysis_policy_plugin",
-        }[mock_key]
+        c.inject_mock(mock_key, sentinel)
         assert getattr(c, factory_name)() is sentinel

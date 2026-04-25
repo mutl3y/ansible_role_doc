@@ -29,3 +29,12 @@
 - Deferred to g4: FIND-G3-04 (loader.py registry-routed YAML policy; bundles with FIND-G2-LOADER-DUAL-PATH), FIND-G3-05 (scanner_plugins/__init__.py self-registration via decorator — closes LESSON-08 at source), FIND-G3-06 (DIContainer 12 inject_mock_* wrappers — surface shrink).
 - Gate: GREEN (754 passed / 7 skipped, ruff clean, black clean, mypy 0 errors in 133 files; +2 source files = scanner_core/filters/__init__.py + underscore_policy.py).
 - Three consecutive thorough cycles (typing → architecture → coupling) all GREEN. Sign-off bar exceeded.
+
+## g4 — 2026-04-25 — focus_axis: registry_lifecycle — grade: B+
+
+- Scope: three g3-deferred lanes (G4-01 loader routing, G4-02 plugin self-registration, G4-03 DIContainer surface).
+- Closed: FIND-G4-03 (DIContainer 12 inject_mock_* wrappers collapsed to generic `inject_mock(name, mock)`; ~33 test sites migrated; di.py 401→365 lines; tests net -84 lines).
+- Do_not_re_flag: FIND-G4-01 (loader.py:46 lazy import is to a generic resolver that already routes through the registry — re-flag only if bundled with FIND-G2-LOADER-DUAL-PATH for a contract change).
+- Deferred to g5: FIND-G4-02 (decorator-based plugin self-registration — architectural rewrite affecting every sub-package; needs planning slice).
+- Gate: GREEN (754 passed / 7 skipped, ruff clean, black clean post-format, mypy 0 errors / 133 source files).
+- Four consecutive thorough cycles (typing → architecture → coupling → registry_lifecycle) all GREEN. Sign-off bar exceeded by 2 cycles.

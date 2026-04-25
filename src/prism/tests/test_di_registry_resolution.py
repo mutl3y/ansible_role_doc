@@ -107,7 +107,7 @@ def test_di_mock_precedence_preserved_for_variable_discovery_plugin():
             role_path="/tmp/role",
             scan_options={"role_path": "/tmp/role"},
         )
-        container.inject_mock_variable_discovery_plugin("mock-var-plugin")
+        container.inject_mock("variable_discovery_plugin", "mock-var-plugin")
         assert container.factory_variable_discovery_plugin() == "mock-var-plugin"
 
 
@@ -119,7 +119,7 @@ def test_di_mock_precedence_preserved_for_feature_detection_plugin():
             role_path="/tmp/role",
             scan_options={"role_path": "/tmp/role"},
         )
-        container.inject_mock_feature_detection_plugin("mock-feature-plugin")
+        container.inject_mock("feature_detection_plugin", "mock-feature-plugin")
         assert container.factory_feature_detection_plugin() == "mock-feature-plugin"
 
 

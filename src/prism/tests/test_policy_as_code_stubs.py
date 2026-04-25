@@ -167,12 +167,12 @@ class TestDIAuditSlot:
     def test_inject_mock_audit_plugin_allows_mock_retrieval(self) -> None:
         di = self._make_di()
         mock_plugin = object()
-        di.inject_mock_audit_plugin(mock_plugin)
+        di.inject_mock("audit_plugin", mock_plugin)
         assert di.factory_audit_plugin() is mock_plugin
 
     def test_inject_mock_audit_plugin_cleared_by_clear_mocks(self) -> None:
         di = self._make_di()
-        di.inject_mock_audit_plugin(object())
+        di.inject_mock("audit_plugin", object())
         di.clear_mocks()
         assert di.factory_audit_plugin() is None
 
