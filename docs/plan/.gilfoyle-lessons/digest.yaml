@@ -1,8 +1,8 @@
 # Gilfoyle review-loop digest — index for next cycle's Phase 0 sweep
-# Last updated: g5 close (2026-04-25)
+# Last updated: g6 close (2026-04-26)
 
-closed_findings_count: 16  # g1=7 + g2=5 + g3=1 + g4=1 + g5=2
-deferred_findings_count: 3  # g2=1 (FIND-G2-LOADER-DUAL-PATH) + g3=1 (FIND-G3-04 superseded by g4 do_not_re_flag) + g5=1 (FIND-G5-02 decorator self-registration); FIND-G3-05/G4-02 boilerplate component closed by g5 as FIND-G5-01
+closed_findings_count: 21  # g1=7 + g2=5 + g3=1 + g4=1 + g5=2 + g6=5
+deferred_findings_count: 4  # g2=1 + g3=1 + g5=1 + g6=1 (FIND-G6-06 readme platform-agnostic)
 needs_replan_count: 1
 
 open_in_other_cycles:
@@ -18,6 +18,17 @@ open_in_other_cycles:
   - id: FIND-G5-02
     deferred_to: future_planning_slice
     note: "Decorator-based plugin self-registration. Phase 0 sweep blockers: bootstrap_default_plugins(registry=...) replay onto alternate registries; FQCN-resolution timing for deferred registrations."
+  - id: FIND-G6-06
+    deferred_to: dedicated_planning_slice_readme_platform_agnostic
+    note: >
+      scanner_readme/* hardcodes Ansible role rendering (meta/main.yml, Galaxy install,
+      role variables/tasks/handlers sections, ansible-role-doc legacy markers). Product
+      vision (confirmed by user 2026-04-25) is plug-and-play platform support across
+      Ansible, Terraform, Kubernetes, AAP — each plugin must own input + scanning logic
+      + output rendering. Required before code: ReadmeRendererPlugin protocol design,
+      section/style/marker ownership matrix per platform, DI/registry wiring plan,
+      Ansible plugin migration as reference impl, parity tests vs. current Ansible-only
+      output. Mechanical in-loop refactor would prematurely freeze the protocol shape.
   # FIND-10: closed (subsumed by FIND-G3-01 close + FIND-G3-03 do_not_re_flag rulings).
 
 active_lessons:
@@ -90,6 +101,32 @@ do_not_re_flag:
       tables and slot->method dispatch maps. Adding a built-in is a single tuple
       addition — do not re-flag the dispatch indirection as 'too clever'; the
       previous imperative form was 80 lines of duplicated `if not in: register`.
+  - find_id: FIND-G6-01-format-candidate-failure-path-canonical
+    reason: >
+      `_format_candidate_failure_path` (and its helper `_role_relative_candidate_path`)
+      live in scanner_io/loader.py. parsing_policy.py imports from there. Do not
+      re-add a local copy in plugin packages; if behaviour changes, change the
+      canonical site.
+  - find_id: FIND-G6-02-comment-continuation-re-canonical
+    reason: >
+      `COMMENT_CONTINUATION_RE` is defined in scanner_plugins/parsers/comment_doc/marker_utils.py.
+      policies/constants.py re-exports via top-level import. Do not redefine the
+      regex elsewhere — divergence between two compiled patterns is silent.
+  - find_id: FIND-G6-03-ansible-builtin-variables-removed
+    reason: >
+      The `ansible_builtin_variables` policy schema key was deleted in g6 (zero
+      readers, zero data). Do not re-introduce platform-shaped keys in
+      scanner_config/patterns.py; ownership belongs to the platform plugin.
+  - find_id: FIND-G6-04-seed-load-narrow-except
+    reason: >
+      `load_seed_variables` catches (OSError, yaml.YAMLError, UnicodeDecodeError,
+      ValueError) — programmer errors (TypeError, AttributeError) intentionally
+      propagate. Do not widen back to `except Exception`.
+  - find_id: FIND-G6-05-meta-load-narrow-except
+    reason: >
+      `collect_role_contents` catches RuntimeError (load_meta's documented
+      hard-failure surface). Do not widen to bare `Exception` — that masks
+      regressions in load_meta's contract.
 
 open_questions_for_next_cycle:
   - >
@@ -105,3 +142,13 @@ open_questions_for_next_cycle:
   - >
     Built-in plugins should self-register through the registry rather than being imported
     eagerly by `scanner_plugins/__init__.py` — would close LESSON-08 at the source.
+  - >
+    FIND-G6-06 (architecture / g6, deferred): scanner_readme/* must become
+    platform-agnostic before Terraform/Kubernetes/AAP README generation lands.
+    Design slice should produce: ReadmeRendererPlugin protocol (parallel to
+    VariableDiscoveryPlugin / FeatureDetectionPlugin / YAMLParsingPolicyPlugin
+    seams), per-platform section/style/marker ownership matrix, DI/registry
+    wiring, Ansible plugin migration as reference implementation, parity test
+    strategy against current Ansible-only output. AGENTS.md note required:
+    plugin contract must own input parsing AND output rendering, not just
+    intake.

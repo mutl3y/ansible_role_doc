@@ -6,6 +6,8 @@ import re
 from pathlib import Path
 from typing import Any
 
+import yaml
+
 from prism.scanner_core.di_helpers import scan_options_from_di
 from prism.scanner_extract.task_file_traversal import (
     collect_task_files as _tft_collect_task_files,
@@ -87,9 +89,10 @@ def load_seed_variables(
             continue
         try:
             loaded = load_yaml_file(candidate, di=di)
-        except Exception:
+        except (OSError, yaml.YAMLError, UnicodeDecodeError, ValueError):
             # Seed files are optional user-supplied inputs; silently skip
-            # unreadable or malformed entries rather than aborting the scan.
+            # unreadable or malformed entries. Programmer errors (TypeError,
+            # AttributeError) are intentionally NOT caught and will propagate.
             continue
         if not isinstance(loaded, dict):
             continue

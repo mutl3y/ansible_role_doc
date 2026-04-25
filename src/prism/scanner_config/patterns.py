@@ -83,11 +83,7 @@ def _normalise(policy: dict[str, Any]) -> dict[str, Any]:
     policy["sensitivity"].setdefault("url_prefixes", [])
     policy.setdefault("variable_guidance", {})
     policy["variable_guidance"].setdefault("priority_keywords", [])
-    policy.setdefault("ansible_builtin_variables", [])
     policy.setdefault("ignored_identifiers", [])
-    policy["ansible_builtin_variables"] = _normalise_token_collection(
-        policy["ansible_builtin_variables"]
-    )
     policy["ignored_identifiers"] = _normalise_token_collection(
         policy["ignored_identifiers"]
     )

@@ -306,3 +306,62 @@
   title: "DIContainer carries 12 inject_mock_* convenience wrappers"
   files_touched: []
   evidence_one_line: "Stable test API; collapse into the existing generic `inject_mock(name, mock)` (already at L344) requires test-suite migration. Deferred to g4 with the DIContainer carrier shrink lane."
+
+- id: FIND-G6-01
+  cycle: g6
+  category: duplication
+  severity: medium
+  status: closed
+  title: "_format_candidate_failure_path defined in two modules — deduped"
+  files_touched:
+    - src/prism/scanner_plugins/parsers/yaml/parsing_policy.py
+  evidence_one_line: "parsing_policy.py now imports _format_candidate_failure_path from scanner_io/loader.py (canonical home — older site, exports related role-relative helper)."
+
+- id: FIND-G6-02
+  cycle: g6
+  category: duplication
+  severity: medium
+  status: closed
+  title: "COMMENT_CONTINUATION_RE compiled in two modules — deduped"
+  files_touched:
+    - src/prism/scanner_plugins/policies/constants.py
+  evidence_one_line: "policies/constants.py now imports COMMENT_CONTINUATION_RE from parsers/comment_doc/marker_utils.py (canonical comment-doc parser primitive home); re-exported via __all__."
+
+- id: FIND-G6-03
+  cycle: g6
+  category: ownership
+  severity: medium
+  status: closed
+  title: "Dead policy key 'ansible_builtin_variables' removed from scanner_config/patterns.py"
+  files_touched:
+    - src/prism/scanner_config/patterns.py
+  evidence_one_line: "Schema key + normalisation removed (4 lines); zero readers in src/ or any data YAML. Ansible-shaped name had no business in scanner_config."
+
+- id: FIND-G6-04
+  cycle: g6
+  category: silent_fallback
+  severity: medium
+  status: closed
+  title: "scanner_extract/variable_extractor.py:90 broad-except tightened"
+  files_touched:
+    - src/prism/scanner_extract/variable_extractor.py
+  evidence_one_line: "Seed-load except narrowed to (OSError, yaml.YAMLError, UnicodeDecodeError, ValueError); programmer errors (TypeError, AttributeError) now propagate instead of being silently skipped."
+
+- id: FIND-G6-05
+  cycle: g6
+  category: silent_fallback
+  severity: medium
+  status: closed
+  title: "scanner_core/scan_facade_helpers.py:46 broad-except tightened"
+  files_touched:
+    - src/prism/scanner_core/scan_facade_helpers.py
+  evidence_one_line: "Meta-load except narrowed to RuntimeError to match load_meta's documented hard-failure surface; unexpected exceptions now propagate."
+
+- id: FIND-G6-06
+  cycle: g6
+  category: architecture
+  severity: high
+  status: deferred_to_planning_slice
+  title: "scanner_readme/* hardcodes Ansible role rendering — blocks Terraform/K8s/AAP plug-and-play"
+  files_touched: []
+  evidence_one_line: "Product vision is plug-and-play platform support; current scanner_readme/* (render, style, guide, guide_galaxy, doc_insights, render_legacy_markers) hardcodes meta/main.yml, Galaxy install, role-variable sections, ansible-role-doc markers. Needs ReadmeRendererPlugin protocol + per-platform ownership matrix before code; mechanical in-loop refactor would freeze the wrong shape."

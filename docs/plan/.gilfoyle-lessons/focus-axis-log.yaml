@@ -112,3 +112,28 @@
     self-registration) deferred — Phase 0 sweep flagged replay-onto-alternate-
     registry breakage and FQCN-resolution-timing risk; needs planning slice.
     Five consecutive thorough cycles all GREEN.
+
+- cycle: g6
+  date: 2026-04-26
+  focus_axis: ownership
+  grade: B
+  scope: whole-codebase ownership/duplication/silent_fallback sweep
+  findings_total: 6
+  closed_count: 5
+  deferred_count: 1
+  do_not_re_flag_count: 0
+  needs_replan_count: 0
+  gate_state: GREEN
+  depth: thorough
+  notes: >
+    754 passed / 7 skipped, ruff clean, black clean, mypy 0 errors / 133 source
+    files. Five mechanical fixes: G6-01/G6-02 dedupe two helpers (loader and
+    marker_utils chosen as canonical homes); G6-03 deletes dead
+    `ansible_builtin_variables` policy schema key from scanner_config/patterns.py;
+    G6-04/G6-05 tighten two broad-excepts (variable_extractor seed-load to
+    OSError/YAMLError/UnicodeDecodeError/ValueError, scan_facade_helpers meta-load
+    to RuntimeError per load_meta contract). G6-06 elevated to dedicated planning
+    slice after user pushback 2026-04-25: scanner_readme/* hardcoded-Ansible
+    rendering blocks the stated plug-and-play vision (Ansible/Terraform/K8s/AAP);
+    needs ReadmeRendererPlugin protocol design + ownership matrix before code.
+    Six consecutive thorough cycles all GREEN.

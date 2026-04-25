@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 
 from prism.scanner_plugins.parsers.comment_doc.marker_utils import (
+    COMMENT_CONTINUATION_RE,
     DEFAULT_DOC_MARKER_PREFIX,
 )
 
@@ -59,7 +60,6 @@ TASK_META_KEYS: frozenset[str] = frozenset(
     }
 )
 
-COMMENT_CONTINUATION_RE = re.compile(r"^\s*#\s?(.*)$")
 COMMENTED_TASK_ENTRY_RE = re.compile(r"^\s*-\s+name:\s*\S")
 TASK_ENTRY_RE = re.compile(r"^\s*-\s+name:\s*\S")
 YAML_LIKE_KEY_VALUE_RE = re.compile(r"^\s*[A-Za-z_][A-Za-z0-9_-]*\s*:\s*\S")

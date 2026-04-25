@@ -7,12 +7,7 @@ from typing import ClassVar
 
 import yaml
 
-
-def _format_candidate_failure_path(candidate: Path, role_root: Path) -> str:
-    try:
-        return candidate.relative_to(role_root).as_posix()
-    except ValueError:
-        return candidate.resolve().as_posix()
+from prism.scanner_io.loader import _format_candidate_failure_path
 
 
 class YAMLParsingPolicyPlugin:
