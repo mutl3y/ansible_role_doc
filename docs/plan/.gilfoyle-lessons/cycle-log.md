@@ -79,3 +79,31 @@
 **Next action:** A1 (user decision) → A2 (implementation plan with 5 waves) → A3 (R1 spike).
 
 **Gate:** N/A (no code changes).
+
+## g7b — 2026-04-25 — planning slice (FIND-G7B-01, sibling of FIND-G6-06)
+
+**Type:** Design-only planning slice (no code shipped).
+**Trigger:** User observation 2026-04-25 — four modules misowned:
+- scanner_plugins/policies/constants.py (Ansible YAML vocabulary)
+- scanner_plugins/policies/extract_defaults.py (Ansible facade)
+- scanner_plugins/policies/annotation_parsing.py (comment-doc feature)
+- scanner_reporting/runbook.py (comment-doc feature)
+
+**User directive:** "no need for a deprecation cycle, deprecate now" — locks no-shim policy for W4.
+**Artefact:** docs/plan/20260425-policies-runbook-ownership-design/plan.yaml (v2_ultrathink)
+
+**Pre-code artefacts delivered:**
+1. Problem-rot taxonomy — 3 architectural rots named (policies-directory-is-a-lie, runbook-misclassified, mixed-concerns-in-annotation-parsing).
+2. Design principles (5) — ownership axes (PLATFORM vs FEATURE), template-shape ownership, no-compat-shims, protocol-first for mixed concerns, directory names must not lie.
+3. Per-symbol ownership matrix — every symbol from the 4 modules classified by axis with target canonical path.
+4. New protocol: TaskBoundaryDetector (interfaces.py) — decouples comment_doc from Ansible-regex coupling. Defined NOW, not deferred.
+5. 7 waves — W0 (consumer inventory) → W1 (create canonical homes) → W2 (protocol + Ansible impl + DI) → W3 (redirect callers) → W4 (delete; unconditional, no shims) → W5 (optional: rename policies/ → defaults/) → W6 (closure gate).
+6. Public API contract — prism.scanner_reporting package facade re-exports preserved; templates/RUNBOOK.md.j2 deleted; no DeprecationWarning paths anywhere.
+7. Partner opinions section (6) — v2 disagrees with v1 on Option C, compat shims, policies/ rename, runbook template ownership rationale, W0 promotion to hard prerequisite, what-I-still-don't-know list.
+
+**Risks documented:** R1 (TaskBoundaryDetector generality, medium), R2 (W5 rename churn, low), R3 (test rename, medium), R4 (templates/ dir other consumers, low), R5 (Ansible-regex importer fan-out, high), R6 (prism-learn lockstep, medium), R7 (template path resolution post-move, low).
+
+**Status:** awaiting user review/approval before implementation slice begins.
+**Next action:** A1 (user decision on partner_opinions + W5) → A2 (W0 inventory) → A3 (W1-W4(W5)-W6 implementation slice).
+
+**Gate:** N/A (no code changes).

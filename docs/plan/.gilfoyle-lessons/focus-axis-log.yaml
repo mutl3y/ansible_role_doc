@@ -153,3 +153,26 @@
     No code shipped. Five pre-code artefacts produced for FIND-G6-06
     (ReadmeRendererPlugin protocol, per-platform ownership matrix,
     DI/registry wiring, ansible reference impl plan, parity test strategy).
+- cycle: g7b
+  date: 2026-04-25
+  focus_axis: planning_slice
+  type: design_only
+  parent_finding: FIND-G7B-01
+  sibling_of: FIND-G6-06
+  artefact: docs/plan/20260425-policies-runbook-ownership-design/plan.yaml
+  grade: N/A
+  closed_count: 0
+  deferred_count: 0
+  pre_code_artefacts_delivered: 7
+  user_directives_locked:
+    - "no deprecation cycle, delete on relocation (2026-04-25)"
+    - "ultrathink the design phase (2026-04-25)"
+    - "partners — disagree and discuss (2026-04-25)"
+  status: awaiting_user_review
+  notes: >
+    No code shipped. Seven pre-code artefacts produced for FIND-G7B-01:
+    problem-rot taxonomy, 5 design principles, per-symbol ownership matrix,
+    TaskBoundaryDetector protocol design, 7-wave plan, public API contract,
+    6-item partner_opinions section. v2 ultrathink revision discards v1's
+    Option C deferral of the protocol; instead defines TaskBoundaryDetector
+    in W2 to genuinely decouple comment_doc from Ansible.
