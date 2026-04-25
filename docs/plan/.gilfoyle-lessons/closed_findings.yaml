@@ -195,6 +195,37 @@
     - src/prism/scanner_core/variable_discovery.py
   evidence_one_line: "Literal `tasks/` replaced with `None` for unresolved-referenced rows; scanner_core stays platform-agnostic; no test asserts the legacy literal."
 
+# ---- Cycle g5 (focus_axis=registry_boilerplate, 2026-04-25) ----
+
+- id: FIND-G5-01
+  cycle: g5
+  category: abstraction
+  severity: medium
+  status: closed
+  title: "bootstrap_default_plugins() is 80 lines of repetitive `if not in: register_X` blocks"
+  files_touched:
+    - src/prism/scanner_plugins/__init__.py
+  evidence_one_line: "Converted to data-driven table iteration: _DIRECT_REGISTRATIONS + _DEFERRED_REGISTRATIONS + _RESERVED_UNSUPPORTED_PLATFORMS tuples dispatched via _DIRECT_SLOT_DISPATCH / _DEFERRED_SLOT_DISPATCH maps; adding a built-in is now a single tuple. First-registrant-wins semantics preserved."
+
+- id: FIND-G5-02
+  cycle: g5
+  category: abstraction
+  severity: low
+  status: deferred
+  title: "True decorator self-registration on plugin classes (closes LESSON-08 at source)"
+  files_touched: []
+  evidence_one_line: "Phase 0 sweep flagged 2 blockers: registry-replay tests pass alternate registries to bootstrap_default_plugins(registry=...); FQCN-resolution timing for deferred registrations risks load-order bugs. Needs planning slice — not axis-bounded."
+
+- id: FIND-G5-03
+  cycle: g5
+  category: surface_area
+  severity: low
+  status: closed
+  title: "ScanPipelinePlugin imported but not in __all__ post-cast restoration"
+  files_touched:
+    - src/prism/scanner_plugins/__init__.py
+  evidence_one_line: "Added ScanPipelinePlugin to __all__; restored cast(type[ScanPipelinePlugin], ...) typing in _DIRECT_REGISTRATIONS table."
+
 - id: FIND-G2-05
   cycle: g2
   category: test_gap

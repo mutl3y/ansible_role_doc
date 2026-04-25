@@ -38,3 +38,11 @@
 - Deferred to g5: FIND-G4-02 (decorator-based plugin self-registration — architectural rewrite affecting every sub-package; needs planning slice).
 - Gate: GREEN (754 passed / 7 skipped, ruff clean, black clean post-format, mypy 0 errors / 133 source files).
 - Four consecutive thorough cycles (typing → architecture → coupling → registry_lifecycle) all GREEN. Sign-off bar exceeded by 2 cycles.
+
+## g5 — 2026-04-25 — focus_axis: registry_boilerplate — grade: B
+
+- Scope: g4-deferred FIND-G4-02 (eager-import boilerplate in scanner_plugins/__init__.py).
+- Closed: FIND-G5-01 (bootstrap_default_plugins converted to data-driven table iteration; ~80 imperative lines → 30 declarative table entries + 1 dispatch loop. Adding a new built-in is now a single tuple), FIND-G5-03 (ScanPipelinePlugin added to __all__ as a public re-export).
+- Deferred: FIND-G5-02 (true decorator self-registration — Phase 0 sweep flagged replay-onto-alternate-registry blocker via test_comment_doc_plugin_resolution.py and FQCN-resolution-timing risk for deferred registrations; needs dedicated planning slice not an axis-bounded fix).
+- Gate: GREEN (754 passed / 7 skipped, ruff clean, black clean post-format, mypy 0 errors / 133 source files).
+- Five consecutive thorough cycles (typing → architecture → coupling → registry_lifecycle → registry_boilerplate) all GREEN. Sign-off bar exceeded by 3 cycles.

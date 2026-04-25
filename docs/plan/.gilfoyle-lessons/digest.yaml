@@ -1,8 +1,8 @@
 # Gilfoyle review-loop digest — index for next cycle's Phase 0 sweep
-# Last updated: g3 close (2026-04-25)
+# Last updated: g5 close (2026-04-25)
 
-closed_findings_count: 14  # g1=7 + g2=5 + g3=1 + g4=1
-deferred_findings_count: 3  # g2=1 (FIND-G2-LOADER-DUAL-PATH still open) + g3=2 (FIND-G3-04/05 still open via g4 disposition); FIND-G3-06 closed in g4 as FIND-G4-03
+closed_findings_count: 16  # g1=7 + g2=5 + g3=1 + g4=1 + g5=2
+deferred_findings_count: 3  # g2=1 (FIND-G2-LOADER-DUAL-PATH) + g3=1 (FIND-G3-04 superseded by g4 do_not_re_flag) + g5=1 (FIND-G5-02 decorator self-registration); FIND-G3-05/G4-02 boilerplate component closed by g5 as FIND-G5-01
 needs_replan_count: 1
 
 open_in_other_cycles:
@@ -13,8 +13,11 @@ open_in_other_cycles:
     deferred_to: gilfoyle-g5
     note: "loader.py:46 — superseded by FIND-G4-01 do_not_re_flag ruling; only re-flag bundled with FIND-G2-LOADER-DUAL-PATH for a contract reshape."
   - id: FIND-G3-05
-    deferred_to: gilfoyle-g5
-    note: "Renamed FIND-G4-02 in g4. Decorator-based self-registration. Closes LESSON-08 at source. Architectural — needs planning slice."
+    deferred_to: future_planning_slice
+    note: "Boilerplate component closed in g5 as FIND-G5-01 (data-driven table). True decorator self-registration component remains open as FIND-G5-02 — needs replay-safe-binding design before implementation."
+  - id: FIND-G5-02
+    deferred_to: future_planning_slice
+    note: "Decorator-based plugin self-registration. Phase 0 sweep blockers: bootstrap_default_plugins(registry=...) replay onto alternate registries; FQCN-resolution timing for deferred registrations."
   # FIND-10: closed (subsumed by FIND-G3-01 close + FIND-G3-03 do_not_re_flag rulings).
 
 active_lessons:
@@ -80,6 +83,13 @@ do_not_re_flag:
       inject_mock(name, mock) helper in g4. Do not re-introduce per-key wrappers —
       the generic helper is the single shape, per LESSON-04 (generic-helper-first
       surface design).
+  - find_id: FIND-G5-01-bootstrap-table
+    reason: >
+      bootstrap_default_plugins() in scanner_plugins/__init__.py is now data-driven
+      via _DIRECT_REGISTRATIONS / _DEFERRED_REGISTRATIONS / _RESERVED_UNSUPPORTED_PLATFORMS
+      tables and slot->method dispatch maps. Adding a built-in is a single tuple
+      addition — do not re-flag the dispatch indirection as 'too clever'; the
+      previous imperative form was 80 lines of duplicated `if not in: register`.
 
 open_questions_for_next_cycle:
   - >

@@ -88,3 +88,27 @@
     do_not_re_flag (already registry-routed; intentional pre-scan-path
     semantics). G4-02 (decorator self-registration) deferred to g5 as an
     architectural slice. Four consecutive thorough cycles all GREEN.
+
+- cycle: g5
+  date: 2026-04-25
+  focus_axis: registry_boilerplate
+  grade: B
+  scope: g4-deferred FIND-G4-02 (bootstrap eager-import boilerplate)
+  findings_total: 3
+  closed_count: 2
+  deferred_count: 1
+  do_not_re_flag_count: 0
+  needs_replan_count: 0
+  gate_state: GREEN
+  depth: thorough
+  notes: >
+    754 passed / 7 skipped (parity), ruff clean, black clean post-format, mypy 0
+    errors / 133 source files. G5-01 converted bootstrap_default_plugins() from
+    ~80 lines of repetitive `if name not in list_X(): register_X(...)` blocks to
+    data-driven table iteration: _DIRECT_REGISTRATIONS + _DEFERRED_REGISTRATIONS
+    + _RESERVED_UNSUPPORTED_PLATFORMS tuples dispatched via slot->method-name
+    maps. Adding a new built-in is now a single tuple addition. G5-03 added
+    ScanPipelinePlugin to __all__ (post-cast restoration). G5-02 (true decorator
+    self-registration) deferred — Phase 0 sweep flagged replay-onto-alternate-
+    registry breakage and FQCN-resolution-timing risk; needs planning slice.
+    Five consecutive thorough cycles all GREEN.
