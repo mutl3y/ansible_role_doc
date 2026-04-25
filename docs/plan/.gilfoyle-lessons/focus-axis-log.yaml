@@ -18,3 +18,25 @@
     ruff debt in api_layer/non_collection.py and scanner_extract/variable_extractor.py
     fixed during gate. Subagent-first dispatch saved a wrong W4 edit; SKILL.md updated
     to reinforce that policy.
+
+- cycle: g2
+  date: 2026-04-25
+  focus_axis: architecture
+  grade: B
+  scope: high+architecture (ownership/abstraction/graph)
+  findings_total: 7
+  closed_count: 5
+  deferred_count: 2
+  needs_replan_count: 0
+  gate_state: GREEN
+  depth: thorough
+  notes: >
+    754 passed / 7 skipped (parity with g1), ruff clean, black clean, mypy 0 errors
+    in 131 files (was 130 — protocols_runtime.py added). Wave A (G2-02/03/04/05)
+    issued 4 parallel fix subagents; G2-02's sed-based edits introduced an
+    IndentationError in di.py and a load-time circular import via scanner_plugins
+    eager loading (LESSON-08). Repaired in-line: di.py imports merged, JINJA patterns
+    relocated to scanner_data/patterns_jinja.py with re-export from
+    scanner_plugins/parsers/jinja/patterns.py. Wave B (G2-01) ran clean — 4
+    AnsibleDefault* classes relocated to scanner_plugins/ansible/default_policies.py
+    with re-export shim. FIND-10 deferred to g3 as planned.

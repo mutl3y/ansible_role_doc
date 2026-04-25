@@ -137,7 +137,7 @@ class VariableDiscovery:
                 .documented(False)
                 .required(False)
                 .secret(False)
-                .provenance_source_file("tasks/")
+                .provenance_source_file(None)
                 .provenance_line(None)
                 .provenance_confidence(0.5)
                 .uncertainty_reason(unresolved.get(variable_name))

@@ -12,6 +12,7 @@ from typing import Any
 from yaml import safe_dump
 
 from prism.scanner_data.contracts_variables import VariableRow
+from prism.scanner_data.patterns_jinja import JINJA_IDENTIFIER_RE
 
 
 def infer_variable_type(value: Any) -> str:
@@ -137,9 +138,6 @@ def build_static_variable_rows(
         rows_by_name[name] = row
 
     return rows, rows_by_name
-
-
-JINJA_IDENTIFIER_RE = re.compile(r"\b([A-Za-z_][A-Za-z0-9_]*)\b")
 
 
 def collect_dynamic_include_var_tokens(

@@ -76,3 +76,52 @@
     Module pair where one is asserted neutral by a `test_*_domain_neutrality.py` test and the
     other is asserted a superset by a passing test. In that case the split is intentional and
     flagging it as duplication is wrong; the correct axis is architecture (placement / naming).
+
+- id: LESSON-06
+  cycle: g2
+  category: ownership
+  lesson: >
+    Generic-package modules (e.g. `scanner_plugins/policies/`) hosting platform-specific
+    classes (e.g. `AnsibleDefault*`) is an ownership smell that survives domain-neutrality
+    tests. Constants stay generic; CLASSES that wire those constants belong to the platform
+    that owns them. Move the class to the platform package and keep the original module as a
+    re-export shim for back-compat. The domain-neutrality test continues to guard the constants;
+    the relocation removes the structural confusion.
+  pattern: "`class <Platform>Default*` defined in a package whose name does not contain that platform"
+  false_positive_signature: >
+    Genuine plugin-base/abstract classes that any platform may extend (these belong in the
+    generic package). Verify by checking whether the class body imports platform-specific
+    helpers — if yes, ownership is platform; if no, ownership stays generic.
+
+- id: LESSON-07
+  cycle: g2
+  category: abstraction
+  lesson: >
+    `Callable[..., Any]` at architectural boundaries (DI factories, kernel orchestrators,
+    plugin loaders) is unnamed contract debt. Promote each to a named `Protocol` documenting
+    the call shape. For DI-injected CLASS parameters used to instantiate (e.g.
+    `variable_discovery_cls(di, role_path, options)`), narrow to `type[X]` rather than a
+    Protocol — they are class objects, not callables-with-side-effects. Both narrowings cost
+    nothing at runtime (TYPE_CHECKING guards) and turn future call-site refactors into
+    type-checker failures instead of silent breaks.
+  pattern: "`Callable[..., Any]` or `Callable[..., R]` at module top level in scanner_core/, scanner_kernel/, or scanner_plugins/<plugin>/__init__.py"
+  false_positive_signature: >
+    Locally-scoped Callable annotations (function parameters of small helper functions whose
+    contract is clear from the 5-line body). Skip those; the cost outweighs the benefit.
+
+- id: LESSON-08
+  cycle: g2
+  category: graph
+  lesson: >
+    A package whose `__init__.py` eagerly imports plugins (e.g.
+    `scanner_plugins/__init__.py`) is a LOAD-TIME cycle hazard. Even leaf-imports from that
+    package's submodules drag the whole eager-load tree into a partially-initialized state
+    when called from a layer that the eager-load tree itself imports from. The fix for shared
+    constants/regexes/data is to relocate them to a side-effect-free data module (e.g.
+    `scanner_data/`) and have the eager-loaded package re-export from there. Putting the
+    canonical definition in the eager-loaded package is a hidden cycle waiting for the next
+    consumer.
+  pattern: "shared constants/regexes/data living in a package whose `__init__.py` performs eager plugin loading"
+  false_positive_signature: >
+    Constants that are only consumed inside the same eager-load tree (no cross-layer
+    consumers). Those don't trigger the cycle and may stay where they are.

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import threading
-from typing import TYPE_CHECKING, Any, Callable, Mapping
+from typing import TYPE_CHECKING, Any, Mapping
 
 from prism.scanner_core.events import EventBus, EventListener, get_default_listeners
 from prism.scanner_data.builders import VariableRowBuilder
@@ -14,6 +14,10 @@ if TYPE_CHECKING:
     from prism.scanner_core.scanner_context import ScannerContext
     from prism.scanner_core.variable_discovery import VariableDiscovery
     from prism.scanner_io.output_orchestrator import OutputOrchestrator
+    from prism.scanner_core.protocols_runtime import (
+        BlockerFactBuilder,
+        DIFactoryOverride,
+    )
     from prism.scanner_plugins.interfaces import (
         CommentDrivenDocumentationPlugin,
         JinjaAnalysisPolicyPlugin,
@@ -65,7 +69,7 @@ class DIContainer:
         registry: Any | None = None,
         platform_key: str | None = None,
         scanner_context_wiring: dict[str, Any] | None = None,
-        factory_overrides: dict[str, Callable[..., Any]] | None = None,
+        factory_overrides: dict[str, "DIFactoryOverride"] | None = None,
         event_listeners: list[EventListener] | None = None,
         cache_backend: ScanCacheBackend | None = None,
     ) -> None:
@@ -192,7 +196,7 @@ class DIContainer:
                 self._cache[key] = VariableRowBuilder()
         return self._cache[key]
 
-    def factory_blocker_fact_builder(self) -> Callable[..., Any]:
+    def factory_blocker_fact_builder(self) -> "BlockerFactBuilder":
         """Return the blocker-fact builder callable (plugin-layer owned)."""
         key = "blocker_fact_builder"
         with self._cache_lock:

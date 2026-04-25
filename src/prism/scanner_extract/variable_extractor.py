@@ -30,8 +30,12 @@ def _get_variable_extractor_policy(di: object | None = None):
 
 
 DEFAULT_TARGET_RE = re.compile(r"\b(?P<var>[A-Za-z_][A-Za-z0-9_]*)\s*\|\s*default\b")
-JINJA_VAR_RE = re.compile(r"\{\{\s*([A-Za-z_][A-Za-z0-9_]*)")
-JINJA_IDENTIFIER_RE = re.compile(r"\b([A-Za-z_][A-Za-z0-9_]*)\b")
+from prism.scanner_data.patterns_jinja import (  # noqa: E402, F401  (re-exported for back-compat)
+    JINJA_IDENTIFIER_RE,
+    JINJA_VAR_RE,
+)
+
+# JINJA_VAR_RE definition replaced
 VAULT_KEY_RE = re.compile(r"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*:\s*!vault\b", re.MULTILINE)
 
 

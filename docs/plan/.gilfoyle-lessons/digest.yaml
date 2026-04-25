@@ -1,17 +1,17 @@
 # Gilfoyle review-loop digest — index for next cycle's Phase 0 sweep
-# Last updated: g1 close (2026-04-25)
+# Last updated: g2 close (2026-04-25)
 
-closed_findings_count: 7
-deferred_findings_count: 3
+closed_findings_count: 12  # g1=7 + g2=5
+deferred_findings_count: 4  # g1=3 (FIND-02→g2 closed via G2-01, FIND-03→g2 closed via G2-02, FIND-10→g3) + g2=1 (FIND-G2-LOADER-DUAL-PATH)
 needs_replan_count: 1
 
 open_in_other_cycles:
-  - id: FIND-02
-    deferred_to: gilfoyle-g2
-  - id: FIND-03
-    deferred_to: gilfoyle-g2
   - id: FIND-10
     deferred_to: gilfoyle-g3
+    note: "Carry-over from g1; g2 surfaced two new sites: scanner_core/standalone_di.py:21 (imports scanner_plugins.bundle_resolver) and scanner_core/scanner_context.py (imports scanner_plugins.filters.underscore_policy)."
+  - id: FIND-G2-LOADER-DUAL-PATH
+    deferred_to: gilfoyle-g3-or-g4
+    note: "Documented dual-path soft fallback in scanner_io/loader.py:_get_yaml_parsing_policy. Re-flag if coupling/observability axis surfaces it."
 
 active_lessons:
   - LESSON-01
@@ -19,6 +19,9 @@ active_lessons:
   - LESSON-03
   - LESSON-04
   - LESSON-05
+  - LESSON-06
+  - LESSON-07
+  - LESSON-08
 
 do_not_re_flag:
   - find_id: FIND-06
@@ -37,16 +40,29 @@ do_not_re_flag:
       Both scanner_context.py broad-except sites (L147, L166) are the SCB1
       `scan_policy_blocker_facts` translation paths. Tightening regresses the SCB1
       contract. Per LESSON-04, do not re-raise.
+  - find_id: FIND-G2-04-as-tasks-literal
+    reason: >
+      The `provenance_source_file("tasks/")` literal in scanner_core/variable_discovery.py
+      has been replaced with `None` (G2-04 closure). Do not re-introduce platform-shaped
+      path literals into scanner_core; ownership belongs to the platform plugin.
+  - find_id: FIND-G2-03-jinja-canonical-location
+    reason: >
+      Canonical JINJA_VAR_RE / JINJA_IDENTIFIER_RE definitions live in
+      scanner_data/patterns_jinja.py (side-effect-free). Do not re-locate them under
+      scanner_plugins/parsers/jinja/ — that path is eagerly loaded and triggers a
+      load-time cycle for any consumer below the plugin layer (LESSON-08).
 
 open_questions_for_next_cycle:
   - >
-    FIND-02 (architecture / g2): should the generic/Ansible TASK_INCLUDE_KEYS split
-    move into `scanner_plugins/ansible/` (one platform owns both shapes), or stay as
-    generic-baseline-in-`policies/` with the domain-neutrality test as the contract?
-    The class `AnsibleDefaultTaskLineParsingPolicyPlugin` living in `policies/` while
-    contractually domain-neutral is the architectural smell to resolve.
+    FIND-10 (coupling / g3): with G2-01 closing the AnsibleDefault* ownership leak and
+    G2-02 protocoling the DI/kernel boundary, the residual scanner_core→scanner_plugins
+    imports are: standalone_di.py:21 (bundle_resolver), scanner_context.py
+    (filters.underscore_policy), and the existing g1-flagged seams. g3 question: rewire
+    via DI/registry (push the bundle resolver and underscore-policy filter through the
+    registry seam) or relocate to a `scanner_kernel_contracts/` namespace?
   - >
-    FIND-10 (coupling / g3): are scanner_plugins/{interfaces, bundle_resolver,
-    audit/, filters/} part of the shared kernel contract surface (relocate to a new
-    `scanner_kernel_contracts/` namespace) or layer drift to be pushed back into the
-    plugin layer via the DI/registry rewire?
+    DIContainer (~397 lines) shrink to runtime carrier only: lazy-factory methods belong
+    on plugin objects, not on the container itself. g3 candidate work.
+  - >
+    Built-in plugins should self-register through the registry rather than being imported
+    eagerly by `scanner_plugins/__init__.py` — would close LESSON-08 at the source.

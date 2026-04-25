@@ -109,3 +109,76 @@
   title: scanner_core imports four times from scanner_plugins.* (layer direction question)
   files_touched: []
   evidence_one_line: "Deferred to g3 — the four scanner_core→scanner_plugins seams are exactly what the g3 (coupling) DI/registry rewire will relocate or eliminate."
+
+# ---- Cycle g2 (focus_axis=architecture, 2026-04-25) ----
+
+- id: FIND-G2-01
+  cycle: g2
+  category: ownership
+  severity: high
+  status: closed
+  title: "`AnsibleDefault*` policy classes misfiled under generic `scanner_plugins/policies/`"
+  files_touched:
+    - src/prism/scanner_plugins/ansible/default_policies.py
+    - src/prism/scanner_plugins/policies/extract_defaults.py
+  evidence_one_line: "4 AnsibleDefault* classes relocated to scanner_plugins/ansible/default_policies.py; extract_defaults.py kept as back-compat re-export shim; domain-neutrality test stays green."
+
+- id: FIND-G2-02
+  cycle: g2
+  category: abstraction
+  severity: high
+  status: closed
+  title: "`Callable[..., Any]` aliases at scanner_core ↔ scanner_kernel boundary (carry-over from FIND-03)"
+  files_touched:
+    - src/prism/scanner_core/protocols_runtime.py
+    - src/prism/scanner_core/di.py
+    - src/prism/scanner_core/execution_request_builder.py
+    - src/prism/scanner_kernel/kernel_plugin_runner.py
+    - src/prism/scanner_kernel/orchestrator.py
+    - src/prism/scanner_kernel/plugin_name_resolver.py
+  evidence_one_line: "Created scanner_core/protocols_runtime.py with 6 Protocols (PluginLoader, KernelOrchestrator, ScanPayloadBuilderFn, DIFactoryOverride, BlockerFactBuilder, EnsurePreparedPolicyBundleFn); promoted weak Callable annotations at the runtime boundary; class-injected `*_cls` parameters narrowed to `type[X]`."
+
+- id: FIND-G2-03
+  cycle: g2
+  category: ownership
+  severity: medium
+  status: closed
+  title: "`JINJA_VAR_RE` and `JINJA_IDENTIFIER_RE` duplicated across scanner_extract"
+  files_touched:
+    - src/prism/scanner_data/patterns_jinja.py
+    - src/prism/scanner_plugins/parsers/jinja/patterns.py
+    - src/prism/scanner_plugins/parsers/jinja/__init__.py
+    - src/prism/scanner_extract/variable_extractor.py
+    - src/prism/scanner_extract/variable_helpers.py
+  evidence_one_line: "Canonical patterns relocated to scanner_data/patterns_jinja.py (side-effect-free; cycle-safe); scanner_plugins/parsers/jinja/patterns.py and scanner_extract sites re-export from canonical source; identity preserved."
+
+- id: FIND-G2-04
+  cycle: g2
+  category: ownership
+  severity: medium
+  status: closed
+  title: "Ansible-shaped `provenance_source_file('tasks/')` literal in scanner_core/variable_discovery.py"
+  files_touched:
+    - src/prism/scanner_core/variable_discovery.py
+  evidence_one_line: "Literal `tasks/` replaced with `None` for unresolved-referenced rows; scanner_core stays platform-agnostic; no test asserts the legacy literal."
+
+- id: FIND-G2-05
+  cycle: g2
+  category: test_gap
+  severity: low
+  status: closed
+  title: Stale `fsrc`-lane scaffolding in test guardrail/smoke modules
+  files_touched:
+    - src/prism/tests/test_import_style_guardrails.py
+    - src/prism/tests/test_package_import_smoke.py
+    - src/prism/__init__.py
+  evidence_one_line: "Renamed FSRC_* constants/helpers/tests to canonical names; FORBIDDEN_PATH_TOKENS inverted to guard against retired `fsrc/` paths instead of canonical `src/prism`; package docstring updated."
+
+- id: FIND-G2-LOADER-DUAL-PATH
+  cycle: g2
+  category: silent_fallback
+  severity: low
+  status: deferred
+  title: "`scanner_io/loader.py:_get_yaml_parsing_policy` documented soft fallback"
+  files_touched: []
+  evidence_one_line: "Documented soft fallback (intentional, rationale comment present). Re-flag in g3/g4 if coupling/observability axis surfaces it."

@@ -1,17 +1,17 @@
-"""fsrc-lane guardrails: hardcoded src-path token checks."""
+"""Canonical-lane guardrails: hardcoded path-token checks."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
-FSRC_RUNTIME_ROOT = PROJECT_ROOT / "src" / "prism"
-FSRC_FORBIDDEN_PATH_TOKENS = (
-    "src/prism",
-    "src\\prism",
-    "/src/prism",
-    "\\src\\prism",
+RUNTIME_ROOT = PROJECT_ROOT / "src" / "prism"
+FORBIDDEN_PATH_TOKENS = (
+    "fsrc/",
+    "fsrc\\",
     "fsrc/prism_next",
+    "/fsrc/",
+    "\\fsrc\\",
 )
 
 
@@ -42,14 +42,13 @@ def _iter_hardcoded_path_token_offenders(
     return sorted(set(offenders))
 
 
-def test_fsrc_runtime_modules_do_not_contain_hardcoded_src_path_tokens() -> None:
+def test_canonical_runtime_modules_do_not_contain_retired_lane_path_tokens() -> None:
     offenders = _iter_hardcoded_path_token_offenders(
-        module_root=FSRC_RUNTIME_ROOT,
-        forbidden_tokens=FSRC_FORBIDDEN_PATH_TOKENS,
+        module_root=RUNTIME_ROOT,
+        forbidden_tokens=FORBIDDEN_PATH_TOKENS,
     )
 
-    assert (
-        not offenders
-    ), "fsrc runtime modules include hardcoded src-root/path tokens:\n" + "\n".join(
-        offenders
+    assert not offenders, (
+        "Canonical runtime modules include retired fsrc-lane path tokens:\n"
+        + "\n".join(offenders)
     )

@@ -11,6 +11,10 @@ from prism.scanner_data.contracts_request import ScanContextPayload, ScanOptions
 
 if TYPE_CHECKING:
     from prism.scanner_core.scanner_context import ScannerContext
+    from prism.scanner_core.protocols_runtime import (
+        ScanPayloadBuilderFn,
+        EnsurePreparedPolicyBundleFn,
+    )
 
 
 @dataclass(frozen=True)
@@ -22,7 +26,7 @@ class NonCollectionRunScanExecutionRequest:
     strict_mode: bool
     runtime_registry: Any
     scanner_context: ScannerContext
-    build_payload_fn: Callable[[], dict[str, Any]]
+    build_payload_fn: ScanPayloadBuilderFn
 
 
 class _RecordingVariableDiscovery:
@@ -202,7 +206,7 @@ def build_non_collection_run_scan_execution_request(
     variable_discovery_cls: Callable[..., Any],
     resolve_comment_driven_documentation_plugin_fn: Callable[[Any], Any],
     default_plugin_registry: Any,
-    ensure_prepared_policy_bundle_fn: Callable[..., Any] | None = None,
+    ensure_prepared_policy_bundle_fn: EnsurePreparedPolicyBundleFn | None = None,
 ) -> NonCollectionRunScanExecutionRequest:
     """Build the scanner_core-owned execution request for non-collection run_scan."""
     validated_role_path = validate_role_path_fn(role_path)
