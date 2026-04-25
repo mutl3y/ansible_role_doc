@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib
+import logging
 from pathlib import Path
 import threading
 from typing import TYPE_CHECKING, Any, cast
@@ -29,6 +30,8 @@ from prism.scanner_kernel.orchestrator import (
 from prism.scanner_plugins import DEFAULT_PLUGIN_REGISTRY
 from prism.scanner_plugins.bundle_resolver import ensure_prepared_policy_bundle
 from prism.scanner_plugins.defaults import resolve_comment_driven_documentation_plugin
+
+_logger = logging.getLogger(__name__)
 
 _repo_scan_facade: Any | None = None
 _repo_scan_facade_lock = threading.Lock()
@@ -81,8 +84,13 @@ def _extract_role_description(role_root: Path, role_name: str) -> str:
                     stripped = raw_line.strip().lstrip("#").strip()
                     if stripped:
                         return stripped
-        except (OSError, UnicodeDecodeError):
-            pass
+        except (OSError, UnicodeDecodeError) as exc:
+            _logger.warning(
+                "Failed to read README for role %s at %s: %s",
+                role_name,
+                readme_path,
+                exc,
+            )
     return f"Auto-generated scan summary for {role_name}."
 
 
@@ -186,11 +194,25 @@ def run_scan(
 
         _role_content_hash = compute_role_content_hash(execution_request.role_path)
         _bundle = execution_request.scan_options.get("prepared_policy_bundle") or {}
+
+        def _bundle_value_fingerprint(value: object) -> object:
+            if isinstance(value, (str, int, float, bool)) or value is None:
+                return value
+            if isinstance(value, (list, tuple)):
+                return [_bundle_value_fingerprint(v) for v in value]
+            if isinstance(value, (set, frozenset)):
+                return sorted(
+                    [_bundle_value_fingerprint(v) for v in value],
+                    key=lambda x: repr(x),
+                )
+            if isinstance(value, dict):
+                return sorted(
+                    (str(k), _bundle_value_fingerprint(v)) for k, v in value.items()
+                )
+            return f"{type(value).__module__}.{type(value).__qualname__}"
+
         _bundle_fingerprint = sorted(
-            (
-                str(_key),
-                f"{type(_value).__module__}.{type(_value).__qualname__}",
-            )
+            (str(_key), _bundle_value_fingerprint(_value))
             for _key, _value in _bundle.items()
         )
         _stable_opts = {

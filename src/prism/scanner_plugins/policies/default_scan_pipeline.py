@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 
 class DefaultScanPipelinePlugin:
     """Default scan-pipeline plugin that keeps preflight contract neutral."""
+
+    PLUGIN_IS_STATELESS: ClassVar[bool] = True
 
     def process_scan_pipeline(
         self,

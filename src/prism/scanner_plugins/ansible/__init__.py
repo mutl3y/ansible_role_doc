@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import copy
-from typing import Any
+from typing import Any, ClassVar
 
 from prism.scanner_plugins.ansible.feature_flags import (
     ANSIBLE_PLUGIN_ENABLED_ENV_VAR,
@@ -41,6 +41,8 @@ from prism.scanner_plugins.interfaces import (
 
 class AnsibleScanPipelinePlugin:
     """Scan-pipeline plugin that annotates context with ansible kernel capability."""
+
+    PLUGIN_IS_STATELESS: ClassVar[bool] = True
 
     @staticmethod
     def _merge_preserving_existing(

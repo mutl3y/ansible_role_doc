@@ -4,11 +4,10 @@ from __future__ import annotations
 
 from copy import deepcopy
 import logging
-import warnings
 from typing import Any, Callable, cast
 
 from prism.errors import PrismRuntimeError
-from prism.scanner_core.metadata_merger import _merge_policy_warning_entries
+from prism.scanner_core.metadata_merger import merge_policy_warning_entries
 from prism.scanner_data.contracts_request import ScanContextPayload, ScanOptionsDict
 from prism.scanner_data.contracts_request import ScanPolicyBlockerFacts
 from prism.scanner_core.execution_request_builder import (
@@ -70,20 +69,6 @@ def _require_prepared_policy_bundle(
             "prepared_policy_bundle.jinja_analysis must be provided before "
             "ScannerContext orchestration"
         )
-
-    for _key in (
-        "task_traversal",
-        "yaml_parsing",
-        "variable_extractor",
-        "task_annotation_parsing",
-    ):
-        if prepared_policy_bundle.get(_key) is None:
-            warnings.warn(
-                f"prepared_policy_bundle.{_key} is absent — "
-                "downstream scan phases may use fallback behaviour. "
-                "Provide an explicit policy to suppress this warning.",
-                stacklevel=3,
-            )
 
     return cast(dict[str, Any], prepared_policy_bundle)
 
@@ -245,7 +230,7 @@ class ScannerContext:
             metadata["features"] = dict(self._detected_features)
 
     def _merge_policy_warnings_into_metadata(self, metadata: dict[str, Any]) -> None:
-        policy_warning_list = _merge_policy_warning_entries(
+        policy_warning_list = merge_policy_warning_entries(
             self._scan_options.get("scan_policy_warnings"),
             metadata.get("scan_policy_warnings"),
         )

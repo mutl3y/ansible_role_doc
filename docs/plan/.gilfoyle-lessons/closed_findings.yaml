@@ -1,0 +1,111 @@
+# Gilfoyle review-loop ledger: closed/deferred/needs_replan findings
+# Cycle: g1 (focus_axis=typing, 2026-04-25)
+
+- id: FIND-01
+  cycle: g1
+  category: abstraction
+  severity: high
+  status: closed
+  title: Cross-module private import of `_merge_policy_warning_entries`
+  files_touched:
+    - src/prism/scanner_core/scanner_context.py
+    - src/prism/scanner_core/metadata_merger.py
+  evidence_one_line: "Renamed `_merge_policy_warning_entries` → public; updated import L10 and call L233; `_copy_policy_warning_entries` stays private."
+
+- id: FIND-04
+  cycle: g1
+  category: typing
+  severity: medium
+  status: closed
+  title: Bare 4-element `tuple[...]` returns where a `NamedTuple` belongs
+  files_touched:
+    - src/prism/scanner_extract/dataload.py
+    - src/prism/scanner_extract/__init__.py
+    - src/prism/scanner_io/collection_plugins.py
+  evidence_one_line: "Introduced `RoleVariableMaps` (dataload) and `FilterSymbolExtraction` (collection_plugins) NamedTuples; all return sites updated; downstream unpacking unchanged."
+
+- id: FIND-05
+  cycle: g1
+  category: typing
+  severity: medium
+  status: closed
+  title: Module-level mutable `set`/`dict` constants where `frozenset`/`MappingProxyType` belongs
+  files_touched:
+    - src/prism/scanner_readme/render.py
+    - src/prism/scanner_plugins/ansible/kernel.py
+    - src/prism/scanner_plugins/kubernetes/__init__.py
+    - src/prism/scanner_plugins/terraform/__init__.py
+  evidence_one_line: "Section-id sets wrapped in `frozenset(...)`; `PLUGIN_CONTRACT_VERSION` converted to `types.MappingProxyType` across ansible/kernel, kubernetes, terraform; consumers already defensive-copied."
+
+- id: FIND-06
+  cycle: g1
+  category: silent_fallback
+  severity: high
+  status: closed
+  title: Plugin discovery / defaults swallow `Exception` and return empty / None
+  files_touched:
+    - src/prism/scanner_plugins/discovery.py
+    - src/prism/scanner_plugins/defaults.py
+    - src/prism/scanner_plugins/ansible/variable_discovery.py
+  evidence_one_line: "Audit confirmed all 4 sites are intentional 3rd-party plugin / YAML loader isolation perimeters; inline rationale comments added; no tightening needed."
+
+- id: FIND-07
+  cycle: g1
+  category: silent_fallback
+  severity: high
+  status: closed
+  title: Four broad `except Exception` blocks in the kernel runtime
+  files_touched:
+    - src/prism/scanner_kernel/orchestrator.py
+    - src/prism/scanner_kernel/kernel_plugin_runner.py
+  evidence_one_line: "Audit confirmed all 4 sites are intentional SCB1-contract plugin/kernel boundary protections (typed blocker-fact translation); documented by SCB1 closure record in AGENTS.md."
+
+- id: FIND-08
+  cycle: g1
+  category: silent_fallback
+  severity: high
+  status: closed
+  title: "`scanner_core/scanner_context.py` swallows Exception twice"
+  files_touched:
+    - src/prism/scanner_core/scanner_context.py
+  evidence_one_line: "Both sites (L147, L166) confirmed as the SCB1 `scan_policy_blocker_facts` translation paths; tightening would regress the SCB1 contract; left intact."
+
+- id: FIND-11
+  cycle: g1
+  category: test_gap
+  severity: high
+  status: closed
+  title: Newly-relocated authoritative modules have no dedicated test file
+  files_touched:
+    - src/prism/tests/test_legacy_retirement.py
+    - src/prism/tests/test_ansible_task_traversal_bare.py
+  evidence_one_line: "Added test_legacy_retirement.py (7 tests) and test_ansible_task_traversal_bare.py (8 tests) covering the post-migration authoritative surfaces."
+
+- id: FIND-02
+  cycle: g1
+  category: duplication
+  severity: high
+  status: needs_replan
+  title: Six constants defined in two modules under the same names with different values
+  files_touched:
+    - src/prism/scanner_plugins/policies/constants.py
+    - src/prism/scanner_plugins/ansible/task_traversal_bare.py
+  evidence_one_line: "Audit found NOT duplication — intentional generic/specialization split enforced by domain-neutrality + superset tests; classification (policies/ vs ansible/) is an architecture decision deferred to g2."
+
+- id: FIND-03
+  cycle: g1
+  category: typing
+  severity: high
+  status: deferred
+  title: 13+ multi-parameter anonymous `Callable[..., R]` aliases (should be `Protocol`)
+  files_touched: []
+  evidence_one_line: "Deferred to g2 — promoting Callable→Protocol touches the same orchestrator/builder surface that g2 architecture and g3 coupling will rewire; sequencing reduces churn."
+
+- id: FIND-10
+  cycle: g1
+  category: graph
+  severity: medium
+  status: deferred
+  title: scanner_core imports four times from scanner_plugins.* (layer direction question)
+  files_touched: []
+  evidence_one_line: "Deferred to g3 — the four scanner_core→scanner_plugins seams are exactly what the g3 (coupling) DI/registry rewire will relocate or eliminate."

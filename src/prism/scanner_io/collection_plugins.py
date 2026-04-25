@@ -30,6 +30,15 @@ _PLUGIN_SUPPORT_FILE_STEMS: frozenset[str] = frozenset(
 )
 
 
+class FilterSymbolExtraction(NamedTuple):
+    """Structured result of a filter-plugin symbol extraction attempt."""
+
+    symbols: list[str]
+    symbol_function_names: dict[str, str | None]
+    confidence: str
+    extraction_method: str
+
+
 class PluginSummaryExtraction(NamedTuple):
     """Structured result of an individual plugin summary extraction attempt."""
 
@@ -262,7 +271,7 @@ def _plugin_language(path: Path) -> str:
 def _extract_filter_symbols(
     parsed: ast.Module,
     text: str,
-) -> tuple[list[str], dict[str, str | None], str, str]:
+) -> FilterSymbolExtraction:
     for node in parsed.body:
         if not isinstance(node, ast.ClassDef) or node.name != "FilterModule":
             continue
@@ -271,11 +280,13 @@ def _extract_filter_symbols(
                 direct = _extract_direct_return_dict_keys(item)
                 if direct:
                     symbols = sorted(set(direct.keys()))
-                    return symbols, direct, "high", PLUGIN_EXTRACTION_METHOD_AST
+                    return FilterSymbolExtraction(
+                        symbols, direct, "high", PLUGIN_EXTRACTION_METHOD_AST
+                    )
                 indirect = _extract_named_dict_return_keys(item)
                 if indirect:
                     symbols = sorted(set(indirect.keys()))
-                    return (
+                    return FilterSymbolExtraction(
                         symbols,
                         indirect,
                         "medium",
@@ -284,13 +295,13 @@ def _extract_filter_symbols(
 
     fallback = _fallback_extract_symbols(text)
     if fallback:
-        return (
+        return FilterSymbolExtraction(
             fallback,
             {symbol: None for symbol in fallback},
             "low",
             PLUGIN_EXTRACTION_METHOD_BEST_EFFORT,
         )
-    return [], {}, "low", PLUGIN_EXTRACTION_METHOD_BEST_EFFORT
+    return FilterSymbolExtraction([], {}, "low", PLUGIN_EXTRACTION_METHOD_BEST_EFFORT)
 
 
 def _extract_direct_return_dict_keys(func: ast.FunctionDef) -> dict[str, str | None]:

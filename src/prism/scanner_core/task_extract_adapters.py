@@ -32,11 +32,6 @@ from prism.scanner_extract.task_file_traversal import (  # noqa: F401
 )
 
 
-from prism.scanner_plugins.parsers.comment_doc.marker_utils import (  # noqa: F401
-    DEFAULT_DOC_MARKER_PREFIX,
-)
-
-
 def _resolve_marker_prefix(di: object | None) -> str:
     scan_options = scan_options_from_di(di)
     if not isinstance(scan_options, dict):

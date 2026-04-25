@@ -11,7 +11,7 @@ def _copy_policy_warning_entries(raw_warnings: object) -> list[dict[str, Any]]:
     return [dict(warning) for warning in raw_warnings if isinstance(warning, dict)]
 
 
-def _merge_policy_warning_entries(
+def merge_policy_warning_entries(
     ingress_warnings: object,
     metadata_warnings: object,
 ) -> list[dict[str, Any]]:

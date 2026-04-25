@@ -37,6 +37,8 @@ class _StatsAware(Protocol):
     @property
     def misses(self) -> int: ...
 
+    def stats(self) -> tuple[int, int]: ...
+
 
 class InMemoryLRUScanCache:
     """In-memory least-recently-used :class:`ScanCacheBackend`.
@@ -134,25 +136,30 @@ def compute_role_content_hash(role_path: str) -> str:
                 continue
             abs_path = os.path.join(dirpath, filename)
             rel_path = os.path.relpath(abs_path, root)
+            h.update(b"\x1ffile\x1f")
             h.update(rel_path.encode("utf-8"))
+            h.update(b"\x1fdata\x1f")
             try:
                 with open(abs_path, "rb") as fh:
                     while chunk := fh.read(65536):
                         h.update(chunk)
             except OSError:
-                # Mark unreadable files in the hash so partial-read cases
-                # do not collide with complete-read cases for similar trees.
                 h.update(b"\x00UNREADABLE\x00")
+            h.update(b"\x1fend\x1f")
     return h.hexdigest()
 
 
 def report_cache_stats(backend: _StatsAware) -> dict[str, Any]:
-    """Return hit/miss stats for measurement."""
-    total = backend.hits + backend.misses
-    hit_rate = backend.hits / total if total > 0 else 0.0
+    """Return hit/miss stats for measurement (atomic snapshot when available)."""
+    if hasattr(backend, "stats"):
+        hits, misses = backend.stats()
+    else:
+        hits, misses = backend.hits, backend.misses
+    total = hits + misses
+    hit_rate = hits / total if total > 0 else 0.0
     return {
-        "hits": backend.hits,
-        "misses": backend.misses,
+        "hits": hits,
+        "misses": misses,
         "total": total,
         "hit_rate_pct": round(hit_rate * 100, 1),
     }

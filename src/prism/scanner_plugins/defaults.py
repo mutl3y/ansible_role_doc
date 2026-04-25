@@ -134,6 +134,8 @@ def _construct_registry_plugin(
 ) -> Any:
     try:
         plugin = plugin_class()
+    # Broad: plugin_class() is third-party plugin __init__ that can raise
+    # arbitrary errors; raised in strict mode, falls back otherwise.
     except Exception as exc:
         if strict_mode:
             raise PrismRuntimeError(

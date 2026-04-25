@@ -14,15 +14,10 @@ class _PolicyBackedCollectionProxy:
         self._policy_attr_name = policy_attr_name
 
     def _current_value(self) -> object:
-        try:
-            return getattr(
-                require_prepared_policy(None, "task_line_parsing", "task_line_parsing"),
-                self._policy_attr_name,
-            )
-        except ValueError:
-            from prism.scanner_plugins.ansible import task_traversal_bare as _ttb
-
-            return getattr(_ttb, self._policy_attr_name)
+        return getattr(
+            require_prepared_policy(None, "task_line_parsing", "task_line_parsing"),
+            self._policy_attr_name,
+        )
 
     def __iter__(self) -> Iterator[Any]:
         value = self._current_value()
@@ -51,15 +46,10 @@ class _PolicyBackedRegexProxy:
         self._policy_attr_name = policy_attr_name
 
     def _current_regex(self) -> re.Pattern[str]:
-        try:
-            current = getattr(
-                require_prepared_policy(None, "task_line_parsing", "task_line_parsing"),
-                self._policy_attr_name,
-            )
-        except ValueError:
-            from prism.scanner_plugins.ansible import task_traversal_bare as _ttb
-
-            current = getattr(_ttb, self._policy_attr_name)
+        current = getattr(
+            require_prepared_policy(None, "task_line_parsing", "task_line_parsing"),
+            self._policy_attr_name,
+        )
         if isinstance(current, re.Pattern):
             return current
         raise ValueError(
@@ -170,18 +160,10 @@ class _PolicyBackedMarkerLineRegexProxy:
     """Proxy that resolves marker-line regex from annotation policy at call time."""
 
     def _current_regex(self) -> re.Pattern[str]:
-        try:
-            policy = require_prepared_policy(
-                None, "task_annotation_parsing", "task_annotation_parsing"
-            )
-            regex = policy.get_marker_line_re(policy.normalize_marker_prefix(None))
-        except ValueError:
-            from prism.scanner_plugins.parsers.comment_doc.marker_utils import (
-                DEFAULT_DOC_MARKER_PREFIX,
-                get_marker_line_re,
-            )
-
-            regex = get_marker_line_re(DEFAULT_DOC_MARKER_PREFIX)
+        policy = require_prepared_policy(
+            None, "task_annotation_parsing", "task_annotation_parsing"
+        )
+        regex = policy.get_marker_line_re(policy.normalize_marker_prefix(None))
         if isinstance(regex, re.Pattern):
             return regex
         raise ValueError(
@@ -211,18 +193,13 @@ class _PolicyBackedAnnotationRegexProxy:
         self._policy_attr_name = policy_attr_name
 
     def _current_regex(self) -> re.Pattern[str]:
-        try:
-            current = getattr(
-                require_prepared_policy(
-                    None, "task_annotation_parsing", "task_annotation_parsing"
-                ),
-                self._policy_attr_name,
-                None,
-            )
-        except ValueError:
-            from prism.scanner_plugins.policies import constants as _c
-
-            current = getattr(_c, self._policy_attr_name, None)
+        current = getattr(
+            require_prepared_policy(
+                None, "task_annotation_parsing", "task_annotation_parsing"
+            ),
+            self._policy_attr_name,
+            None,
+        )
         if isinstance(current, re.Pattern):
             return current
         raise ValueError(

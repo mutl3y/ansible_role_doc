@@ -11,6 +11,7 @@ from prism.scanner_extract.task_file_traversal import (
     collect_task_files as _tft_collect_task_files,
     load_yaml_file as _tft_load_yaml_file,
 )
+from prism.scanner_extract.variable_helpers import is_sensitive_variable
 from prism.scanner_io.loader import load_yaml_file
 
 
@@ -34,9 +35,9 @@ JINJA_IDENTIFIER_RE = re.compile(r"\b([A-Za-z_][A-Za-z0-9_]*)\b")
 VAULT_KEY_RE = re.compile(r"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*:\s*!vault\b", re.MULTILINE)
 
 
-def looks_secret_name(name: str) -> bool:
-    parts = re.split(r"[_\W]+", name.lower())
-    return any(p in {"password", "secret", "token", "key"} for p in parts)
+def looks_secret_name(name: str, value: Any = "") -> bool:
+    """Backward-compatible thin wrapper over is_sensitive_variable."""
+    return is_sensitive_variable(name, value)
 
 
 def resembles_password_like(value: str) -> bool:
@@ -93,7 +94,7 @@ def load_seed_variables(
                 continue
             seed_values[name] = value
             seed_sources[name] = str(candidate)
-            if looks_secret_name(name):
+            if looks_secret_name(name, value if isinstance(value, str) else ""):
                 seed_secrets.add(name)
 
     return seed_values, seed_secrets, seed_sources

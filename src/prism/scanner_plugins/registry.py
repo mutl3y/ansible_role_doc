@@ -143,7 +143,8 @@ class PluginRegistry:
         plugin_class: type[VariableDiscoveryPlugin],
     ) -> None:
         validate_plugin_api_version(plugin_class, name=name, slot="variable_discovery")
-        self._variable_discovery_plugins[name] = plugin_class
+        with self._lock:
+            self._variable_discovery_plugins[name] = plugin_class
 
     def register_deferred_variable_discovery_plugin(
         self,
@@ -151,7 +152,8 @@ class PluginRegistry:
         module_path: str,
         class_name: str,
     ) -> None:
-        self._deferred_variable_discovery[name] = (module_path, class_name)
+        with self._lock:
+            self._deferred_variable_discovery[name] = (module_path, class_name)
 
     def register_feature_detection_plugin(
         self,
@@ -159,7 +161,8 @@ class PluginRegistry:
         plugin_class: type[FeatureDetectionPlugin],
     ) -> None:
         validate_plugin_api_version(plugin_class, name=name, slot="feature_detection")
-        self._feature_detection_plugins[name] = plugin_class
+        with self._lock:
+            self._feature_detection_plugins[name] = plugin_class
 
     def register_deferred_feature_detection_plugin(
         self,
@@ -167,7 +170,8 @@ class PluginRegistry:
         module_path: str,
         class_name: str,
     ) -> None:
-        self._deferred_feature_detection[name] = (module_path, class_name)
+        with self._lock:
+            self._deferred_feature_detection[name] = (module_path, class_name)
 
     def register_output_orchestration_plugin(
         self,
@@ -177,7 +181,8 @@ class PluginRegistry:
         validate_plugin_api_version(
             plugin_class, name=name, slot="output_orchestration"
         )
-        self._output_orchestration_plugins[name] = plugin_class
+        with self._lock:
+            self._output_orchestration_plugins[name] = plugin_class
 
     def register_scan_pipeline_plugin(
         self,
@@ -186,7 +191,8 @@ class PluginRegistry:
     ) -> None:
         validate_plugin_api_version(plugin_class, name=name, slot="scan_pipeline")
         require_stateless_plugin(plugin_class, name=name, slot="scan_pipeline")
-        self._scan_pipeline_plugins[name] = plugin_class
+        with self._lock:
+            self._scan_pipeline_plugins[name] = plugin_class
 
     def register_comment_driven_doc_plugin(
         self,
@@ -194,7 +200,8 @@ class PluginRegistry:
         plugin_class: type[CommentDrivenDocumentationPlugin],
     ) -> None:
         validate_plugin_api_version(plugin_class, name=name, slot="comment_driven_doc")
-        self._comment_driven_doc_plugins[name] = plugin_class
+        with self._lock:
+            self._comment_driven_doc_plugins[name] = plugin_class
 
     def register_extract_policy_plugin(
         self,
@@ -203,7 +210,8 @@ class PluginRegistry:
     ) -> None:
         validate_plugin_api_version(plugin_class, name=name, slot="extract_policy")
         require_stateless_plugin(plugin_class, name=name, slot="extract_policy")
-        self._extract_policy_plugins[name] = plugin_class
+        with self._lock:
+            self._extract_policy_plugins[name] = plugin_class
 
     def register_yaml_parsing_policy_plugin(
         self,
@@ -212,7 +220,8 @@ class PluginRegistry:
     ) -> None:
         validate_plugin_api_version(plugin_class, name=name, slot="yaml_parsing_policy")
         require_stateless_plugin(plugin_class, name=name, slot="yaml_parsing_policy")
-        self._yaml_parsing_policy_plugins[name] = plugin_class
+        with self._lock:
+            self._yaml_parsing_policy_plugins[name] = plugin_class
 
     def register_jinja_analysis_policy_plugin(
         self,
@@ -223,10 +232,12 @@ class PluginRegistry:
             plugin_class, name=name, slot="jinja_analysis_policy"
         )
         require_stateless_plugin(plugin_class, name=name, slot="jinja_analysis_policy")
-        self._jinja_analysis_policy_plugins[name] = plugin_class
+        with self._lock:
+            self._jinja_analysis_policy_plugins[name] = plugin_class
 
     def register_reserved_unsupported_platform(self, name: str) -> None:
-        self._reserved_unsupported_platforms.add(name)
+        with self._lock:
+            self._reserved_unsupported_platforms.add(name)
 
     def is_reserved_unsupported_platform(self, name: str) -> bool:
         return name in self._reserved_unsupported_platforms
@@ -327,19 +338,31 @@ class PluginRegistry:
 
     def set_default_platform_key(self, name: str) -> None:
         """Explicitly nominate a platform key as the registry default."""
-        self._default_platform_key = name
+        with self._lock:
+            known = (
+                set(self._variable_discovery_plugins)
+                | set(self._scan_pipeline_plugins)
+                | set(self._deferred_variable_discovery)
+            )
+            if name not in known:
+                raise KeyError(
+                    f"cannot set default platform key {name!r}: not registered"
+                )
+            self._default_platform_key = name
 
     def get_default_platform_key(self) -> str | None:
         """Return the explicitly-set default platform key, or the first registered one."""
-        if self._default_platform_key is not None:
-            return self._default_platform_key
-        all_keys = self.list_variable_discovery_plugins()
-        if all_keys:
-            return all_keys[0]
-        pipeline_keys = self.list_scan_pipeline_plugins()
-        if pipeline_keys:
-            return pipeline_keys[0]
-        return None
+        with self._lock:
+            if self._default_platform_key is not None:
+                return self._default_platform_key
+            for source in (
+                self._variable_discovery_plugins,
+                self._deferred_variable_discovery,
+                self._scan_pipeline_plugins,
+            ):
+                if source:
+                    return next(iter(source.keys()))
+            return None
 
     def load_plugin_from_module(self, module_name: str, class_name: str) -> Any:
         cache_key = (module_name, class_name)

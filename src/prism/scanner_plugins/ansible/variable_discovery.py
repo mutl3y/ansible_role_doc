@@ -188,6 +188,8 @@ def _load_yaml_mapping_with_metadata(
         return {}
     try:
         parsed = _load_yaml_loader_file(path, di=di)
+    # Broad: YAML loader can raise scanner/parser/IO errors; failures are
+    # captured into yaml_failure_collector for downstream best-effort reporting.
     except Exception:
         if yaml_failure_collector is not None:
             collector_root = role_root or path.resolve().parent

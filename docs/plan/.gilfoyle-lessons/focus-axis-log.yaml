@@ -1,0 +1,20 @@
+# Gilfoyle review-loop focus-axis log
+# One entry per cycle. Append-only.
+
+- cycle: g1
+  date: 2026-04-25
+  focus_axis: typing
+  grade: C
+  scope: high+typing
+  findings_total: 13
+  closed_count: 7
+  deferred_count: 3
+  needs_replan_count: 1
+  gate_state: GREEN
+  depth: thorough
+  notes: >
+    754 passed / 7 skipped, ruff clean, black clean. W4 reclassified to g2 after
+    blocker audit found generic/specialization split, not duplication; pre-existing
+    ruff debt in api_layer/non_collection.py and scanner_extract/variable_extractor.py
+    fixed during gate. Subagent-first dispatch saved a wrong W4 edit; SKILL.md updated
+    to reinforce that policy.

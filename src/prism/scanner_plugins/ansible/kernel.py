@@ -6,7 +6,9 @@ import types
 from typing import Any, Callable
 
 
-PLUGIN_CONTRACT_VERSION = {"major": 1, "minor": 0}
+PLUGIN_CONTRACT_VERSION: types.MappingProxyType[str, int] = types.MappingProxyType(
+    {"major": 1, "minor": 0}
+)
 
 
 class AnsibleBaselineKernelPlugin:

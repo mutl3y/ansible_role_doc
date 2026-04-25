@@ -266,6 +266,16 @@ def _collect_task_files_with_unresolved_includes(
 
     def _visit(task_file: Path, depth: int = 0) -> None:
         if depth > _MAX_INCLUDE_DEPTH:
+            unresolved_edges.append(
+                {
+                    "from_file": str(task_file),
+                    "include_target": "<truncated>",
+                    "reason": (
+                        f"include depth exceeded {_MAX_INCLUDE_DEPTH}; "
+                        "traversal halted to prevent runaway recursion"
+                    ),
+                }
+            )
             return
         if task_file in visited:
             return

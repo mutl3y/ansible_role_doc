@@ -1,0 +1,52 @@
+# Gilfoyle review-loop digest — index for next cycle's Phase 0 sweep
+# Last updated: g1 close (2026-04-25)
+
+closed_findings_count: 7
+deferred_findings_count: 3
+needs_replan_count: 1
+
+open_in_other_cycles:
+  - id: FIND-02
+    deferred_to: gilfoyle-g2
+  - id: FIND-03
+    deferred_to: gilfoyle-g2
+  - id: FIND-10
+    deferred_to: gilfoyle-g3
+
+active_lessons:
+  - LESSON-01
+  - LESSON-02
+  - LESSON-03
+  - LESSON-04
+  - LESSON-05
+
+do_not_re_flag:
+  - find_id: FIND-06
+    reason: >
+      All 4 broad-except sites (scanner_plugins/discovery.py x2, defaults.py,
+      ansible/variable_discovery.py) are intentional 3rd-party plugin / YAML loader
+      isolation perimeters with inline rationale comments. Per LESSON-04, do not
+      re-raise without a new contract change.
+  - find_id: FIND-07
+    reason: >
+      All 4 kernel broad-except sites (orchestrator.py L122/L170/L321,
+      kernel_plugin_runner.py L49) are SCB1-contract plugin/kernel boundary protections.
+      AGENTS.md SCB1 closure record is the rationale. Per LESSON-04, do not re-raise.
+  - find_id: FIND-08
+    reason: >
+      Both scanner_context.py broad-except sites (L147, L166) are the SCB1
+      `scan_policy_blocker_facts` translation paths. Tightening regresses the SCB1
+      contract. Per LESSON-04, do not re-raise.
+
+open_questions_for_next_cycle:
+  - >
+    FIND-02 (architecture / g2): should the generic/Ansible TASK_INCLUDE_KEYS split
+    move into `scanner_plugins/ansible/` (one platform owns both shapes), or stay as
+    generic-baseline-in-`policies/` with the domain-neutrality test as the contract?
+    The class `AnsibleDefaultTaskLineParsingPolicyPlugin` living in `policies/` while
+    contractually domain-neutral is the architectural smell to resolve.
+  - >
+    FIND-10 (coupling / g3): are scanner_plugins/{interfaces, bundle_resolver,
+    audit/, filters/} part of the shared kernel contract surface (relocate to a new
+    `scanner_kernel_contracts/` namespace) or layer drift to be pushed back into the
+    plugin layer via the DI/registry rewire?

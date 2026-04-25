@@ -64,6 +64,8 @@ def discover_entry_point_plugins(
     for ep in iter_fn(group):
         try:
             register_callable = ep.load()
+        # Broad: ep.load() can raise arbitrary import-time errors from third-party
+        # plugin packages; routed through raise_on_error contract per docstring.
         except Exception as exc:  # pragma: no cover - exercised via injection
             if raise_on_error:
                 raise EntryPointPluginLoadError(
@@ -88,6 +90,8 @@ def discover_entry_point_plugins(
             register_callable(target_registry)
         except PluginAPIVersionMismatch:
             raise
+        # Broad: register_callable is third-party plugin code that can raise
+        # arbitrary errors; routed through raise_on_error contract per docstring.
         except Exception as exc:
             if raise_on_error:
                 raise EntryPointPluginLoadError(

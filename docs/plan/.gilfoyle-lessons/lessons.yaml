@@ -1,0 +1,78 @@
+# Gilfoyle review-loop lessons — mined from cycle outcomes
+# Each lesson feeds the next cycle's Phase 0 sweep prompts.
+
+- id: LESSON-01
+  cycle: g1
+  category: typing
+  lesson: >
+    Module-level collections that encode frozen intent (constant-like sets, version dicts,
+    section-id catalogs, policy key catalogs) must be declared with immutable types
+    (`frozenset`, `types.MappingProxyType`, frozen dataclass). A bare `set`/`dict` at module
+    scope advertises mutability the author did not mean and lets any importer (especially
+    test fixtures) silently mutate shared state across the process.
+  pattern: "module-level `_X = {...}` or `X = {...}` annotated as `set[...]`/`dict[...]` whose call sites only read it"
+  false_positive_signature: >
+    Collections that are actually mutated (e.g. registries populated at import time, caches,
+    accumulators) — verify with a write-site search before flagging.
+
+- id: LESSON-02
+  cycle: g1
+  category: abstraction
+  lesson: >
+    Cross-module imports of underscore-prefixed symbols are an abstraction-leakage smell.
+    Either the symbol is genuinely private (then keep the consumer inside the owning module
+    or route through a public façade) or it is public-by-use (then promote and drop the
+    underscore). Letting `_x` cross module boundaries hides the contract.
+  pattern: "`from <other_module> import _<name>` where the import target is not the caller's own module"
+  false_positive_signature: >
+    Test files exercising fail-closed invariants of a private API may legitimately import the
+    private symbol IF the invariant is itself a public contract (see FIND-09). In that case
+    the fix is promotion, not leaving the cross-module private import in place.
+
+- id: LESSON-03
+  cycle: g1
+  category: typing
+  lesson: >
+    Bare 4+ element `tuple[...]` returns are weak typing. Callers must remember positional
+    order with no language-level help, and refactors that reorder the tuple are silent
+    breaks. Promote to a `typing.NamedTuple` with named fields; preserve tuple-unpacking
+    call sites unchanged.
+  pattern: "function signature `-> tuple[A, B, C, D, ...]` (4 or more elements)"
+  false_positive_signature: >
+    2- or 3-element tuples (cheap, idiomatic), tuples returned from `__iter__`-style
+    protocols, or tuples whose element types are all the same (homogeneous coordinate-pair /
+    range-pair shapes).
+
+- id: LESSON-04
+  cycle: g1
+  category: silent_fallback
+  lesson: >
+    Broad `except Exception` blocks at plugin loaders, kernel orchestrators, and policy-warning
+    translation paths are frequently INTENTIONAL plugin-isolation perimeters codified by a
+    closure trail (e.g. SCB1 in AGENTS.md, third-party entry-point isolation in
+    scanner_plugins/discovery.py). Do not tighten without first auditing AGENTS.md closure
+    history for the surrounding contract. The remediation when the catch IS justified is to
+    add an inline rationale comment, not to narrow the exception type.
+  pattern: "`except Exception` in scanner_kernel/, scanner_core/scanner_context.py, or any plugin loader / discovery module"
+  false_positive_signature: >
+    Sites covered by a documented closure record (SCB1, ansible-plugin-remediation, etc.)
+    where the catch is the contract. Phase 0 sweep should still flag for review but the
+    classification rule is: check AGENTS.md first → if covered, downgrade to "documented
+    boundary, add comment if missing".
+
+- id: LESSON-05
+  cycle: g1
+  category: duplication
+  lesson: >
+    Apparent "duplicate constants" across `policies/` and a platform plugin (e.g.
+    scanner_plugins/ansible/) may be an INTENTIONAL generic/specialization split rather than
+    duplication. Before proposing a merge or rename, verify by checking for a domain-neutrality
+    test asserting the generic side stays platform-free (e.g. `ansible_hits == set()`) and a
+    superset-relationship test asserting the platform side is a true extension. If both tests
+    exist and pass, the split is a contract — the real question is naming/location, which is an
+    architecture-axis decision, not a duplication-axis fix.
+  pattern: "two modules under different package paths defining the same set of UPPER_SNAKE constant names"
+  false_positive_signature: >
+    Module pair where one is asserted neutral by a `test_*_domain_neutrality.py` test and the
+    other is asserted a superset by a passing test. In that case the split is intentional and
+    flagging it as duplication is wrong; the correct axis is architecture (placement / naming).

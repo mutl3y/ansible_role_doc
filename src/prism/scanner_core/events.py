@@ -136,7 +136,7 @@ __all__ = [
 
 
 _DEFAULT_LISTENERS: list[EventListener] = []
-_DEFAULT_LISTENERS_LOCK: threading.Lock = threading.Lock()
+_DEFAULT_LISTENERS_LOCK: threading.RLock = threading.RLock()
 
 
 def register_default_listener(listener: EventListener) -> None:
