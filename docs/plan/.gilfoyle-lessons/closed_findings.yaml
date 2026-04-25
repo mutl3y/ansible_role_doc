@@ -182,3 +182,63 @@
   title: "`scanner_io/loader.py:_get_yaml_parsing_policy` documented soft fallback"
   files_touched: []
   evidence_one_line: "Documented soft fallback (intentional, rationale comment present). Re-flag in g3/g4 if coupling/observability axis surfaces it."
+
+# ---- Cycle g3 (focus_axis=coupling, 2026-04-25) ----
+
+- id: FIND-G3-01
+  cycle: g3
+  category: graph
+  severity: medium
+  status: closed
+  title: "scanner_core/scanner_context.py top-level import of scanner_plugins.filters.underscore_policy (eager layer leak)"
+  files_touched:
+    - src/prism/scanner_core/filters/__init__.py
+    - src/prism/scanner_core/filters/underscore_policy.py
+    - src/prism/scanner_plugins/filters/underscore_policy.py
+    - src/prism/scanner_core/scanner_context.py
+  evidence_one_line: "Filter is platform-agnostic; relocated to scanner_core/filters/underscore_policy.py (verbatim move); plugin path retained as back-compat re-export shim; scanner_context.py import updated. Closes the only remaining eager scanner_core→scanner_plugins edge."
+
+- id: FIND-G3-02
+  cycle: g3
+  category: graph
+  severity: low
+  status: do_not_re_flag
+  title: "scanner_core/di.py TYPE_CHECKING import from scanner_plugins.interfaces"
+  files_touched: []
+  evidence_one_line: "Type-only TYPE_CHECKING import — zero runtime cost / zero runtime layer dependency. Required for static analysis of injected plugin classes."
+
+- id: FIND-G3-03
+  cycle: g3
+  category: graph
+  severity: low
+  status: do_not_re_flag
+  title: "scanner_core lazy imports of scanner_plugins inside DI factory bodies"
+  files_touched: []
+  evidence_one_line: "di.py:204 (factory_blocker_fact_builder) and standalone_di.py:20 (bundle_resolver) are intentional DI seams — late binding inside factory bodies is what the container exists to provide. Re-flag only with a registry-routed alternative."
+
+- id: FIND-G3-04
+  cycle: g3
+  category: graph
+  severity: medium
+  status: deferred
+  title: "scanner_io/loader.py:46 lazy import of scanner_plugins.defaults.resolve_yaml_parsing_policy_plugin"
+  files_touched: []
+  evidence_one_line: "Cross-cutting redesign — bundle with FIND-G2-LOADER-DUAL-PATH into a single g4 slice on registry-routed defaults."
+
+- id: FIND-G3-05
+  cycle: g3
+  category: abstraction
+  severity: medium
+  status: deferred
+  title: "scanner_plugins/__init__.py eagerly imports every built-in plugin"
+  files_touched: []
+  evidence_one_line: "Root cause of LESSON-08; proper fix is decorator-based self-registration so the package init is side-effect-free except for the registry singleton. Affects every sub-package; deferred to g4."
+
+- id: FIND-G3-06
+  cycle: g3
+  category: surface_area
+  severity: low
+  status: deferred
+  title: "DIContainer carries 12 inject_mock_* convenience wrappers"
+  files_touched: []
+  evidence_one_line: "Stable test API; collapse into the existing generic `inject_mock(name, mock)` (already at L344) requires test-suite migration. Deferred to g4 with the DIContainer carrier shrink lane."

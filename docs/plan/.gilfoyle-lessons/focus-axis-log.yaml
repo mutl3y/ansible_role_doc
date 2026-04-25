@@ -40,3 +40,27 @@
     scanner_plugins/parsers/jinja/patterns.py. Wave B (G2-01) ran clean — 4
     AnsibleDefault* classes relocated to scanner_plugins/ansible/default_policies.py
     with re-export shim. FIND-10 deferred to g3 as planned.
+
+- cycle: g3
+  date: 2026-04-25
+  focus_axis: coupling
+  grade: A-
+  scope: high+coupling (layer direction, DI surface, plugin self-registration)
+  findings_total: 6
+  closed_count: 1
+  deferred_count: 3
+  do_not_re_flag_count: 2
+  needs_replan_count: 0
+  gate_state: GREEN
+  depth: thorough
+  notes: >
+    754 passed / 7 skipped (parity with g1/g2), ruff clean, black clean, mypy 0
+    errors in 133 files (was 131 — +2 from scanner_core/filters/{__init__,underscore_policy}.py).
+    Phase 0 sweeps confirmed only one residual eager scanner_core→scanner_plugins
+    edge (scanner_context.py:17 → underscore_policy filter); the filter is
+    platform-agnostic so it was relocated to scanner_core/filters/ with a
+    back-compat shim. Remaining lazy DI seams (di.py:204 blocker_fact_builder,
+    standalone_di.py:20 bundle_resolver) are intentional and marked do_not_re_flag.
+    Three architectural lanes (loader registry routing, plugin self-registration,
+    DIContainer surface shrink) deferred to g4 as bundled redesigns. Three
+    consecutive thorough cycles (typing → architecture → coupling) all GREEN.

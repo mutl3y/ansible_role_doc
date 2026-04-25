@@ -20,3 +20,12 @@
 - Repair pass: G2-02's sed-based edit to di.py introduced an IndentationError + load-time circular import via scanner_plugins eager loading. Diagnosed mid-flight; canonical JINJA patterns relocated to `scanner_data/patterns_jinja.py` (side-effect-free) — this added LESSON-08.
 - New lessons: LESSON-06 (platform classes don't belong in generic packages), LESSON-07 (Callable→Protocol at architectural boundaries; `*_cls` → `type[X]`), LESSON-08 (avoid putting shared data in eagerly-loading packages).
 - Two consecutive thorough cycles on different focus axes (typing → architecture) both closed GREEN.
+
+## g3 — 2026-04-25 — focus_axis: coupling — grade: A-
+
+- Scope: residual scanner_core→scanner_plugins layer edges after g1+g2.
+- Closed: FIND-G3-01 (underscore_policy filter relocated from scanner_plugins/filters/ → scanner_core/filters/; back-compat shim retained).
+- Do_not_re_flag: FIND-G3-02 (TYPE_CHECKING di.py import, type-only), FIND-G3-03 (intentional DI lazy seams: di.py:204 blocker_fact_builder + standalone_di.py:20 bundle_resolver — re-flag only with registry-routed alternative).
+- Deferred to g4: FIND-G3-04 (loader.py registry-routed YAML policy; bundles with FIND-G2-LOADER-DUAL-PATH), FIND-G3-05 (scanner_plugins/__init__.py self-registration via decorator — closes LESSON-08 at source), FIND-G3-06 (DIContainer 12 inject_mock_* wrappers — surface shrink).
+- Gate: GREEN (754 passed / 7 skipped, ruff clean, black clean, mypy 0 errors in 133 files; +2 source files = scanner_core/filters/__init__.py + underscore_policy.py).
+- Three consecutive thorough cycles (typing → architecture → coupling) all GREEN. Sign-off bar exceeded.

@@ -14,7 +14,7 @@ from prism.scanner_core.execution_request_builder import (
     NonCollectionRunScanExecutionRequest,
     build_non_collection_run_scan_execution_request,
 )
-from prism.scanner_plugins.filters.underscore_policy import (
+from prism.scanner_core.filters.underscore_policy import (
     apply_underscore_reference_filter,
 )
 
