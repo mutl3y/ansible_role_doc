@@ -2,10 +2,6 @@
 
 from __future__ import annotations
 
-import importlib
-import sys
-import warnings
-
 
 class TestAnsibleDefaultPolicyOwnership:
     """Ansible default-policy classes are owned by scanner_plugins.ansible."""
@@ -68,48 +64,3 @@ class TestAnsibleDefaultPolicyOwnership:
         assert bare.ROLE_INCLUDE_KEYS <= canonical.ROLE_INCLUDE_KEYS
         assert bare.INCLUDE_VARS_KEYS <= canonical.INCLUDE_VARS_KEYS
         assert bare.SET_FACT_KEYS <= canonical.SET_FACT_KEYS
-
-
-class TestPoliciesShimContract:
-    """Deprecated scanner_plugins.policies submodules still resolve for one release."""
-
-    @staticmethod
-    def _reimport_with_warnings(module_name: str):
-        sys.modules.pop(module_name, None)
-        with warnings.catch_warnings(record=True) as captured:
-            warnings.simplefilter("always")
-            module = importlib.import_module(module_name)
-            deprecations = [
-                w for w in captured if issubclass(w.category, DeprecationWarning)
-            ]
-        return module, deprecations
-
-    def test_extract_defaults_shim_emits_deprecation_warning(self):
-        module, deprecations = self._reimport_with_warnings(
-            "prism.scanner_plugins.policies.extract_defaults"
-        )
-        assert deprecations, "extract_defaults shim must emit DeprecationWarning"
-        assert hasattr(module, "AnsibleDefaultTaskLineParsingPolicyPlugin")
-
-    def test_constants_shim_emits_deprecation_warning(self):
-        module, deprecations = self._reimport_with_warnings(
-            "prism.scanner_plugins.policies.constants"
-        )
-        assert deprecations, "constants shim must emit DeprecationWarning"
-        assert hasattr(module, "TASK_ENTRY_RE")
-        assert hasattr(module, "TASK_INCLUDE_KEYS")
-
-    def test_annotation_parsing_shim_emits_deprecation_warning(self):
-        module, deprecations = self._reimport_with_warnings(
-            "prism.scanner_plugins.policies.annotation_parsing"
-        )
-        assert deprecations, "annotation_parsing shim must emit DeprecationWarning"
-        assert hasattr(module, "extract_task_annotations_for_file")
-
-    def test_scanner_reporting_runbook_submodule_emits_deprecation_warning(self):
-        module, deprecations = self._reimport_with_warnings(
-            "prism.scanner_reporting.runbook"
-        )
-        assert deprecations, "runbook submodule shim must emit DeprecationWarning"
-        assert hasattr(module, "render_runbook")
-        assert hasattr(module, "build_runbook_rows")

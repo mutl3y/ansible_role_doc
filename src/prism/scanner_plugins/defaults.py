@@ -5,16 +5,10 @@ from __future__ import annotations
 from typing import Any
 
 from prism.errors import PrismRuntimeError
-from prism.scanner_plugins.policies import (
+from prism.scanner_plugins.ansible.default_policies import (
     AnsibleDefaultTaskAnnotationPolicyPlugin,
-)
-from prism.scanner_plugins.policies import (
     AnsibleDefaultTaskLineParsingPolicyPlugin,
-)
-from prism.scanner_plugins.policies import (
     AnsibleDefaultTaskTraversalPolicyPlugin,
-)
-from prism.scanner_plugins.policies import (
     AnsibleDefaultVariableExtractorPolicyPlugin,
 )
 from prism.scanner_plugins.parsers.yaml import YAMLParsingPolicyPlugin

@@ -8,18 +8,12 @@ from __future__ import annotations
 
 from typing import cast
 
-from prism.scanner_plugins.policies import DefaultScanPipelinePlugin
+from prism.scanner_plugins.default_scan_pipeline import DefaultScanPipelinePlugin
 from prism.scanner_plugins.ansible import AnsibleScanPipelinePlugin
-from prism.scanner_plugins.policies import (
+from prism.scanner_plugins.ansible.default_policies import (
     AnsibleDefaultTaskAnnotationPolicyPlugin,
-)
-from prism.scanner_plugins.policies import (
     AnsibleDefaultTaskLineParsingPolicyPlugin,
-)
-from prism.scanner_plugins.policies import (
     AnsibleDefaultTaskTraversalPolicyPlugin,
-)
-from prism.scanner_plugins.policies import (
     AnsibleDefaultVariableExtractorPolicyPlugin,
 )
 from prism.scanner_plugins.parsers.jinja import JinjaAnalysisPolicyPlugin

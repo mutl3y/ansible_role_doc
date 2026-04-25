@@ -107,7 +107,9 @@ def test_fsrc_default_plugin_registry_bootstrap_registers_required_plugins() -> 
     with _prefer_fsrc_prism_on_sys_path():
         scanner_plugins = importlib.import_module("prism.scanner_plugins")
         ansible_plugins = importlib.import_module("prism.scanner_plugins.ansible")
-        policies_module = importlib.import_module("prism.scanner_plugins.policies")
+        default_pipeline_module = importlib.import_module(
+            "prism.scanner_plugins.default_scan_pipeline"
+        )
         comment_doc_module = importlib.import_module(
             "prism.scanner_plugins.parsers.comment_doc.role_notes_parser"
         )
@@ -123,7 +125,7 @@ def test_fsrc_default_plugin_registry_bootstrap_registers_required_plugins() -> 
     )
     assert (
         registry.get_scan_pipeline_plugin("default")
-        is policies_module.DefaultScanPipelinePlugin
+        is default_pipeline_module.DefaultScanPipelinePlugin
     )
     assert (
         registry.get_scan_pipeline_plugin("ansible")
@@ -167,7 +169,9 @@ def test_fsrc_default_plugin_bootstrap_is_idempotent_for_required_keys() -> None
     with _prefer_fsrc_prism_on_sys_path():
         scanner_plugins = importlib.import_module("prism.scanner_plugins")
         registry_module = importlib.import_module("prism.scanner_plugins.registry")
-        policies_module = importlib.import_module("prism.scanner_plugins.policies")
+        default_pipeline_module = importlib.import_module(
+            "prism.scanner_plugins.default_scan_pipeline"
+        )
         comment_doc_module = importlib.import_module(
             "prism.scanner_plugins.parsers.comment_doc.role_notes_parser"
         )
@@ -197,7 +201,7 @@ def test_fsrc_default_plugin_bootstrap_is_idempotent_for_required_keys() -> None
     )
     assert (
         registry.get_scan_pipeline_plugin("default")
-        is policies_module.DefaultScanPipelinePlugin
+        is default_pipeline_module.DefaultScanPipelinePlugin
     )
     assert (
         registry.get_scan_pipeline_plugin("ansible")
