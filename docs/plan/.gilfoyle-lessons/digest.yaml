@@ -1,8 +1,8 @@
 # Gilfoyle review-loop digest — index for next cycle's Phase 0 sweep
-# Last updated: g7b close (2026-04-25)
+# Last updated: g7b implementation close (2026-04-25)
 
-closed_findings_count: 21  # g1=7 + g2=5 + g3=1 + g4=1 + g5=2 + g6=5
-deferred_findings_count: 5  # g2=1 + g3=1 + g5=1 + g6=1 + g7b=1
+closed_findings_count: 22  # g1=7 + g2=5 + g3=1 + g4=1 + g5=2 + g6=5 + g7b=1
+deferred_findings_count: 4  # g2=1 + g3=1 + g5=1 + g6=1
 needs_replan_count: 1
 
 open_in_other_cycles:
@@ -33,25 +33,16 @@ open_in_other_cycles:
       Ansible plugin migration as reference impl, parity tests vs. current Ansible-only
       output. Mechanical in-loop refactor would prematurely freeze the protocol shape.
       g7 (2026-04-25) delivered all 5 pre-code artefacts in the design slice above.
-  - id: FIND-G7B-01
-    deferred_to: dedicated_planning_slice_policies_runbook_ownership
-    design_slice: docs/plan/20260425-policies-runbook-ownership-design/plan.yaml
-    design_slice_status: design_only_awaiting_user_review
-    cycle_link: g7b
-    sibling_of: FIND-G6-06
-    note: >
-      scanner_plugins/policies/{constants,extract_defaults,annotation_parsing}.py
-      and scanner_reporting/runbook.py are misowned. constants/extract_defaults
-      are pure Ansible (axis: PLATFORM → ansible plugin); annotation_parsing
-      and runbook are comment-driven-doc feature logic (axis: FEATURE →
-      parsers/comment_doc plugin). Mixed-concerns coupling in annotation_parsing
-      (Ansible regexes via TASK_ENTRY_RE) requires new TaskBoundaryDetector
-      protocol — part of g7b scope, not deferred. User directive 2026-04-25:
-      no deprecation cycle, delete on relocation. g7b plan delivered:
-      problem-rot taxonomy (3 rots), design principles (5), per-symbol ownership
-      matrix, TaskBoundaryDetector protocol, 7 waves (W0 inventory → W6 gate),
-      no-shim public API contract, 7 risks, 6 partner_opinions where v2 disagrees
-      with v1.
+  # FIND-G7B-01: closed in g7b implementation cycle (2026-04-25, commit 2182bb4).
+  #   Canonical homes created: scanner_plugins/ansible/{task_vocabulary,task_regex},
+  #   scanner_plugins/parsers/yaml/line_shape, scanner_plugins/parsers/comment_doc/
+  #   {annotation_parsing,runbook_renderer,templates/RUNBOOK.md.j2}.
+  #   Deprecation shims (one-release grace, REVERSING earlier no-shim plan per
+  #   user 2026-04-25): scanner_plugins/policies/{constants,extract_defaults,
+  #   annotation_parsing} + scanner_reporting/runbook.py — each emits
+  #   DeprecationWarning(stacklevel=2). Public facades unchanged.
+  #   W2 TaskBoundaryDetector protocol DROPPED (annotation parsing ships as-is).
+  #   W5 policies/→defaults/ rename DROPPED.
   # FIND-10: closed (subsumed by FIND-G3-01 close + FIND-G3-03 do_not_re_flag rulings).
 
 active_lessons:

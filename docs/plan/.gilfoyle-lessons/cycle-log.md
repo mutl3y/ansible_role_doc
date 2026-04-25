@@ -107,3 +107,58 @@
 **Next action:** A1 (user decision on partner_opinions + W5) → A2 (W0 inventory) → A3 (W1-W4(W5)-W6 implementation slice).
 
 **Gate:** N/A (no code changes).
+
+## g7b-impl — 2026-04-25 — implementation cycle (FIND-G7B-01) — grade: B+
+
+**Type:** Implementation cycle. Closes FIND-G7B-01.
+**Commit:** 2182bb4 — "gilfoyle g7b: relocate misowned policies/+runbook to canonical homes"
+**Plan link:** docs/plan/20260425-policies-runbook-ownership-design/plan.yaml (v2_ultrathink)
+
+**User directives applied (REVERSED v2 plan in places, per 2026-04-25 chat):**
+- (a) Shims for one release ACCEPTED — reversed earlier "no deprecation cycle" directive.
+- (b) Annotation parsing ships AS-IS for one release — W2 TaskBoundaryDetector protocol DROPPED.
+  Mixed-concerns coupling logged, deferred to next cycle.
+- (c) W5 policies/ → defaults/ rename DROPPED — facade unchanged; would shuffle deck chairs.
+- (d) prism-learn not a gate — verified zero consumer references; forward-fix in consumer if surprises emerge.
+
+**Waves shipped (W1, W3, W4, W6):**
+- W1 — created canonical homes (6 files):
+  - scanner_plugins/ansible/task_vocabulary.py, task_regex.py
+  - scanner_plugins/parsers/yaml/line_shape.py
+  - scanner_plugins/parsers/comment_doc/{annotation_parsing,runbook_renderer}.py
+  - scanner_plugins/parsers/comment_doc/templates/RUNBOOK.md.j2 (template moved)
+- W3 — redirected importers + installed deprecation shims:
+  - ansible/{default_policies,task_annotation_strategy,task_traversal_bare} now import canonical paths
+  - scanner_plugins/policies/__init__ + scanner_reporting/__init__ unchanged public surface (re-export from canonical)
+  - 4 shim modules emit DeprecationWarning(stacklevel=2)
+- W4 — deleted src/prism/templates/RUNBOOK.md.j2 (template-shape ownership now lives with comment_doc plugin)
+- W6 — closure gate: 755 passed / 7 skipped (one new test added vs g7), ruff clean, black clean,
+  mypy delta=0 (99 baseline = 99 current; all pre-existing).
+
+**Test additions:**
+- test_extract_defaults_ansible_ownership.py (replaces test_extract_defaults_domain_neutrality.py):
+  - TestAnsibleDefaultPolicyOwnership: canonical __module__ assertions, Ansible-builtin keys absent
+    from bare vocabulary, plugin superset relation
+  - TestPoliciesShimContract: 4 tests verify each shim emits DeprecationWarning AND remains functional
+- Updated test_t1_02_coverage_lift_batch2.py + test_readme_parity.py + test_scanner_reporting.py
+  to import via canonical scanner_plugins.parsers.comment_doc.runbook_renderer
+- Carved scanner_readme.rendering_seams out of plugin-package import boundary guardrail in
+  test_plugin_kernel_extension_parity.py (consistent with existing peer guardrail in
+  test_scanner_reporting.py)
+
+**pyproject.toml:** package-data extended for parsers/comment_doc/templates/*.j2
+
+**Architectural improvements:**
+- Directory `scanner_plugins/policies/` no longer lies about its contents (Ansible-specific logic
+  now lives in scanner_plugins/ansible/, comment-doc feature logic in scanner_plugins/parsers/comment_doc/).
+- Template-shape ownership co-located with renderer (comment_doc plugin owns its template).
+- Public API surface unchanged: prism.api, prism.cli, prism.scanner_reporting all stable.
+
+**Carry-forward to next cycle:**
+- Mixed-concerns coupling in annotation_parsing (Ansible-shape regex usage from comment-doc layer)
+  remains. Address with TaskBoundaryDetector or equivalent abstraction when a 2nd platform
+  forces the design (avoid premature protocol freeze).
+- Deprecation shim removal scheduled for one release post-this commit.
+
+**Seven consecutive thorough cycles** (typing → architecture → coupling → registry_lifecycle →
+registry_boilerplate → ownership → ownership-impl) all GREEN. Sign-off bar exceeded by 5 cycles.
