@@ -111,7 +111,9 @@ def test_yaml_parse_yaml_candidate_outside_role_root(tmp_path: Path) -> None:
 
 
 def test_build_runbook_rows_handles_mixed_kinds() -> None:
-    from prism.scanner_reporting.runbook import build_runbook_rows
+    from prism.scanner_plugins.parsers.comment_doc.runbook_renderer import (
+        build_runbook_rows,
+    )
 
     metadata = {
         "task_catalog": [
@@ -141,7 +143,9 @@ def test_build_runbook_rows_handles_mixed_kinds() -> None:
 
 
 def test_build_runbook_rows_empty_inputs() -> None:
-    from prism.scanner_reporting.runbook import build_runbook_rows
+    from prism.scanner_plugins.parsers.comment_doc.runbook_renderer import (
+        build_runbook_rows,
+    )
 
     assert build_runbook_rows(None) == []
     assert build_runbook_rows({}) == []
@@ -149,7 +153,9 @@ def test_build_runbook_rows_empty_inputs() -> None:
 
 
 def test_render_runbook_csv_header_and_rows() -> None:
-    from prism.scanner_reporting.runbook import render_runbook_csv
+    from prism.scanner_plugins.parsers.comment_doc.runbook_renderer import (
+        render_runbook_csv,
+    )
 
     metadata = {
         "task_catalog": [

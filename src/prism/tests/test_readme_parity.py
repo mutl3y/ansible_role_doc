@@ -250,7 +250,9 @@ def test_w3_t03_readme_and_runbook_use_shared_jinja_environment_factory(
 
     with _prefer_prism_lane(FSRC_LANE_ROOT):
         render_module = importlib.import_module("prism.scanner_readme.render")
-        runbook_module = importlib.import_module("prism.scanner_reporting.runbook")
+        runbook_module = importlib.import_module(
+            "prism.scanner_plugins.parsers.comment_doc.runbook_renderer"
+        )
 
         readme_output = render_module.render_readme(
             output=str(tmp_path / "README.out.md"),

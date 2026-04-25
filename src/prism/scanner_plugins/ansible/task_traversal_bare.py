@@ -11,7 +11,7 @@ from typing import Any
 
 import yaml
 
-from prism.scanner_plugins.policies.constants import (
+from prism.scanner_plugins.ansible.task_regex import (
     TEMPLATED_INCLUDE_RE,
     WHEN_IN_LIST_RE,
 )

@@ -1,21 +1,20 @@
-"""Domain-neutral default policy ownership seams for scanner plugins."""
+"""Domain-neutral default policy ownership seams for scanner plugins.
+
+The Ansible default-policy classes re-exported here are kept for backward
+compatibility for one release; canonical homes are under
+``prism.scanner_plugins.ansible``.
+"""
 
 from __future__ import annotations
 
-from prism.scanner_plugins.parsers.jinja import JinjaAnalysisPolicyPlugin
-from prism.scanner_plugins.parsers.yaml import YAMLParsingPolicyPlugin
-from prism.scanner_plugins.policies.extract_defaults import (
+from prism.scanner_plugins.ansible.default_policies import (
     AnsibleDefaultTaskAnnotationPolicyPlugin,
-)
-from prism.scanner_plugins.policies.extract_defaults import (
     AnsibleDefaultTaskLineParsingPolicyPlugin,
-)
-from prism.scanner_plugins.policies.extract_defaults import (
     AnsibleDefaultTaskTraversalPolicyPlugin,
-)
-from prism.scanner_plugins.policies.extract_defaults import (
     AnsibleDefaultVariableExtractorPolicyPlugin,
 )
+from prism.scanner_plugins.parsers.jinja import JinjaAnalysisPolicyPlugin
+from prism.scanner_plugins.parsers.yaml import YAMLParsingPolicyPlugin
 from prism.scanner_plugins.policies.default_scan_pipeline import (
     DefaultScanPipelinePlugin,
 )

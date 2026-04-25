@@ -4,19 +4,13 @@ from collections.abc import Callable, Iterable
 from pathlib import Path
 from typing import ClassVar
 
-from prism.scanner_plugins.policies.constants import (
-    COMMENT_CONTINUATION_RE,
-    COMMENTED_TASK_ENTRY_RE,
+from prism.scanner_plugins.ansible.task_vocabulary import (
     INCLUDE_VARS_KEYS,
     ROLE_INCLUDE_KEYS,
     SET_FACT_KEYS,
     TASK_BLOCK_KEYS,
-    TASK_ENTRY_RE,
     TASK_INCLUDE_KEYS,
     TASK_META_KEYS,
-    YAML_LIKE_KEY_VALUE_RE,
-    YAML_LIKE_LIST_ITEM_RE,
-    DEFAULT_DOC_MARKER_PREFIX,
 )
 from prism.scanner_plugins.ansible.task_traversal_bare import (
     TEMPLATED_INCLUDE_RE,
@@ -32,15 +26,23 @@ from prism.scanner_plugins.ansible.task_traversal_bare import (
     iter_task_mappings,
 )
 from prism.scanner_plugins.parsers.comment_doc.marker_utils import (
+    COMMENT_CONTINUATION_RE,
+    DEFAULT_DOC_MARKER_PREFIX,
     NormalizesMarkerPrefix,
     get_marker_line_re,
 )
-from prism.scanner_plugins.policies.annotation_parsing import (
+from prism.scanner_plugins.parsers.comment_doc.annotation_parsing import (
     annotation_payload_looks_yaml,
     extract_task_annotations_for_file,
     split_task_annotation_label,
     split_task_target_payload,
     task_anchor,
+)
+from prism.scanner_plugins.parsers.yaml.line_shape import (
+    COMMENTED_TASK_ENTRY_RE,
+    TASK_ENTRY_RE,
+    YAML_LIKE_KEY_VALUE_RE,
+    YAML_LIKE_LIST_ITEM_RE,
 )
 
 

@@ -29,7 +29,7 @@ from prism.scanner_reporting.report import (
     render_scanner_report_section,
     render_scanner_report_yaml_parse_failure_row,
 )
-from prism.scanner_reporting.runbook import (
+from prism.scanner_plugins.parsers.comment_doc.runbook_renderer import (
     build_runbook_rows,
     render_runbook,
     render_runbook_csv,

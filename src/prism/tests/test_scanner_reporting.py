@@ -144,10 +144,10 @@ def test_fsrc_scanner_report_markdown_shape_parity_against_src() -> None:
 
 def test_fsrc_runbook_rows_and_csv_shape_parity_against_src() -> None:
     src_runbook_module = _load_module(
-        "prism.scanner_reporting.runbook", SRC_SOURCE_ROOT
+        "prism.scanner_plugins.parsers.comment_doc.runbook_renderer", SRC_SOURCE_ROOT
     )
     fsrc_runbook_module = _load_module(
-        "prism.scanner_reporting.runbook", FSRC_SOURCE_ROOT
+        "prism.scanner_plugins.parsers.comment_doc.runbook_renderer", FSRC_SOURCE_ROOT
     )
 
     metadata = {
@@ -182,7 +182,10 @@ def test_fsrc_runbook_rows_and_csv_shape_parity_against_src() -> None:
 
 
 def test_w2_t01_scanner_reporting_import_boundary() -> None:
-    runbook_module = _load_module("prism.scanner_reporting.runbook", FSRC_SOURCE_ROOT)
+    runbook_module = _load_module(
+        "prism.scanner_plugins.parsers.comment_doc.runbook_renderer",
+        FSRC_SOURCE_ROOT,
+    )
 
     imports = set(runbook_module.__dict__.get("__imports__", []))
     if not imports:
