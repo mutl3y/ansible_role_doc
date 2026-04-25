@@ -176,3 +176,33 @@
     6-item partner_opinions section. v2 ultrathink revision discards v1's
     Option C deferral of the protocol; instead defines TaskBoundaryDetector
     in W2 to genuinely decouple comment_doc from Ansible.
+
+- cycle: g8
+  date: 2026-04-25
+  axis: coupling/typing/abstraction
+  type: implementation
+  artefact: docs/plan/20260425-g8-coupling-typing-cleanup/findings.yaml
+  grade: PASS
+  closed_count: 6
+  deferred_count: 2
+  closed_findings:
+    - FIND-G8-02
+    - FIND-G8-04
+    - FIND-G8-05
+    - FIND-G8-06
+    - FIND-G8-07
+    - FIND-G8-08
+  deferred_findings:
+    - FIND-G8-01  # alias-purge across 8 modules
+    - FIND-G8-03  # Protocol-wide TypedDict narrowing
+  gates:
+    pytest: "755 passed / 7 skipped"
+    ruff: "0 errors"
+    black: "0 reformats"
+    mypy_delta: 0  # vs 99 baseline
+  notes: >
+    Light cycle, no architectural surgery. Promoted callable shapes to Protocols,
+    narrowed write-only set params to read-only Collection, hoisted duplicate
+    inline label sets to a module-level frozenset, dropped two dead private
+    wrappers. Two findings deferred where the surface area exceeded a light
+    cycle's safe blast radius.

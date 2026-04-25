@@ -162,3 +162,29 @@
 
 **Seven consecutive thorough cycles** (typing → architecture → coupling → registry_lifecycle →
 registry_boilerplate → ownership → ownership-impl) all GREEN. Sign-off bar exceeded by 5 cycles.
+
+## Cycle g8 — coupling / typing / abstraction cleanup (2026-04-25)
+
+**Axis:** light cycle — coupling, weak typing, abstraction debt within the comment_doc + ansible plugin layers.
+
+**Closed (6):**
+- **FIND-G8-02** dead wrappers — Removed `_normalize_marker_prefix` + `_get_marker_line_re` private wrappers in annotation_parsing.py (callers now go directly to marker_utils); dropped leaked `get_marker_line_re` from `__all__`; deleted unused `normalize_marker_prefix` import.
+- **FIND-G8-04** Protocol callbacks — Promoted bare `Callable[..., Iterable[Path]]` and `Callable[[Path], object]` in default_policies.py to named `CollectsTaskFiles` and `LoadsYamlFile` Protocols.
+- **FIND-G8-05** keyword-param annotations — Annotated `collect_unconstrained_dynamic_task_includes` and `_role_includes` wrappers with `role_root: Path, task_files: list[Path], load_yaml_file: LoadsYamlFile -> list[dict[str, str]]`.
+- **FIND-G8-06** runbook metadata typing — Replaced `dict | None` with `Mapping[str, Any] | None`; introduced `RunbookRow(NamedTuple)` for `build_runbook_rows` / `render_runbook_csv` return type (tuple-compatible — zero consumer churn).
+- **FIND-G8-07** set→Collection — Narrowed `include_vars_keys: set[str] | None` to `Collection[str] | None` (read-only contract).
+- **FIND-G8-08** label-set lift — Lifted two duplicate inline `{...}` set literals in annotation_parsing.py to module-level `_ANNOTATION_LABELS: frozenset[str]`.
+
+**Deferred (2):**
+- **FIND-G8-01** dead alias `COMMENTED_TASK_ENTRY_RE` (byte-identical to `TASK_ENTRY_RE` since pre-g7b) — re-exported through 8 modules; needs a dedicated alias-purge slice.
+- **FIND-G8-03** `TaskAnnotation` TypedDict — `PreparedTaskAnnotationPolicy` Protocol locks the same weak `dict[str, object]` shape; needs Protocol + scanner_extract callers + tests changed atomically.
+
+**Carried forward (pre-existing):** FIND-G8-D-G, D-H, D-I.
+
+**Gates:** pytest 755 passed / 7 skipped, ruff 0, black 0, mypy delta=0 (99 baseline).
+
+**Lessons re-confirmed:**
+- Read upstream Protocol contracts before narrowing return types — `contracts_request.py` Protocols can lock weak shapes that look local.
+- 8-module re-export chains are not "light-cycle" work; defer to dedicated alias-purge slices.
+
+**Eight consecutive thorough cycles** (typing → architecture → coupling → registry_lifecycle → registry_boilerplate → ownership → ownership-design → coupling/typing/abstraction).
