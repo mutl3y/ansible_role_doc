@@ -235,3 +235,18 @@ registry_boilerplate → ownership → ownership-impl) all GREEN. Sign-off bar e
 - Stable package facades (`scanner_reporting/__init__.py`) make the deprecation shim's "legacy import path" warranty redundant — the package import already covers the contract.
 
 **Ten consecutive thorough cycles** (typing → architecture → coupling → registry_lifecycle → registry_boilerplate → ownership → ownership-design → coupling/typing/abstraction → shim-purge → parallel-surface elimination).
+
+## Cycle g11 — alias-purge / dead-code (2026-04-25)
+
+**Axis:** dead alias purge — close FIND-G8-01 carry-over.
+
+**Closed (1):**
+- **FIND-G11-01 / FIND-G8-01** `COMMENTED_TASK_ENTRY_RE` alias — Byte-identical to `TASK_ENTRY_RE` at canonical site `scanner_plugins/parsers/yaml/line_shape.py` L14-15 (both `re.compile(r'^\s*-\s+name:\s*\S')`). Propagated through 6 modules via re-exports for one callsite at `annotation_parsing.py` L129 where the surrounding `continuation` variable already conveys the "commented-out content" intent. Purged 11 references in 6 files; rewired the one functional usage to canonical `TASK_ENTRY_RE`.
+
+**Gates:** pytest 751 passed / 7 skipped, ruff 0, black 0, mypy delta=0 (99 baseline).
+
+**Lessons re-confirmed:**
+- Byte-identical regex aliases survive only because re-export chains hide the duplication. Once the canonical pattern and the alias have the same source, the alias is dead code regardless of how many modules re-export it.
+- Variable-name semantics at the callsite (`continuation`) often substitute for distinct regex names. Trust the surrounding code's lexical context before introducing parallel symbols.
+
+**Eleven consecutive thorough cycles** (typing → architecture → coupling → registry_lifecycle → registry_boilerplate → ownership → ownership-design → coupling/typing/abstraction → shim-purge → parallel-surface → alias-purge).

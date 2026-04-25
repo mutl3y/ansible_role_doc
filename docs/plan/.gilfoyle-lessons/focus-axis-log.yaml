@@ -261,3 +261,22 @@
     StandaloneDI surface in scanner_core/standalone_di.py. The 4
     _make_standalone_di callsites in scanner_plugins/defaults.py now
     construct DIContainer directly.
+
+- cycle: g11
+  date: 2026-04-25
+  axis: alias-purge / dead-code
+  artefact: docs/plan/20260425-g11-commented-task-entry-re-purge/findings.yaml
+  grade: PASS
+  closed_count: 1
+  deferred_count: 0
+  closed_findings:
+    - FIND-G11-01  # COMMENTED_TASK_ENTRY_RE alias (= FIND-G8-01 carry-over)
+  deferred_findings: []
+  gates:
+    pytest: "751 passed / 7 skipped"
+    ruff: "0 errors"
+    black: "0 reformats"
+    mypy_delta: 0  # vs 99 baseline
+  notes: >
+    Closed FIND-G8-01 carry-over. Purged 11 references in 6 files;
+    rewired one functional callsite to canonical TASK_ENTRY_RE.
