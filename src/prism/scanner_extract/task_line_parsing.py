@@ -223,9 +223,6 @@ class _PolicyBackedAnnotationRegexProxy:
 COMMENT_CONTINUATION_RE = _PolicyBackedAnnotationRegexProxy(
     "COMMENT_CONTINUATION_RE",
 )
-COMMENTED_TASK_ENTRY_RE = _PolicyBackedAnnotationRegexProxy(
-    "COMMENTED_TASK_ENTRY_RE",
-)
 TASK_ENTRY_RE = _PolicyBackedAnnotationRegexProxy(
     "TASK_ENTRY_RE",
 )

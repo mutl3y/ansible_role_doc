@@ -12,12 +12,10 @@ from __future__ import annotations
 import re
 
 TASK_ENTRY_RE = re.compile(r"^\s*-\s+name:\s*\S")
-COMMENTED_TASK_ENTRY_RE = re.compile(r"^\s*-\s+name:\s*\S")
 YAML_LIKE_KEY_VALUE_RE = re.compile(r"^\s*[A-Za-z_][A-Za-z0-9_-]*\s*:\s*\S")
 YAML_LIKE_LIST_ITEM_RE = re.compile(r"^\s*-\s+[A-Za-z_][A-Za-z0-9_-]*\s*:\s*\S")
 
 __all__ = [
-    "COMMENTED_TASK_ENTRY_RE",
     "TASK_ENTRY_RE",
     "YAML_LIKE_KEY_VALUE_RE",
     "YAML_LIKE_LIST_ITEM_RE",

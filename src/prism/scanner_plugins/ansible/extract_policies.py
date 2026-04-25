@@ -139,7 +139,6 @@ class AnsibleTaskAnnotationPolicyPlugin(NormalizesMarkerPrefix):
     """Expose ansible task-annotation parsing via a policy plugin object."""
 
     COMMENT_CONTINUATION_RE = task_annotation_strategy.COMMENT_CONTINUATION_RE
-    COMMENTED_TASK_ENTRY_RE = task_annotation_strategy.COMMENTED_TASK_ENTRY_RE
     TASK_ENTRY_RE = task_annotation_strategy.TASK_ENTRY_RE
     YAML_LIKE_KEY_VALUE_RE = task_annotation_strategy.YAML_LIKE_KEY_VALUE_RE
     YAML_LIKE_LIST_ITEM_RE = task_annotation_strategy.YAML_LIKE_LIST_ITEM_RE

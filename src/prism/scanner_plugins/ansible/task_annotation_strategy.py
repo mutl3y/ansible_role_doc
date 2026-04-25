@@ -21,7 +21,6 @@ from prism.scanner_plugins.parsers.comment_doc.annotation_parsing import (
     task_anchor,
 )
 from prism.scanner_plugins.parsers.yaml.line_shape import (
-    COMMENTED_TASK_ENTRY_RE,
     TASK_ENTRY_RE,
     YAML_LIKE_KEY_VALUE_RE,
     YAML_LIKE_LIST_ITEM_RE,
@@ -32,7 +31,6 @@ __all__ = [
     "get_marker_line_re",
     "normalize_marker_prefix",
     "COMMENT_CONTINUATION_RE",
-    "COMMENTED_TASK_ENTRY_RE",
     "TASK_ENTRY_RE",
     "YAML_LIKE_KEY_VALUE_RE",
     "YAML_LIKE_LIST_ITEM_RE",

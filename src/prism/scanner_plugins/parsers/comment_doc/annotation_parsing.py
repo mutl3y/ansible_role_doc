@@ -17,7 +17,6 @@ from prism.scanner_plugins.parsers.comment_doc.marker_utils import (
     get_marker_line_re,
 )
 from prism.scanner_plugins.parsers.yaml.line_shape import (
-    COMMENTED_TASK_ENTRY_RE,
     TASK_ENTRY_RE,
     YAML_LIKE_KEY_VALUE_RE,
     YAML_LIKE_LIST_ITEM_RE,
@@ -126,7 +125,7 @@ def extract_task_annotations_for_file(
         if continuation:
             text = "\n".join(part for part in [text, *continuation] if part)
 
-        disabled = any(COMMENTED_TASK_ENTRY_RE.match(c) for c in continuation)
+        disabled = any(TASK_ENTRY_RE.match(c) for c in continuation)
         if label == "task" and target_name:
             kind, body = split_task_annotation_label(text)
         else:
