@@ -383,9 +383,15 @@ def resolve_jinja_analysis_policy_plugin(
 
 
 def _make_standalone_di(role_path: str, exclude_paths=None):
-    from prism.scanner_core.standalone_di import make_standalone_di
+    from prism.scanner_core.di import DIContainer
+    from prism.scanner_plugins.bundle_resolver import ensure_prepared_policy_bundle
 
-    return make_standalone_di(role_path, exclude_paths)
+    options: dict = {
+        "role_path": role_path,
+        "exclude_path_patterns": exclude_paths,
+    }
+    ensure_prepared_policy_bundle(scan_options=options, di=None)
+    return DIContainer(role_path=role_path, scan_options=options)
 
 
 def extract_role_notes_from_comments(
