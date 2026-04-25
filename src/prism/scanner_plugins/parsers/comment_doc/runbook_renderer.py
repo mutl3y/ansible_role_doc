@@ -9,15 +9,24 @@ from __future__ import annotations
 
 import csv
 import io
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 from prism.scanner_readme.rendering_seams import build_render_jinja_environment
 
 
+class RunbookRow(NamedTuple):
+    """Normalized runbook row exposed by build_runbook_rows / render_runbook_csv."""
+
+    file: str
+    task_name: str
+    step: str
+
+
 def render_runbook(
     role_name: str,
-    metadata: dict | None = None,
+    metadata: Mapping[str, Any] | None = None,
     template: str | None = None,
 ) -> str:
     """Render a standalone runbook markdown document for a role."""
@@ -35,11 +44,11 @@ def render_runbook(
     return template_obj.render(role_name=role_name, metadata=metadata)
 
 
-def build_runbook_rows(metadata: dict[str, Any] | None) -> list[tuple[str, str, str]]:
+def build_runbook_rows(metadata: Mapping[str, Any] | None) -> list[RunbookRow]:
     """Build normalized runbook rows: (file, task_name, step)."""
     metadata = metadata or {}
     task_catalog = metadata.get("task_catalog") or []
-    rows: list[tuple[str, str, str]] = []
+    rows: list[RunbookRow] = []
     for task in task_catalog:
         if not isinstance(task, dict):
             continue
@@ -57,21 +66,22 @@ def build_runbook_rows(metadata: dict[str, Any] | None) -> list[tuple[str, str, 
                 continue
             kind = str(note.get("kind") or "note").strip().lower()
             step = text if kind == "runbook" else f"{kind.capitalize()}: {text}"
-            rows.append((file_name, task_name, step))
+            rows.append(RunbookRow(file_name, task_name, step))
     return rows
 
 
-def render_runbook_csv(metadata: dict | None = None) -> str:
+def render_runbook_csv(metadata: Mapping[str, Any] | None = None) -> str:
     """Render runbook rows to CSV with columns: file, task_name, step."""
     output = io.StringIO()
     writer = csv.writer(output, lineterminator="\n")
     writer.writerow(["file", "task_name", "step"])
-    for file_name, task_name, step in build_runbook_rows(metadata):
-        writer.writerow([file_name, task_name, step])
+    for row in build_runbook_rows(metadata):
+        writer.writerow([row.file, row.task_name, row.step])
     return output.getvalue()
 
 
 __all__ = [
+    "RunbookRow",
     "build_runbook_rows",
     "render_runbook",
     "render_runbook_csv",

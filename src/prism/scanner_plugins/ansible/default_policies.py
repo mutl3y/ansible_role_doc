@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable
+from collections.abc import Collection, Iterable
 from pathlib import Path
-from typing import ClassVar
+from typing import ClassVar, Protocol
 
 from prism.scanner_plugins.ansible.task_vocabulary import (
     INCLUDE_VARS_KEYS,
@@ -46,6 +46,20 @@ from prism.scanner_plugins.parsers.yaml.line_shape import (
 )
 
 
+class CollectsTaskFiles(Protocol):
+    """Callable that enumerates task files under a role root with optional excludes."""
+
+    def __call__(
+        self, role_root: Path, *, exclude_paths: list[str] | None = ...
+    ) -> Iterable[Path]: ...
+
+
+class LoadsYamlFile(Protocol):
+    """Callable that loads a YAML file path and returns its parsed object."""
+
+    def __call__(self, path: Path) -> object: ...
+
+
 class AnsibleDefaultTaskLineParsingPolicyPlugin:
     """Ansible-specific default task-line parsing policy; registered as the 'ansible' platform default."""
 
@@ -77,11 +91,11 @@ class AnsibleDefaultVariableExtractorPolicyPlugin:
         *,
         role_path: str,
         exclude_paths: list[str] | None,
-        collect_task_files: Callable[..., Iterable[Path]],
-        load_yaml_file: Callable[[Path], object],
-        include_vars_keys: set[str] | None = None,
+        collect_task_files: CollectsTaskFiles,
+        load_yaml_file: LoadsYamlFile,
+        include_vars_keys: Collection[str] | None = None,
     ) -> list[Path]:
-        effective_keys = (
+        effective_keys: Collection[str] = (
             include_vars_keys if include_vars_keys is not None else INCLUDE_VARS_KEYS
         )
         role_root = Path(role_path).resolve()
@@ -184,8 +198,11 @@ class AnsibleDefaultTaskTraversalPolicyPlugin:
 
     @staticmethod
     def collect_unconstrained_dynamic_task_includes(
-        *, role_root, task_files, load_yaml_file
-    ):
+        *,
+        role_root: Path,
+        task_files: list[Path],
+        load_yaml_file: LoadsYamlFile,
+    ) -> list[dict[str, str]]:
         return collect_unconstrained_dynamic_task_includes(
             role_root=role_root,
             task_files=task_files,
@@ -194,8 +211,11 @@ class AnsibleDefaultTaskTraversalPolicyPlugin:
 
     @staticmethod
     def collect_unconstrained_dynamic_role_includes(
-        *, role_root, task_files, load_yaml_file
-    ):
+        *,
+        role_root: Path,
+        task_files: list[Path],
+        load_yaml_file: LoadsYamlFile,
+    ) -> list[dict[str, str]]:
         return collect_unconstrained_dynamic_role_includes(
             role_root=role_root,
             task_files=task_files,

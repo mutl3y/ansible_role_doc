@@ -15,7 +15,6 @@ from prism.scanner_plugins.parsers.comment_doc.marker_utils import (
     COMMENT_CONTINUATION_RE,
     DEFAULT_DOC_MARKER_PREFIX,
     get_marker_line_re,
-    normalize_marker_prefix,
 )
 from prism.scanner_plugins.parsers.yaml.line_shape import (
     COMMENTED_TASK_ENTRY_RE,
@@ -24,13 +23,17 @@ from prism.scanner_plugins.parsers.yaml.line_shape import (
     YAML_LIKE_LIST_ITEM_RE,
 )
 
-
-def _normalize_marker_prefix(marker_prefix: str | None) -> str:
-    return normalize_marker_prefix(marker_prefix)
-
-
-def _get_marker_line_re(marker_prefix: str = DEFAULT_DOC_MARKER_PREFIX):
-    return get_marker_line_re(marker_prefix)
+_ANNOTATION_LABELS: frozenset[str] = frozenset(
+    {
+        "runbook",
+        "warning",
+        "deprecated",
+        "note",
+        "notes",
+        "additional",
+        "additionals",
+    }
+)
 
 
 def split_task_annotation_label(text: str) -> tuple[str, str]:
@@ -43,15 +46,7 @@ def split_task_annotation_label(text: str) -> tuple[str, str]:
     prefix, remainder = raw.split(":", 1)
     label = prefix.strip().lower()
     body = remainder.strip()
-    if label in {
-        "runbook",
-        "warning",
-        "deprecated",
-        "note",
-        "notes",
-        "additional",
-        "additionals",
-    }:
+    if label in _ANNOTATION_LABELS:
         if label == "notes":
             label = "note"
         if label == "additionals":
@@ -82,7 +77,7 @@ def extract_task_annotations_for_file(
     from bisect import bisect_right
     from collections import defaultdict
 
-    marker_line_re = _get_marker_line_re(marker_prefix)
+    marker_line_re = get_marker_line_re(marker_prefix)
     implicit: list[dict[str, object]] = []
     explicit: dict[str, list[dict[str, object]]] = defaultdict(list)
     task_line_indices = [
@@ -107,15 +102,7 @@ def extract_task_annotations_for_file(
             target_name, text = split_task_target_payload(text)
             if not target_name:
                 label = "note"
-        elif label not in {
-            "runbook",
-            "warning",
-            "deprecated",
-            "note",
-            "notes",
-            "additional",
-            "additionals",
-        }:
+        elif label not in _ANNOTATION_LABELS:
             i += 1
             continue
 
@@ -174,7 +161,6 @@ def task_anchor(file_path: str, task_name: str, index: int) -> str:
 __all__ = [
     "annotation_payload_looks_yaml",
     "extract_task_annotations_for_file",
-    "get_marker_line_re",
     "split_task_annotation_label",
     "split_task_target_payload",
     "task_anchor",
