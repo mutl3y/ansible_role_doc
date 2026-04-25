@@ -137,3 +137,19 @@
     rendering blocks the stated plug-and-play vision (Ansible/Terraform/K8s/AAP);
     needs ReadmeRendererPlugin protocol design + ownership matrix before code.
     Six consecutive thorough cycles all GREEN.
+
+- cycle: g7
+  date: 2026-04-25
+  focus_axis: planning_slice
+  type: design_only
+  parent_finding: FIND-G6-06
+  artefact: docs/plan/20260425-readme-renderer-plugin-design/plan.yaml
+  grade: N/A
+  closed_count: 0
+  deferred_count: 0
+  pre_code_artefacts_delivered: 5
+  status: awaiting_user_review
+  notes: >
+    No code shipped. Five pre-code artefacts produced for FIND-G6-06
+    (ReadmeRendererPlugin protocol, per-platform ownership matrix,
+    DI/registry wiring, ansible reference impl plan, parity test strategy).

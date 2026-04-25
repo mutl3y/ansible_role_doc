@@ -20,6 +20,9 @@ open_in_other_cycles:
     note: "Decorator-based plugin self-registration. Phase 0 sweep blockers: bootstrap_default_plugins(registry=...) replay onto alternate registries; FQCN-resolution timing for deferred registrations."
   - id: FIND-G6-06
     deferred_to: dedicated_planning_slice_readme_platform_agnostic
+    design_slice: docs/plan/20260425-readme-renderer-plugin-design/plan.yaml
+    design_slice_status: design_only_awaiting_user_review
+    cycle_link: g7
     note: >
       scanner_readme/* hardcodes Ansible role rendering (meta/main.yml, Galaxy install,
       role variables/tasks/handlers sections, ansible-role-doc legacy markers). Product
@@ -29,6 +32,7 @@ open_in_other_cycles:
       section/style/marker ownership matrix per platform, DI/registry wiring plan,
       Ansible plugin migration as reference impl, parity tests vs. current Ansible-only
       output. Mechanical in-loop refactor would prematurely freeze the protocol shape.
+      g7 (2026-04-25) delivered all 5 pre-code artefacts in the design slice above.
   # FIND-10: closed (subsumed by FIND-G3-01 close + FIND-G3-03 do_not_re_flag rulings).
 
 active_lessons:

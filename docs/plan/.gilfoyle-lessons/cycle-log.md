@@ -54,3 +54,28 @@
 - Elevated to dedicated planning slice: FIND-G6-06 (scanner_readme/* hardcodes Ansible role rendering — meta/main.yml, Galaxy install, role variables/tasks/handlers sections, ansible-role-doc legacy markers). Product vision (confirmed by user 2026-04-25) is plug-and-play platform support across Ansible, Terraform, Kubernetes, AAP. Each plugin must own input + scanning logic + output rendering. Required artefacts: ReadmeRendererPlugin protocol design, section/style/marker ownership matrix per platform, DI/registry wiring, Ansible plugin migration as reference impl, parity tests vs. current Ansible-only output. Mechanical in-loop refactor would prematurely freeze the protocol shape.
 - Gate: GREEN (754 passed / 7 skipped on second run; first run had stale `pytest_out.txt` cache pollution from prior g5 commit hook restage — re-run cleared it; ruff clean, black clean, mypy 0 errors / 133 source files).
 - Six consecutive thorough cycles (typing → architecture → coupling → registry_lifecycle → registry_boilerplate → ownership) all GREEN.
+
+## g7 — 2026-04-25 — planning slice (FIND-G6-06)
+
+**Type:** Design-only planning slice (no code shipped).
+**Trigger:** FIND-G6-06 (scanner_readme platform-agnostic) deferred from g6.
+**Artefact:** docs/plan/20260425-readme-renderer-plugin-design/plan.yaml
+
+**Pre-code artefacts delivered (all five required by FIND-G6-06):**
+1. ReadmeRendererPlugin protocol design — 8 methods, 2 class attrs, neutrality invariants.
+2. Per-platform ownership matrix — 18 decision points × {Ansible, Terraform, Kubernetes, AAP} with P/N/H ownership classification.
+3. DI/registry wiring plan — slot=`readme_renderer`, fail-closed resolver, reuses gf2-full-remediation platform_key plumbing.
+4. Ansible reference impl migration plan — 9 sequenced steps + doc_insights sub-protocol decision (Option A recommended).
+5. Parity test strategy — 4 new test modules + byte-for-byte parity gate + public API freeze contract.
+
+**Risks documented:** R1 (parse_style_readme platform-key threading, high), R2 (template path relocation), R3 (doc_insights sub-protocol cost), R4 (render_readme signature), R5 (rendering_seams import path).
+
+**External consumer freeze contract:**
+- src/prism/api.py:28 render_readme — signature unchanged
+- src/prism/cli_app/shared.py:16 parse_style_readme — signature unchanged
+- src/prism/scanner_reporting/runbook.py:13 build_render_jinja_environment — symbol unchanged
+
+**Status:** awaiting user review/approval before implementation slice begins.
+**Next action:** A1 (user decision) → A2 (implementation plan with 5 waves) → A3 (R1 spike).
+
+**Gate:** N/A (no code changes).
