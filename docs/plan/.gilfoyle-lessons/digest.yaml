@@ -1,8 +1,8 @@
 # Gilfoyle review-loop digest — index for next cycle's Phase 0 sweep
-# Last updated: g8 implementation close (2026-04-25)
+# Last updated: g9 implementation close (2026-04-25)
 
-closed_findings_count: 28  # g1=7 + g2=5 + g3=1 + g4=1 + g5=2 + g6=5 + g7b=1 + g8=6
-deferred_findings_count: 6  # g2=1 + g3=1 + g5=1 + g6=1 + g8=2
+closed_findings_count: 33  # g1=7 + g2=5 + g3=1 + g4=1 + g5=2 + g6=5 + g7b=1 + g8=6 + g9=5
+deferred_findings_count: 8  # g2=1 + g3=1 + g5=1 + g6=1 + g8=2 + g9=2
 needs_replan_count: 1
 
 open_in_other_cycles:
@@ -43,6 +43,14 @@ open_in_other_cycles:
   #   DeprecationWarning(stacklevel=2). Public facades unchanged.
   #   W2 TaskBoundaryDetector protocol DROPPED (annotation parsing ships as-is).
   #   W5 policies/→defaults/ rename DROPPED.
+  # FIND-G9-01..G9-05: closed in g9 implementation cycle (2026-04-25, commit 6e2090f).
+  #   Honoured the g7b 'one release later' deletion schedule. Removed the entire
+  #   scanner_plugins/policies/ directory: facade __init__.py + 3 deprecation shims
+  #   (annotation_parsing, constants, extract_defaults). DefaultScanPipelinePlugin
+  #   relocated to scanner_plugins/default_scan_pipeline.py (top-level neutral home).
+  #   Rewired 9 imports across scanner_plugins/__init__.py, defaults.py, and
+  #   test_plugin_kernel_extension_parity.py. Deleted TestPoliciesShimContract
+  #   (4 vacuous shim tests). 751 passed, mypy delta=0.
   # FIND-10: closed (subsumed by FIND-G3-01 close + FIND-G3-03 do_not_re_flag rulings).
 
 active_lessons:

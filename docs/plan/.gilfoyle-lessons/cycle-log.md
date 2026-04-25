@@ -188,3 +188,32 @@ registry_boilerplate → ownership → ownership-impl) all GREEN. Sign-off bar e
 - 8-module re-export chains are not "light-cycle" work; defer to dedicated alias-purge slices.
 
 **Eight consecutive thorough cycles** (typing → architecture → coupling → registry_lifecycle → registry_boilerplate → ownership → ownership-design → coupling/typing/abstraction).
+
+## Cycle g9 — deprecation-shim purge (2026-04-25)
+
+**Axis:** architectural-debt purge — honour g7b "one release later" deletion schedule for the `scanner_plugins.policies` shim directory.
+
+**Closed (5):**
+- **FIND-G9-01** dead façade — Deleted `scanner_plugins/policies/__init__.py` (re-exported four AnsibleDefault* classes + Jinja/YAML parsers + DefaultScanPipelinePlugin from canonical homes; owned zero policies).
+- **FIND-G9-02** deprecation shim — Deleted `scanner_plugins/policies/annotation_parsing.py` (34 lines of `DeprecationWarning` + 6 re-exports from `parsers.comment_doc.annotation_parsing`).
+- **FIND-G9-03** deprecation shim — Deleted `scanner_plugins/policies/extract_defaults.py` (107 lines of `DeprecationWarning` + 30+ re-exports from ansible/* and parsers/*).
+- **FIND-G9-04** deprecation shim — Deleted `scanner_plugins/policies/constants.py` (64 lines of `DeprecationWarning` + constant re-exports).
+- **FIND-G9-05** dead test coverage — Deleted `TestPoliciesShimContract` (4 vacuous tests asserting the shims emit warnings).
+
+**Side-effects:**
+- Relocated `DefaultScanPipelinePlugin` from `scanner_plugins/policies/default_scan_pipeline.py` to `scanner_plugins/default_scan_pipeline.py` (top-level, platform-neutral; was the only owned content under `policies/`).
+- Rewired 9 imports across `scanner_plugins/__init__.py`, `scanner_plugins/defaults.py`, `tests/test_plugin_kernel_extension_parity.py` to canonical paths.
+
+**Deferred (2):**
+- **FIND-G9-D-A** `scanner_reporting/runbook.py` — separate deprecation shim re-exporting from `scanner_plugins/parsers/comment_doc/runbook_renderer.py`. Defer to a dedicated reporting-shim purge.
+- **FIND-G9-D-B** `scanner_core/standalone_di.py` — 25-line parallel DI surface (`StandaloneDI` + `make_standalone_di`); 4 callsites in `scanner_plugins/defaults.py`. Consolidate into `DIContainer` minimal-mode in g10.
+
+**Carried forward (pre-existing):** FIND-G8-01 (8-module alias purge), FIND-G8-03 (PreparedTaskAnnotationPolicy TypedDict narrowing), FIND-G8-D-G/H/I.
+
+**Gates:** pytest 751 passed / 7 skipped, ruff 0, black 0, mypy delta=0 (99 baseline).
+
+**Lessons re-confirmed:**
+- "No deprecation cycle, delete on relocation" (user 2026-04-25) — once a shim's "one release later" gate is reached, it must be deleted, not extended. The contract test class becomes vacuous and must be deleted alongside.
+- Shim consumer surface verification before purge: `grep -rn "scanner_plugins.policies" src/prism --include="*.py"` revealed exactly 9 import sites + 4 test references — small enough for single-commit purge.
+
+**Nine consecutive thorough cycles** (typing → architecture → coupling → registry_lifecycle → registry_boilerplate → ownership → ownership-design → coupling/typing/abstraction → shim-purge).

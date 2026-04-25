@@ -206,3 +206,35 @@
     inline label sets to a module-level frozenset, dropped two dead private
     wrappers. Two findings deferred where the surface area exceeded a light
     cycle's safe blast radius.
+
+- cycle: g9
+  date: 2026-04-25
+  axis: shim-purge / architectural-debt
+  artefact: docs/plan/20260425-g9-policies-shim-purge/findings.yaml
+  grade: PASS
+  closed_count: 5
+  deferred_count: 2
+  closed_findings:
+    - FIND-G9-01  # facade __init__.py
+    - FIND-G9-02  # annotation_parsing shim
+    - FIND-G9-03  # extract_defaults shim
+    - FIND-G9-04  # constants shim
+    - FIND-G9-05  # TestPoliciesShimContract test class
+  deferred_findings:
+    - FIND-G9-D-A  # scanner_reporting/runbook.py shim
+    - FIND-G9-D-B  # scanner_core/standalone_di.py parallel DI
+  side_effects:
+    - relocated_default_scan_pipeline_to_top_level
+    - rewired_9_imports_to_canonical_paths
+  gates:
+    pytest: "751 passed / 7 skipped"
+    ruff: "0 errors"
+    black: "0 reformats"
+    mypy_delta: 0  # vs 99 baseline
+  notes: >
+    Honoured the g7b "one release later" deletion schedule for
+    scanner_plugins/policies/. Deleted entire directory (4 files: facade +
+    3 deprecation shims). Relocated the only owned content
+    (DefaultScanPipelinePlugin) to scanner_plugins/default_scan_pipeline.py.
+    Test class TestPoliciesShimContract became vacuous and was deleted
+    alongside the shims.
