@@ -1,8 +1,8 @@
 # Gilfoyle review-loop digest — index for next cycle's Phase 0 sweep
-# Last updated: g9 implementation close (2026-04-25)
+# Last updated: g10 implementation close (2026-04-25)
 
-closed_findings_count: 33  # g1=7 + g2=5 + g3=1 + g4=1 + g5=2 + g6=5 + g7b=1 + g8=6 + g9=5
-deferred_findings_count: 8  # g2=1 + g3=1 + g5=1 + g6=1 + g8=2 + g9=2
+closed_findings_count: 35  # g1=7 + g2=5 + g3=1 + g4=1 + g5=2 + g6=5 + g7b=1 + g8=6 + g9=5 + g10=2
+deferred_findings_count: 8  # g2=1 + g3=1 + g5=1 + g6=1 + g8=2 + g9=2 (both g9 carry-overs closed in g10)
 needs_replan_count: 1
 
 open_in_other_cycles:
@@ -51,6 +51,11 @@ open_in_other_cycles:
   #   Rewired 9 imports across scanner_plugins/__init__.py, defaults.py, and
   #   test_plugin_kernel_extension_parity.py. Deleted TestPoliciesShimContract
   #   (4 vacuous shim tests). 751 passed, mypy delta=0.
+  # FIND-G10-01..G10-02: closed in g10 implementation cycle (2026-04-25, commit 9880c0a).
+  #   Both g9 carry-overs eliminated. Deleted scanner_reporting/runbook.py
+  #   (32-line deprecation shim) and scanner_core/standalone_di.py (25-line
+  #   parallel DI surface). _make_standalone_di in scanner_plugins/defaults.py
+  #   now constructs DIContainer directly. 740 passed, mypy delta=0.
   # FIND-10: closed (subsumed by FIND-G3-01 close + FIND-G3-03 do_not_re_flag rulings).
 
 active_lessons:

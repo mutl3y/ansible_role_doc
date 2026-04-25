@@ -238,3 +238,26 @@
     (DefaultScanPipelinePlugin) to scanner_plugins/default_scan_pipeline.py.
     Test class TestPoliciesShimContract became vacuous and was deleted
     alongside the shims.
+
+- cycle: g10
+  date: 2026-04-25
+  axis: parallel-surface elimination
+  artefact: docs/plan/20260425-g10-parallel-di-and-runbook-shim-purge/findings.yaml
+  grade: PASS
+  closed_count: 2
+  deferred_count: 0
+  closed_findings:
+    - FIND-G10-01  # scanner_reporting/runbook.py shim
+    - FIND-G10-02  # scanner_core/standalone_di.py parallel DI surface
+  deferred_findings: []
+  gates:
+    pytest: "740 passed / 1 skipped"
+    ruff: "0 errors"
+    black: "0 reformats"
+    mypy_delta: 0  # vs 99 baseline
+  notes: >
+    Closed both g9 carry-overs in one slice. Eliminated the last
+    deprecation shim (scanner_reporting/runbook.py) and the parallel
+    StandaloneDI surface in scanner_core/standalone_di.py. The 4
+    _make_standalone_di callsites in scanner_plugins/defaults.py now
+    construct DIContainer directly.

@@ -217,3 +217,21 @@ registry_boilerplate → ownership → ownership-impl) all GREEN. Sign-off bar e
 - Shim consumer surface verification before purge: `grep -rn "scanner_plugins.policies" src/prism --include="*.py"` revealed exactly 9 import sites + 4 test references — small enough for single-commit purge.
 
 **Nine consecutive thorough cycles** (typing → architecture → coupling → registry_lifecycle → registry_boilerplate → ownership → ownership-design → coupling/typing/abstraction → shim-purge).
+
+## Cycle g10 — parallel-surface elimination (2026-04-25)
+
+**Axis:** parallel-surface elimination — close both g9 carry-overs in one slice.
+
+**Closed (2):**
+- **FIND-G10-01** runbook deprecation shim — Deleted `scanner_reporting/runbook.py` (32-line `DeprecationWarning` + re-exports of `build_runbook_rows`/`render_runbook`/`render_runbook_csv` from `scanner_plugins.parsers.comment_doc.runbook_renderer`). Stable package facade `scanner_reporting/__init__.py` already re-exports the same callables; one test_t1_02_coverage_lift_batch2.py heading comment still labels the section "scanner_reporting/runbook.py" but its tests already use the canonical import path.
+- **FIND-G10-02** parallel DI surface — Deleted `scanner_core/standalone_di.py` (25-line `StandaloneDI` class exposing only `scan_options`). Inlined `_make_standalone_di` in `scanner_plugins/defaults.py` to construct `DIContainer(role_path, scan_options)` directly. The 4 callsites (lines 398, 415, 427, 437) all already had `role_path` in scope as the first parameter of their public functions, so DIContainer can be built directly with no information loss.
+
+**Carried forward (pre-existing):** FIND-G8-01 (8-module alias purge), FIND-G8-03 (PreparedTaskAnnotationPolicy TypedDict narrowing), FIND-G8-D-G/H/I.
+
+**Gates:** pytest 740 passed / 1 skipped, ruff 0, black 0, mypy delta=0 (99 baseline).
+
+**Lessons re-confirmed:**
+- Parallel "minimal" DI surfaces are usually 25 lines of indirection over a 1-line `DIContainer(role_path, scan_options)` call. If the consumer already has `role_path` in scope, the shim adds no abstraction — only confusion about which DI is "real".
+- Stable package facades (`scanner_reporting/__init__.py`) make the deprecation shim's "legacy import path" warranty redundant — the package import already covers the contract.
+
+**Ten consecutive thorough cycles** (typing → architecture → coupling → registry_lifecycle → registry_boilerplate → ownership → ownership-design → coupling/typing/abstraction → shim-purge → parallel-surface elimination).
