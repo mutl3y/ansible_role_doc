@@ -250,3 +250,19 @@ registry_boilerplate → ownership → ownership-impl) all GREEN. Sign-off bar e
 - Variable-name semantics at the callsite (`continuation`) often substitute for distinct regex names. Trust the surrounding code's lexical context before introducing parallel symbols.
 
 **Eleven consecutive thorough cycles** (typing → architecture → coupling → registry_lifecycle → registry_boilerplate → ownership → ownership-design → coupling/typing/abstraction → shim-purge → parallel-surface → alias-purge).
+
+## Cycle g12 — protocol/concrete naming collision (2026-04-25)
+
+**Axis:** plug-and-play hygiene — Protocol vs concrete name collision.
+
+**Closed (2):**
+- **FIND-G12-01** `YAMLParsingPolicyPlugin` collision — Concrete in `parsers/yaml/parsing_policy.py:13` shared its name with Protocol in `scanner_plugins/interfaces.py:110`. Registry imported the concrete and typed `dict[str, type[YAMLParsingPolicyPlugin]]` against it, blocking 3rd-party YAML-parsing plugins. Renamed concrete -> `DefaultYAMLParsingPolicyPlugin`; switched registry to import the Protocol from `scanner_plugins.interfaces`.
+- **FIND-G12-02** `JinjaAnalysisPolicyPlugin` collision — Same pattern. Renamed concrete -> `DefaultJinjaAnalysisPolicyPlugin`; same registry fix.
+
+**Gates:** pytest 751 passed / 7 skipped, ruff 0, black 0, mypy delta=0 (99 baseline).
+
+**Lessons re-confirmed:**
+- When a Protocol and its default impl share a class name, the registry will inevitably import the wrong one. The `DefaultScanPipelinePlugin` precedent (concrete) + `ScanPipelinePlugin` (Protocol) is the right naming convention — apply it everywhere.
+- Type annotations in registry slot dicts are the canonical "is this slot truly extensible?" test. If `dict[str, type[X]]` resolves to the concrete, you've shipped a contract that requires subclassing the default.
+
+**Twelve consecutive thorough cycles** (typing → architecture → coupling → registry_lifecycle → registry_boilerplate → ownership → ownership-design → coupling/typing/abstraction → shim-purge → parallel-surface → alias-purge → naming-collision).

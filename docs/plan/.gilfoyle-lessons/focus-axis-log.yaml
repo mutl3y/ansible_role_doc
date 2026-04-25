@@ -280,3 +280,24 @@
   notes: >
     Closed FIND-G8-01 carry-over. Purged 11 references in 6 files;
     rewired one functional callsite to canonical TASK_ENTRY_RE.
+
+- cycle: g12
+  date: 2026-04-25
+  axis: protocol/concrete naming collision
+  artefact: docs/plan/20260425-g12-protocol-vs-concrete-naming-collision/findings.yaml
+  grade: PASS
+  closed_count: 2
+  deferred_count: 0
+  closed_findings:
+    - FIND-G12-01  # YAMLParsingPolicyPlugin Protocol/concrete collision
+    - FIND-G12-02  # JinjaAnalysisPolicyPlugin Protocol/concrete collision
+  deferred_findings: []
+  gates:
+    pytest: "751 passed / 7 skipped"
+    ruff: "0 errors"
+    black: "0 reformats"
+    mypy_delta: 0  # vs 99 baseline
+  notes: >
+    Concrete defaults renamed to Default- prefix matching
+    DefaultScanPipelinePlugin precedent. Registry slot-dict type annotations
+    now resolve to Protocols, restoring 3rd-party extension capability.
