@@ -11,8 +11,8 @@ from prism.scanner_plugins.ansible.default_policies import (
     AnsibleDefaultTaskTraversalPolicyPlugin,
     AnsibleDefaultVariableExtractorPolicyPlugin,
 )
-from prism.scanner_plugins.parsers.yaml import YAMLParsingPolicyPlugin
-from prism.scanner_plugins.parsers.jinja import JinjaAnalysisPolicyPlugin
+from prism.scanner_plugins.parsers.yaml import DefaultYAMLParsingPolicyPlugin
+from prism.scanner_plugins.parsers.jinja import DefaultJinjaAnalysisPolicyPlugin
 from prism.scanner_plugins.parsers.comment_doc.role_notes_parser import (
     CommentDrivenDocumentationParser,
 )
@@ -39,8 +39,8 @@ _TASK_LINE_PARSING_FALLBACK = AnsibleDefaultTaskLineParsingPolicyPlugin()
 _TASK_ANNOTATION_FALLBACK = AnsibleDefaultTaskAnnotationPolicyPlugin()
 _TASK_TRAVERSAL_FALLBACK = AnsibleDefaultTaskTraversalPolicyPlugin()
 _VARIABLE_EXTRACTOR_FALLBACK = AnsibleDefaultVariableExtractorPolicyPlugin()
-_YAML_PARSING_FALLBACK = YAMLParsingPolicyPlugin()
-_JINJA_ANALYSIS_FALLBACK = JinjaAnalysisPolicyPlugin()
+_YAML_PARSING_FALLBACK = DefaultYAMLParsingPolicyPlugin()
+_JINJA_ANALYSIS_FALLBACK = DefaultJinjaAnalysisPolicyPlugin()
 
 _FALLBACK_SINGLETONS = [
     _TASK_LINE_PARSING_FALLBACK,

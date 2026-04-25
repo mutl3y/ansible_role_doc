@@ -10,7 +10,7 @@ import yaml
 from prism.scanner_io.loader import _format_candidate_failure_path
 
 
-class YAMLParsingPolicyPlugin:
+class DefaultYAMLParsingPolicyPlugin:
     """Default YAML policy preserving current safe_load behavior and failure shape."""
 
     PLUGIN_IS_STATELESS: ClassVar[bool] = True
@@ -57,4 +57,4 @@ class YAMLParsingPolicyPlugin:
             }
 
 
-__all__ = ["YAMLParsingPolicyPlugin"]
+__all__ = ["DefaultYAMLParsingPolicyPlugin"]

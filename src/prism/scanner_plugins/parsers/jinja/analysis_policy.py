@@ -16,7 +16,7 @@ from jinja2.sandbox import SandboxedEnvironment
 _JINJA_ENV = SandboxedEnvironment()
 
 
-class JinjaAnalysisPolicyPlugin:
+class DefaultJinjaAnalysisPolicyPlugin:
     """Default Jinja analysis policy implementation for fsrc."""
 
     PLUGIN_IS_STATELESS: ClassVar[bool] = True
@@ -92,6 +92,6 @@ def _extract_name_targets(node: object) -> set[str]:
 
 
 __all__ = [
-    "JinjaAnalysisPolicyPlugin",
+    "DefaultJinjaAnalysisPolicyPlugin",
     "collect_undeclared_jinja_variables",
 ]

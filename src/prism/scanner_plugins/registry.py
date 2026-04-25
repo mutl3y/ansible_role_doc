@@ -12,8 +12,8 @@ from prism.scanner_plugins.interfaces import FeatureDetectionPlugin
 from prism.scanner_plugins.interfaces import OutputOrchestrationPlugin
 from prism.scanner_plugins.interfaces import ScanPipelinePlugin
 from prism.scanner_plugins.interfaces import VariableDiscoveryPlugin
-from prism.scanner_plugins.parsers.jinja import JinjaAnalysisPolicyPlugin
-from prism.scanner_plugins.parsers.yaml import YAMLParsingPolicyPlugin
+from prism.scanner_plugins.interfaces import JinjaAnalysisPolicyPlugin
+from prism.scanner_plugins.interfaces import YAMLParsingPolicyPlugin
 
 
 PRISM_PLUGIN_API_VERSION: tuple[int, int] = (1, 0)

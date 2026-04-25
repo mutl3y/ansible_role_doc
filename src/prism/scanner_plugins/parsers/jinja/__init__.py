@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from prism.scanner_plugins.parsers.jinja.analysis_policy import (
-    JinjaAnalysisPolicyPlugin,
+    DefaultJinjaAnalysisPolicyPlugin,
 )
 from prism.scanner_plugins.parsers.jinja.analysis_policy import (
     collect_undeclared_jinja_variables,
@@ -14,7 +14,7 @@ from prism.scanner_plugins.parsers.jinja.patterns import (
 )
 
 __all__ = [
-    "JinjaAnalysisPolicyPlugin",
+    "DefaultJinjaAnalysisPolicyPlugin",
     "collect_undeclared_jinja_variables",
     "JINJA_IDENTIFIER_RE",
     "JINJA_VAR_RE",

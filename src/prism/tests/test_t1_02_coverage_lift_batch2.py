@@ -52,56 +52,56 @@ def test_task_line_parsing_constants_present() -> None:
 
 def test_yaml_load_yaml_file_valid_and_invalid(tmp_path: Path) -> None:
     from prism.scanner_plugins.parsers.yaml.parsing_policy import (
-        YAMLParsingPolicyPlugin,
+        DefaultYAMLParsingPolicyPlugin,
     )
 
     good = tmp_path / "g.yml"
     good.write_text("a: 1\nb: [1,2]\n", encoding="utf-8")
-    assert YAMLParsingPolicyPlugin.load_yaml_file(good) == {"a": 1, "b": [1, 2]}
+    assert DefaultYAMLParsingPolicyPlugin.load_yaml_file(good) == {"a": 1, "b": [1, 2]}
 
     bad = tmp_path / "b.yml"
     bad.write_text("a: [unterminated\n", encoding="utf-8")
-    assert YAMLParsingPolicyPlugin.load_yaml_file(bad) is None
+    assert DefaultYAMLParsingPolicyPlugin.load_yaml_file(bad) is None
 
     missing = tmp_path / "missing.yml"
-    assert YAMLParsingPolicyPlugin.load_yaml_file(missing) is None
+    assert DefaultYAMLParsingPolicyPlugin.load_yaml_file(missing) is None
 
 
 def test_yaml_parse_yaml_candidate_paths(tmp_path: Path) -> None:
     from prism.scanner_plugins.parsers.yaml.parsing_policy import (
-        YAMLParsingPolicyPlugin,
+        DefaultYAMLParsingPolicyPlugin,
     )
 
     role_root = tmp_path
     valid = tmp_path / "tasks" / "main.yml"
     valid.parent.mkdir()
     valid.write_text("- name: x\n  command: echo\n", encoding="utf-8")
-    assert YAMLParsingPolicyPlugin.parse_yaml_candidate(valid, role_root) is None
+    assert DefaultYAMLParsingPolicyPlugin.parse_yaml_candidate(valid, role_root) is None
 
     invalid = tmp_path / "tasks" / "broken.yml"
     invalid.write_text("a: [oops\n", encoding="utf-8")
-    failure = YAMLParsingPolicyPlugin.parse_yaml_candidate(invalid, role_root)
+    failure = DefaultYAMLParsingPolicyPlugin.parse_yaml_candidate(invalid, role_root)
     assert failure is not None
     assert failure["file"] == "tasks/broken.yml"
     assert failure["line"] is not None
     assert "error" in failure
 
     missing = tmp_path / "missing.yml"
-    failure2 = YAMLParsingPolicyPlugin.parse_yaml_candidate(missing, role_root)
+    failure2 = DefaultYAMLParsingPolicyPlugin.parse_yaml_candidate(missing, role_root)
     assert failure2 is not None
     assert failure2["error"].startswith("read_error:")
 
 
 def test_yaml_parse_yaml_candidate_outside_role_root(tmp_path: Path) -> None:
     from prism.scanner_plugins.parsers.yaml.parsing_policy import (
-        YAMLParsingPolicyPlugin,
+        DefaultYAMLParsingPolicyPlugin,
     )
 
     role_root = tmp_path / "role"
     role_root.mkdir()
     other = tmp_path / "other.yml"
     other.write_text("a: [bad\n", encoding="utf-8")
-    failure = YAMLParsingPolicyPlugin.parse_yaml_candidate(other, role_root)
+    failure = DefaultYAMLParsingPolicyPlugin.parse_yaml_candidate(other, role_root)
     assert failure is not None
     # When candidate is outside role_root, helper falls back to absolute path
     assert failure["file"].endswith("other.yml")

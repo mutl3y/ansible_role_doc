@@ -9,7 +9,9 @@ import yaml
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from prism.scanner_plugins.parsers.yaml.parsing_policy import YAMLParsingPolicyPlugin
+from prism.scanner_plugins.parsers.yaml.parsing_policy import (
+    DefaultYAMLParsingPolicyPlugin,
+)
 
 
 @settings(max_examples=100)
@@ -34,7 +36,7 @@ def test_load_yaml_file_never_raises_on_arbitrary_content(text: str) -> None:
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as fh:
             fh.write(text)
-        YAMLParsingPolicyPlugin.load_yaml_file(path)
+        DefaultYAMLParsingPolicyPlugin.load_yaml_file(path)
     finally:
         try:
             os.unlink(path)
@@ -55,7 +57,7 @@ def test_parse_yaml_candidate_returns_none_or_error_dict(text: str) -> None:
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as fh:
             fh.write(text)
-        result = YAMLParsingPolicyPlugin.parse_yaml_candidate(path, tmpdir)
+        result = DefaultYAMLParsingPolicyPlugin.parse_yaml_candidate(path, tmpdir)
         assert result is None or isinstance(result, dict)
     finally:
         try:

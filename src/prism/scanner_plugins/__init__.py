@@ -16,8 +16,8 @@ from prism.scanner_plugins.ansible.default_policies import (
     AnsibleDefaultTaskTraversalPolicyPlugin,
     AnsibleDefaultVariableExtractorPolicyPlugin,
 )
-from prism.scanner_plugins.parsers.jinja import JinjaAnalysisPolicyPlugin
-from prism.scanner_plugins.parsers.yaml import YAMLParsingPolicyPlugin
+from prism.scanner_plugins.parsers.jinja import DefaultJinjaAnalysisPolicyPlugin
+from prism.scanner_plugins.parsers.yaml import DefaultYAMLParsingPolicyPlugin
 from prism.scanner_plugins.parsers.comment_doc.role_notes_parser import (
     CommentDrivenDocumentationParser,
 )
@@ -65,8 +65,8 @@ _DIRECT_REGISTRATIONS: tuple[tuple[str, str, type], ...] = (
         "task_annotation_parsing",
         AnsibleDefaultTaskAnnotationPolicyPlugin,
     ),
-    ("yaml_parsing_policy", "yaml_parsing", YAMLParsingPolicyPlugin),
-    ("jinja_analysis_policy", "jinja_analysis", JinjaAnalysisPolicyPlugin),
+    ("yaml_parsing_policy", "yaml_parsing", DefaultYAMLParsingPolicyPlugin),
+    ("jinja_analysis_policy", "jinja_analysis", DefaultJinjaAnalysisPolicyPlugin),
 )
 
 # (slot, name, module_path, class_name) entries for slots that must defer the
