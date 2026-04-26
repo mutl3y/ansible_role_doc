@@ -82,15 +82,16 @@
   evidence_one_line: "Added test_legacy_retirement.py (7 tests) and test_ansible_task_traversal_bare.py (8 tests) covering the post-migration authoritative surfaces."
 
 - id: FIND-02
-  cycle: g1
+  cycle: g13
   category: duplication
   severity: high
-  status: needs_replan
+  status: closed
   title: Six constants defined in two modules under the same names with different values
   files_touched:
-    - src/prism/scanner_plugins/policies/constants.py
+    - src/prism/scanner_plugins/ansible/task_keywords.py
+    - src/prism/scanner_plugins/ansible/task_vocabulary.py
     - src/prism/scanner_plugins/ansible/task_traversal_bare.py
-  evidence_one_line: "Audit found NOT duplication — intentional generic/specialization split enforced by domain-neutrality + superset tests; classification (policies/ vs ansible/) is an architecture decision deferred to g2."
+  evidence_one_line: "g13 Wave A: TASK_BLOCK_KEYS + TASK_META_KEYS extracted to canonical task_keywords.py; task_vocabulary.py and task_traversal_bare.py import from it. Remaining 4 constants (TASK_INCLUDE_KEYS etc.) are intentional FQCN-superset vs bare-form specializations — not duplication. commit 8552114."
 
 - id: FIND-03
   cycle: g1
@@ -108,7 +109,7 @@
   status: deferred
   title: scanner_core imports four times from scanner_plugins.* (layer direction question)
   files_touched: []
-  evidence_one_line: "Deferred to g3 — the four scanner_core→scanner_plugins seams are exactly what the g3 (coupling) DI/registry rewire will relocate or eliminate."
+  evidence_one_line: "Deferred to g3 — the four scanner_core→scanner_plugins seams are exactly what the g3 (coupling) DI/registry rewire will relocate or eliminate. Note: standalone_di.py (one affected file) deleted in g10; remaining seams in di.py + scanner_context.py still open."
 
 # ---- Cycle g2 (focus_axis=architecture, 2026-04-25) ----
 
@@ -211,10 +212,10 @@
   cycle: g5
   category: abstraction
   severity: low
-  status: deferred
+  status: deferred_final
   title: "True decorator self-registration on plugin classes (closes LESSON-08 at source)"
   files_touched: []
-  evidence_one_line: "Phase 0 sweep flagged 2 blockers: registry-replay tests pass alternate registries to bootstrap_default_plugins(registry=...); FQCN-resolution timing for deferred registrations risks load-order bugs. Needs planning slice — not axis-bounded."
+  evidence_one_line: "Both blockers confirmed permanent (g13 research): registry-replay tests require alternate-registry injection into bootstrap_default_plugins(registry=...); deferred-string FQCN resolution has load-order coupling. Not axis-bounded. Closed as deferred_final."
 
 - id: FIND-G5-03
   cycle: g5
@@ -377,3 +378,44 @@
     - src/prism/tests/test_readme_renderer_plugin_parity.py
     - src/prism/tests/test_readme_renderer_plugin_isolation.py
   evidence_one_line: "Introduced ReadmeRendererPlugin Protocol + registry slot; AnsibleReadmeRendererPlugin owns all Ansible-shaped rendering; render.py and guide.py delegate via plugin_registry (fail-closed); 70 new tests; 949 passed, mypy delta=0."
+
+# ---- Cycle g13 (focus_axis=dedup/layer/typing, 2026-04-25) ----
+
+- id: FIND-G8-D-I
+  cycle: g9
+  category: surface_area
+  severity: low
+  status: closed
+  title: "scanner_plugins/policies/__init__.py facade re-exports without DeprecationWarning"
+  files_touched:
+    - src/prism/scanner_plugins/policies/__init__.py
+  evidence_one_line: "File deleted in g9 (policies/ directory purge). Entire shim hierarchy removed; consumers migrated to direct imports. Ledger-only close in g13."
+
+- id: FIND-G8-D-G
+  cycle: g13
+  category: layer_violation
+  severity: medium
+  status: closed
+  title: "runbook_renderer.py imports from prism.scanner_readme.rendering_seams (plugin importing from readme domain)"
+  files_touched:
+    - src/prism/scanner_plugins/parsers/comment_doc/jinja_utils.py
+    - src/prism/scanner_plugins/parsers/comment_doc/runbook_renderer.py
+    - src/prism/tests/test_plugin_kernel_extension_parity.py
+    - src/prism/tests/test_scanner_reporting.py
+  evidence_one_line: "g13 Wave B: Created jinja_utils.py in comment_doc layer (verbatim copy of build_render_jinja_environment, zero domain deps); swapped runbook_renderer.py import; tightened test guardrails to disallow any scanner_readme import from plugin layer. commit 8552114."
+
+- id: FIND-G8-03
+  cycle: g13
+  category: weak_typing
+  severity: high
+  status: closed
+  title: "PreparedTaskAnnotationPolicy Protocol returns weak dict[str, object] instead of TypedDict"
+  files_touched:
+    - src/prism/scanner_data/contracts_request.py
+    - src/prism/scanner_plugins/parsers/comment_doc/annotation_parsing.py
+    - src/prism/scanner_extract/task_annotation_parsing.py
+    - src/prism/scanner_core/task_extract_adapters.py
+    - src/prism/scanner_extract/task_catalog_assembly.py
+    - src/prism/scanner_plugins/ansible/extract_policies.py
+    - src/prism/scanner_plugins/ansible/default_policies.py
+  evidence_one_line: "g13 Wave C: Added TaskAnnotation TypedDict (kind/text Required, disabled/format_warning/task_index optional); updated PreparedTaskAnnotationPolicy Protocol return type; propagated through all 6 annotation callsites. commit 8552114."

@@ -266,3 +266,25 @@ registry_boilerplate → ownership → ownership-impl) all GREEN. Sign-off bar e
 - Type annotations in registry slot dicts are the canonical "is this slot truly extensible?" test. If `dict[str, type[X]]` resolves to the concrete, you've shipped a contract that requires subclassing the default.
 
 **Twelve consecutive thorough cycles** (typing → architecture → coupling → registry_lifecycle → registry_boilerplate → ownership → ownership-design → coupling/typing/abstraction → shim-purge → parallel-surface → alias-purge → naming-collision).
+
+## Cycle g13 — dedup / layer-fix / TypedDict narrowing (2026-04-25)
+
+**Axis:** dedup + layer violation + typed contracts — close 3 long-deferred findings in one commit.
+
+**Closed (3+1 ledger-only):**
+- **FIND-02 / Wave A** `TASK_BLOCK_KEYS` + `TASK_META_KEYS` constant dedup — Both constants were byte-identical in `task_vocabulary.py` (bare) and `task_traversal_bare.py` (FQCN-inclusive). The duplication was real (not an intentional split like the other 4 key-sets). Extracted to canonical `task_keywords.py`; both modules now import from it. Remaining 4 constants (`TASK_INCLUDE_KEYS` etc.) intentionally differ (bare vs FQCN superset) — not deduped.
+- **FIND-G8-D-G / Wave B** `runbook_renderer.py` layer violation — Plugin layer importing `build_render_jinja_environment` from `scanner_readme.rendering_seams` (readme domain). Created `scanner_plugins/parsers/comment_doc/jinja_utils.py` (verbatim copy, zero domain deps); swapped import in `runbook_renderer.py`; tightened test guardrails in `test_plugin_kernel_extension_parity.py` + `test_scanner_reporting.py` to disallow any `scanner_readme` import from plugin layer (removed carve-out).
+- **FIND-G8-03 / Wave C** `TaskAnnotation` TypedDict narrowing — `PreparedTaskAnnotationPolicy.extract_task_annotations_for_file` previously typed `tuple[list[dict[str, object]], ...]`. Added `TaskAnnotation(TypedDict, total=False)` with `kind`/`text` as `Required[str]` + 3 optional keys; propagated through Protocol + 6 callsite files atomically.
+- **FIND-G8-D-I (ledger-only)** `scanner_plugins/policies/__init__.py` — file deleted in g9 (policies-shim-purge). No code change; ledger closure only.
+
+**Carried forward:** FIND-G8-D-H (TASK_ENTRY_RE rename — yaml genericization needs design slice), FIND-G5-02 (decorator self-registration — marked deferred_final, blockers permanent), FIND-10 (scanner_core layer direction — still open in di.py + scanner_context.py).
+
+**Gates:** pytest 949 passed / 7 skipped, ruff clean, black clean, mypy 99 errors (delta=0). commit 8552114.
+
+**Lessons:**
+- When two constants are truly byte-identical (not generic/superset), one canonical file is always the right fix — even when the duplication spans two modules with different conceptual roles.
+- After a prerequisite finding is closed (FIND-G6-06 ReadmeRendererPlugin), previously blocked dependent findings can often be resolved in a single file create + import swap (< 30 lines total).
+- `Required[str]` in a `total=False` TypedDict is the correct pattern for "this key must always be present even in a partial update dict" — it eliminates `cast()` at every `annotation["kind"]` callsite.
+- Propagating a TypedDict change across 6 files often reveals hidden extra impls (e.g., `default_policies.py` had its own method with the same weak return type, not discovered until mypy ran).
+
+**Thirteen consecutive thorough cycles** (typing → architecture → coupling → registry_lifecycle → registry_boilerplate → ownership → ownership-design → coupling/typing/abstraction → shim-purge → parallel-surface → alias-purge → naming-collision → dedup/layer/TypedDict).

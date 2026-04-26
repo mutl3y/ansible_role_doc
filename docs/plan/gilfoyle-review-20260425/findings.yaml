@@ -43,7 +43,8 @@ findings:
   - id: FIND-02
     category: duplication
     severity: high
-    status: needs_replan
+    status: closed
+    closed_in: g13
     title: Six constants defined in two modules under the same names with different values
     description: >
       `scanner_plugins/policies/constants.py` and `scanner_plugins/ansible/task_traversal_bare.py`

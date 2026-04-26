@@ -301,3 +301,33 @@
     Concrete defaults renamed to Default- prefix matching
     DefaultScanPipelinePlugin precedent. Registry slot-dict type annotations
     now resolve to Protocols, restoring 3rd-party extension capability.
+
+- cycle: g13
+  date: 2026-04-25
+  axis: dedup / layer-fix / TypedDict narrowing
+  artefact: docs/plan/g13-implementation/research_findings_g13_targets_abc.yaml
+  grade: PASS
+  closed_count: 3
+  ledger_only_count: 1
+  deferred_count: 0
+  closed_findings:
+    - FIND-02       # TASK_BLOCK_KEYS + TASK_META_KEYS extracted to task_keywords.py
+    - FIND-G8-D-G   # runbook_renderer.py layer violation fixed via jinja_utils.py
+    - FIND-G8-03    # TaskAnnotation TypedDict + Protocol narrowing (7 files)
+  ledger_only_findings:
+    - FIND-G8-D-I   # policies/__init__.py deleted in g9; ledger closure only
+  deferred_final_findings:
+    - FIND-G5-02    # Decorator self-registration — blockers permanent, closed as deferred_final
+  gates:
+    pytest: "949 passed / 7 skipped"
+    ruff: "0 errors"
+    black: "0 reformats"
+    mypy_delta: 0  # vs 99 baseline
+  commit: "8552114"
+  notes: >
+    Wave A: 2 truly byte-identical constants canonicalized to task_keywords.py.
+    Wave B: jinja_utils.py created in comment_doc layer; test guardrails tightened
+    (no scanner_readme carve-out). Wave C: TaskAnnotation TypedDict propagated
+    atomically through Protocol + 6 callsite files (annotation_parsing,
+    task_annotation_parsing, task_extract_adapters, task_catalog_assembly,
+    extract_policies, default_policies).

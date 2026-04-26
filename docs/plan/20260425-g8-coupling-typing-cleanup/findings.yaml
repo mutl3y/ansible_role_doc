@@ -35,8 +35,9 @@ findings:
     file: src/prism/scanner_plugins/parsers/comment_doc/annotation_parsing.py:78-80
     statement: "Public extract_task_annotations_for_file returns tuple[list[dict[str, object]], dict[str, list[dict[str, object]]]]. Annotation has fixed shape but PreparedTaskAnnotationPolicy Protocol locks the same weak shape, so a TypedDict introduction needs a coordinated pass across Protocol + scanner_extract callers."
     fix: "Defer to Protocol-wide TypedDict narrowing slice (next cycle). TaskAnnotation TypedDict + Protocol return type + 4 caller sites must be updated together."
-    status: deferred
-    deferred_reason: "Wider than a light cycle: contracts_request.py Protocol + scanner_extract/task_annotation_parsing.py + 2 wrapper methods + tests must all change atomically."
+    status: closed
+    closed_in: g13
+    closed_evidence: "TaskAnnotation TypedDict added to contracts_request.py; Protocol + 6 callsites updated atomically. commit 8552114."
 
   - id: FIND-G8-04
     severity: high
@@ -82,6 +83,9 @@ deferred:
   - id: FIND-G8-D-G
     statement: "runbook_renderer.py:14 imports from prism.scanner_readme.rendering_seams — layer violation."
     reason: "Depends on FIND-G6-06 implementation slice (scanner_readme plugin-ization). Not a g8 concern."
+    status: closed
+    closed_in: g13
+    closed_evidence: "jinja_utils.py created in comment_doc layer; import swapped; test guardrails tightened. commit 8552114."
 
   - id: FIND-G8-D-H
     statement: "TASK_ENTRY_RE name in yaml/line_shape.py uses Ansible vocabulary in 'platform-neutral' module."
@@ -90,6 +94,9 @@ deferred:
   - id: FIND-G8-D-I
     statement: "scanner_plugins/policies/__init__.py facade re-exports without DeprecationWarning."
     reason: "Per user g7b directive — facade-level shims accepted as silent re-export for one release; only the dedicated shim files emit warnings."
+    status: closed
+    closed_in: g9
+    closed_evidence: "File deleted in g9 policies-shim-purge. Ledger-only close."
 
 waves:
   - id: w1_typing
