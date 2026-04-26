@@ -1,8 +1,8 @@
 # Gilfoyle review-loop digest — index for next cycle's Phase 0 sweep
-# Last updated: g17 close (2026-04-26)
+# Last updated: g18 close (2026-04-26)
 
-closed_findings_count: 71  # g1=7 + g2=5 + g3=1 + g4=1 + g5=2 + g6=5 + g7b=1 + g8=6 + g9=5 + g10=2 + g11=1 + g12=2 + g13=3 + g14=8 + g15=7(+1 false positive) + g16=9 + g17=5
-deferred_findings_count: 10  # +2 from g17: FIND-G17-D01 (DEFAULT_PLUGIN_REGISTRY singleton), FIND-G17-D02 (PolicyBackedProxy DI proxy)
+closed_findings_count: 76  # g1=7 + g2=5 + g3=1 + g4=1 + g5=2 + g6=5 + g7b=1 + g8=6 + g9=5 + g10=2 + g11=1 + g12=2 + g13=3 + g14=8 + g15=7(+1 false positive) + g16=9 + g17=5 + g18=5
+deferred_findings_count: 11  # prior 10 + g18 deferred process finding FIND-G18-D01 (missing import-graph.json artifact)
 
 open_in_other_cycles:
   - id: FIND-G2-LOADER-DUAL-PATH
@@ -155,27 +155,28 @@ do_not_re_flag:
       regressions in load_meta's contract.
 
 open_questions_for_next_cycle:
-  focus_axis_due_next: test_gaps  # covered so far: typing(g1), architecture(g2), coupling(g3), registry_lifecycle(g4), registry_boilerplate(g5), ownership(g6+g7), dedup/layer/TypedDict(g13), typing+error_handling(g14), security(g15), concurrency(g16), performance(g17) — remaining: test_gaps
-  - >
-    FIND-10 (coupling / g3): with G2-01 closing the AnsibleDefault* ownership leak and
-    G2-02 protocoling the DI/kernel boundary, the residual scanner_core→scanner_plugins
-    imports are: standalone_di.py:21 (bundle_resolver), scanner_context.py
-    (filters.underscore_policy), and the existing g1-flagged seams. g3 question: rewire
-    via DI/registry (push the bundle resolver and underscore-policy filter through the
-    registry seam) or relocate to a `scanner_kernel_contracts/` namespace?
-  - >
-    DIContainer (~397 lines) shrink to runtime carrier only: lazy-factory methods belong
-    on plugin objects, not on the container itself. g3 candidate work.
-  - >
-    Built-in plugins should self-register through the registry rather than being imported
-    eagerly by `scanner_plugins/__init__.py` — would close LESSON-08 at the source.
-  - >
-    FIND-G6-06 (architecture / g6, deferred): scanner_readme/* must become
-    platform-agnostic before Terraform/Kubernetes/AAP README generation lands.
-    Design slice should produce: ReadmeRendererPlugin protocol (parallel to
-    VariableDiscoveryPlugin / FeatureDetectionPlugin / YAMLParsingPolicyPlugin
-    seams), per-platform section/style/marker ownership matrix, DI/registry
-    wiring, Ansible plugin migration as reference implementation, parity test
-    strategy against current Ansible-only output. AGENTS.md note required:
-    plugin contract must own input parsing AND output rendering, not just
-    intake.
+  focus_axis_due_next: architecture  # covered so far: typing(g1), architecture(g2), coupling(g3), registry_lifecycle(g4), registry_boilerplate(g5), ownership(g6+g7), dedup/layer/TypedDict(g13), typing+error_handling(g14), security(g15), concurrency(g16), performance(g17), test_gaps(g18) — all primary axes have at least one thorough pass; rotate to architecture for next deep sweep
+  items:
+    - >
+      FIND-10 (coupling / g3): with G2-01 closing the AnsibleDefault* ownership leak and
+      G2-02 protocoling the DI/kernel boundary, the residual scanner_core→scanner_plugins
+      imports are: standalone_di.py:21 (bundle_resolver), scanner_context.py
+      (filters.underscore_policy), and the existing g1-flagged seams. g3 question: rewire
+      via DI/registry (push the bundle resolver and underscore-policy filter through the
+      registry seam) or relocate to a `scanner_kernel_contracts/` namespace?
+    - >
+      DIContainer (~397 lines) shrink to runtime carrier only: lazy-factory methods belong
+      on plugin objects, not on the container itself. g3 candidate work.
+    - >
+      Built-in plugins should self-register through the registry rather than being imported
+      eagerly by `scanner_plugins/__init__.py` — would close LESSON-08 at the source.
+    - >
+      FIND-G6-06 (architecture / g6, deferred): scanner_readme/* must become
+      platform-agnostic before Terraform/Kubernetes/AAP README generation lands.
+      Design slice should produce: ReadmeRendererPlugin protocol (parallel to
+      VariableDiscoveryPlugin / FeatureDetectionPlugin / YAMLParsingPolicyPlugin
+      seams), per-platform section/style/marker ownership matrix, DI/registry
+      wiring, Ansible plugin migration as reference implementation, parity test
+      strategy against current Ansible-only output. AGENTS.md note required:
+      plugin contract must own input parsing AND output rendering, not just
+      intake.

@@ -365,3 +365,19 @@ registry_boilerplate → ownership → ownership-impl) all GREEN. Sign-off bar e
 - Deferred: FIND-G17-D01 (DEFAULT_PLUGIN_REGISTRY intentional singleton), FIND-G17-D02 (PolicyBackedProxy intentional DI test-injection proxy)
 - Gate: GREEN (959 passed / 7 skipped, ruff clean, black clean, mypy 99 errors delta=0).
 - commit e89c5ab.
+
+## Cycle g18 — test_gaps + abstraction guardrail (2026-04-26)
+
+**Axis:** test_gaps (primary) + one bundled abstraction leak fix.
+
+**Closed (5):**
+- **FIND-G18-01** `feature_flags.py` private kernel import leak — removed private cross-module dependency and added test guardrail assertion in `test_feature_flags.py`.
+- **FIND-G18-02** plugin name resolver branch matrix — added dedicated tests in `test_plugin_name_resolver.py` covering explicit selector, policy-context selector, platform fallback, default/single/lexical registry fallback, and fail-closed unresolved-selection path.
+- **FIND-G18-03** kernel lifecycle runner branch matrix — added dedicated tests in `test_kernel_plugin_runner.py` for skipped phase handlers, `fail_fast=True` short-circuit, `fail_fast=False` continuation, and payload/metadata/list merge behavior.
+- **FIND-G18-04** renderer branch coverage — expanded `test_render_compat.py` with explicit assertions for section-content mode branch defaults and generated merge-block stripping paths.
+- **FIND-G18-05** seam guardrail extension — `test_t4_02_public_seam_guardrail.py` now scans `scanner_plugins` AST imports and fails on underscore-prefixed `scanner_kernel` imports.
+
+**Deferred (1):**
+- **FIND-G18-D01** missing `docs/plan/.gilfoyle-lessons/import-graph.json` protocol artifact (process/ledger maintenance slice).
+
+**Gates:** pytest 977 passed / 7 skipped, ruff clean, black clean, mypy 99 errors (delta=0).
