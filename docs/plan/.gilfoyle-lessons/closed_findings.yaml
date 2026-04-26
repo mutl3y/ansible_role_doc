@@ -361,7 +361,19 @@
   cycle: g6
   category: architecture
   severity: high
-  status: deferred_to_planning_slice
+  status: closed
   title: "scanner_readme/* hardcodes Ansible role rendering — blocks Terraform/K8s/AAP plug-and-play"
-  files_touched: []
-  evidence_one_line: "Product vision is plug-and-play platform support; current scanner_readme/* (render, style, guide, guide_galaxy, doc_insights, render_legacy_markers) hardcodes meta/main.yml, Galaxy install, role-variable sections, ansible-role-doc markers. Needs ReadmeRendererPlugin protocol + per-platform ownership matrix before code; mechanical in-loop refactor would freeze the wrong shape."
+  files_touched:
+    - src/prism/scanner_plugins/interfaces.py
+    - src/prism/scanner_plugins/registry.py
+    - src/prism/scanner_plugins/ansible/readme_renderer.py
+    - src/prism/scanner_plugins/ansible/templates/README.md.j2
+    - src/prism/scanner_plugins/ansible/__init__.py
+    - src/prism/scanner_plugins/__init__.py
+    - src/prism/scanner_readme/render.py
+    - src/prism/scanner_readme/guide.py
+    - src/prism/tests/test_readme_renderer_plugin_protocol.py
+    - src/prism/tests/test_readme_renderer_registry_wiring.py
+    - src/prism/tests/test_readme_renderer_plugin_parity.py
+    - src/prism/tests/test_readme_renderer_plugin_isolation.py
+  evidence_one_line: "Introduced ReadmeRendererPlugin Protocol + registry slot; AnsibleReadmeRendererPlugin owns all Ansible-shaped rendering; render.py and guide.py delegate via plugin_registry (fail-closed); 70 new tests; 949 passed, mypy delta=0."
