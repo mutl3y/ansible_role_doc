@@ -155,6 +155,14 @@
 - Deferred: GF2-W4-T03 (proxy singleton remediation) — 18+ consumer call sites; only blocks concurrent multi-platform scanning.
 - Closure evidence: pytest 1441 passed / 7 skipped, ruff PASS, black PASS, 8/8 audit criteria PASS.
 
+## Notable Findings (Cycle g13: dedup / layer-fix / TypedDict narrowing)
+
+- **FIND-02 closed (g13 Wave A):** `TASK_BLOCK_KEYS` + `TASK_META_KEYS` were byte-identical in both `task_vocabulary.py` (bare) and `task_traversal_bare.py` (FQCN-inclusive). Extracted to canonical `scanner_plugins/ansible/task_keywords.py`; both modules import from it. Remaining 4 key-sets are intentional bare-vs-FQCN-superset splits and were not changed.
+- **FIND-G8-D-G closed (g13 Wave B):** `runbook_renderer.py` in the plugin layer was importing `build_render_jinja_environment` from `scanner_readme.rendering_seams` (readme domain) — a layer violation. Fixed by creating `scanner_plugins/parsers/comment_doc/jinja_utils.py` (zero domain deps); swapped import; test guardrails in `test_plugin_kernel_extension_parity.py` + `test_scanner_reporting.py` now disallow any `scanner_readme` import from the plugin layer (carve-out removed).
+- **FIND-G8-03 closed (g13 Wave C):** `TaskAnnotation` TypedDict added to `scanner_data/contracts_request.py` (`kind`/`text` Required, `disabled`/`format_warning`/`task_index` optional). `PreparedTaskAnnotationPolicy` Protocol return type updated; propagated atomically through `annotation_parsing.py`, `task_annotation_parsing.py`, `task_extract_adapters.py`, `task_catalog_assembly.py`, `extract_policies.py`, `default_policies.py`.
+- **FIND-G5-02 → deferred_final:** Decorator self-registration on plugin classes has two permanent blockers (registry-replay tests require alternate-registry injection; FQCN deferred-string resolution has load-order coupling). Closed as deferred_final.
+- Gate (g13): pytest 949 passed / 7 skipped, ruff clean, black clean, mypy 99 errors (delta=0). commit 8552114.
+
 ## Notable Findings (Plan Closure: fsrc-to-src-promotion-20260422)
 
 - fsrc→src migration is complete (2026-04-22): `fsrc/src/prism/` promoted to canonical `src/prism/`; `fsrc/` directory removed; `_src_retired/` (old src lane) permanently deleted.
