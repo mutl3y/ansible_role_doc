@@ -1,7 +1,7 @@
 # Gilfoyle review-loop digest — index for next cycle's Phase 0 sweep
-# Last updated: g12 implementation close (2026-04-25)
+# Last updated: g14 close (2026-04-26)
 
-closed_findings_count: 38  # g1=7 + g2=5 + g3=1 + g4=1 + g5=2 + g6=5 + g7b=1 + g8=6 + g9=5 + g10=2 + g11=1 + g12=2
+closed_findings_count: 49  # g1=7 + g2=5 + g3=1 + g4=1 + g5=2 + g6=5 + g7b=1 + g8=6 + g9=5 + g10=2 + g11=1 + g12=2 + g13=3 + g14=8
 deferred_findings_count: 7  # g2=1 + g3=1 + g5=1 + g6=1 + g8=2 + g9=2 (g9 closed in g10) - g8=1 closed in g11
 needs_replan_count: 1
 

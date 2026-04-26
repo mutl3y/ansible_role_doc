@@ -331,3 +331,23 @@
     atomically through Protocol + 6 callsite files (annotation_parsing,
     task_annotation_parsing, task_extract_adapters, task_catalog_assembly,
     extract_policies, default_policies).
+
+- cycle: g14
+  date: 2026-04-26
+  focus_axis: typing + error_handling
+  grade: C+
+  scope: resolver-return-types + event-bus-exception + platform-key-silent-default + task-line-dedup + readme-layer-violation + cast-antipattern + event-bus-helper + fallback-logging
+  findings_total: 9
+  closed_count: 8
+  deferred_count: 1
+  needs_replan_count: 0
+  gate_state: GREEN
+  depth: thorough
+  notes: >
+    949 passed / 7 skipped, ruff clean, black clean, mypy 99 errors (delta=0).
+    G14-03 deferred: api_layer/collection.py Callable[..., Any] params need
+    build_collection_scan_result return annotation fix before Protocol addition.
+    Key pattern: resolver return-type Any is the most common weak-typing smell
+    after TypedDict narrowing; scanner_readme direct plugin_registry import was a
+    pre-existing layer boundary violation that escaped g6 ownership sweep.
+    commit 942d9cc.

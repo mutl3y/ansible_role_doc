@@ -155,6 +155,19 @@
 - Deferred: GF2-W4-T03 (proxy singleton remediation) — 18+ consumer call sites; only blocks concurrent multi-platform scanning.
 - Closure evidence: pytest 1441 passed / 7 skipped, ruff PASS, black PASS, 8/8 audit criteria PASS.
 
+## Notable Findings (Cycle g14: typing + error_handling + layer violation)
+
+- **FIND-G14-01 closed:** `scanner_plugins/defaults.py` — 6 resolver functions now return Protocol types (`PreparedTaskLineParsingPolicy`, `PreparedTaskAnnotationPolicy`, `PreparedTaskTraversalPolicy`, `PreparedVariableExtractorPolicy`, `PreparedYAMLParsingPolicy`, `PreparedJinjaAnalysisPolicy`) instead of `Any`. Callsite type safety restored.
+- **FIND-G14-02 closed:** `scanner_core/events.py` — `except Exception: pass` → `except Exception as exc:` with `type(exc).__name__` in log message. Event bus failures now produce diagnostics instead of silently vanishing.
+- **FIND-G14-04 closed:** `scanner_readme/guide.py` — Added `logger.warning` in both render helper functions when `platform_key` defaults to `"ansible"`. Silent Ansible assumption is now observable.
+- **FIND-G14-05 closed:** `scanner_extract/task_line_parsing.py` — Extracted `_task_line_policy_attr(di, attr)` helper; 7 copy-paste `require_prepared_policy(...)` wrappers collapsed to single-line delegations.
+- **FIND-G14-06 closed:** `scanner_readme/guide.py` + `render.py` imported `_plugin_registry` directly — layer violation. Added `resolve_readme_renderer_plugin()` to `scanner_plugins/defaults.py`; `scanner_readme` layer now imports only from `defaults`, not the registry. Same pattern as the g13 `runbook_renderer` fix.
+- **FIND-G14-07 closed:** `emit_output.py` + `output_orchestrator.py` — 3 `cast(ScanMetadata, dict(metadata))` calls replaced with `copy.copy(metadata)`. `dict()` on a TypedDict produces a plain dict, losing the TypedDict identity; `copy.copy` is the correct shallow-copy idiom.
+- **FIND-G14-08 closed:** `getattr(di, "factory_event_bus", lambda: None)()` repeated in 3 places across `feature_detector.py` and `variable_discovery.py`. Added `get_event_bus_or_none(di)` to `scanner_core/di_helpers.py`; all sites migrated.
+- **FIND-G14-09 closed:** `defaults.py` `_construct_registry_plugin` non-strict fallback added `logger.warning`. Previously silently fell back to default class without any diagnostic.
+- **FIND-G14-03 deferred:** `api_layer/collection.py` 9× `Callable[..., Any]` constructor params — needs `build_collection_scan_result` annotated `-> CollectionScanResult` before Protocols can be added safely. Research artifact at `docs/plan/gilfoyle-review-20260426-g14/research_findings_collection_callable_protocols.yaml`.
+- Gate (g14): pytest 949 passed / 7 skipped, ruff clean, black clean, mypy 99 errors (delta=0). commit 942d9cc.
+
 ## Notable Findings (Cycle g13: dedup / layer-fix / TypedDict narrowing)
 
 - **FIND-02 closed (g13 Wave A):** `TASK_BLOCK_KEYS` + `TASK_META_KEYS` were byte-identical in both `task_vocabulary.py` (bare) and `task_traversal_bare.py` (FQCN-inclusive). Extracted to canonical `scanner_plugins/ansible/task_keywords.py`; both modules import from it. Remaining 4 key-sets are intentional bare-vs-FQCN-superset splits and were not changed.

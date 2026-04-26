@@ -288,3 +288,24 @@ registry_boilerplate → ownership → ownership-impl) all GREEN. Sign-off bar e
 - Propagating a TypedDict change across 6 files often reveals hidden extra impls (e.g., `default_policies.py` had its own method with the same weak return type, not discovered until mypy ran).
 
 **Thirteen consecutive thorough cycles** (typing → architecture → coupling → registry_lifecycle → registry_boilerplate → ownership → ownership-design → coupling/typing/abstraction → shim-purge → parallel-surface → alias-purge → naming-collision → dedup/layer/TypedDict).
+
+## Cycle g14 — typing + error_handling (2026-04-26)
+
+**Axis:** typing hygiene + error handling + duplication + layer violation
+
+**Closed (8):**
+- **FIND-G14-01** `defaults.py` resolver return types — All 6 resolver functions (resolve_yaml_parsing_policy_plugin, resolve_jinja_analysis_policy_plugin, resolve_task_line_parsing_policy_plugin, resolve_task_annotation_policy_plugin, resolve_task_traversal_policy_plugin, resolve_variable_extractor_policy_plugin) now return their concrete Protocol types instead of `Any`. Imported 6 Protocol types from contracts_request.
+- **FIND-G14-02** `events.py` silent exception suppression — `except Exception: pass` → `except Exception as exc:` with `type(exc).__name__` logged. Event bus failures now have a diagnostic path.
+- **FIND-G14-04** `guide.py` silent platform_key default — Added `logger.warning` in `render_guide_identity_section` and `render_guide_section_body` when platform_key defaults to `"ansible"`. Silent Ansible assumption now observable.
+- **FIND-G14-05** `task_line_parsing.py` 7× boilerplate wrappers — Extracted `_task_line_policy_attr(di, attr)` helper; all 7 `get_*` functions are now single-line delegations. ~21 lines removed.
+- **FIND-G14-06** `scanner_readme` layer violation (guide.py + render.py importing `_plugin_registry` directly) — Added `resolve_readme_renderer_plugin(platform_key)` to `scanner_plugins/defaults.py`; guide.py and render.py now import from `defaults` only. `scanner_readme` layer no longer imports from `scanner_plugins.registry`.
+- **FIND-G14-07** `emit_output.py` + `output_orchestrator.py` `cast(TypedDict, dict(TypedDict))` anti-pattern — Replaced 3 occurrences with `copy.copy(metadata)`. `cast+dict()` creates a plain dict losing TypedDict identity; `copy.copy` is semantically correct.
+- **FIND-G14-08** `getattr(di, 'factory_event_bus', lambda: None)()` repeated 3× — Added `get_event_bus_or_none(di)` to `scanner_core/di_helpers.py`; 1 site in `feature_detector.py` + 2 sites in `variable_discovery.py` migrated.
+- **FIND-G14-09** `defaults.py` `_construct_registry_plugin` fallback — Added `logger.warning` on non-strict fallback to default class. Previously silent.
+
+**Deferred (1):**
+- **FIND-G14-03** `api_layer/collection.py` 9× `Callable[..., Any]` params — Requires `build_collection_scan_result` return annotation fix (`-> CollectionScanResult`) before Protocol addition is safe; research artifact at `docs/plan/gilfoyle-review-20260426-g14/research_findings_collection_callable_protocols.yaml`.
+
+**Gates:** pytest 949 passed / 7 skipped, ruff 0, black 0, mypy 99 errors (delta=0). commit 942d9cc.
+
+**Fourteen consecutive thorough cycles.**
