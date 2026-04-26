@@ -8,7 +8,7 @@ from typing import Any, NamedTuple
 from prism.scanner_readme.guide import render_guide_section_body
 from prism.scanner_readme.style import format_heading
 from prism.scanner_readme.rendering_seams import build_render_jinja_environment
-from prism.scanner_plugins.registry import plugin_registry as _plugin_registry
+from prism.scanner_plugins.defaults import resolve_readme_renderer_plugin
 
 
 DEFAULT_SECTION_SPECS = [
@@ -65,12 +65,7 @@ DEFAULT_MERGE_GENERATED_CONTENT_LABEL = "Generated content"
 
 def _get_readme_renderer_plugin(metadata: dict[str, Any]) -> Any:
     platform_key = str(metadata.get("platform_key") or "ansible")
-    plugin_class = _plugin_registry.get_readme_renderer_plugin(platform_key)
-    if plugin_class is None:
-        raise ValueError(
-            f"No readme_renderer plugin registered for platform '{platform_key}'"
-        )
-    return plugin_class()
+    return resolve_readme_renderer_plugin(platform_key)
 
 
 def _generated_merge_markers(

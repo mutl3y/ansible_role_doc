@@ -78,46 +78,38 @@ TASK_BLOCK_KEYS: Collection[str] = _PolicyBackedCollectionProxy("TASK_BLOCK_KEYS
 TASK_META_KEYS: Collection[str] = _PolicyBackedCollectionProxy("TASK_META_KEYS")  # type: ignore[assignment]
 
 
+def _task_line_policy_attr(di: object | None, attr: str) -> object:
+    return getattr(
+        require_prepared_policy(di, "task_line_parsing", "task_line_parsing"), attr
+    )
+
+
 def get_task_include_keys(di: object | None = None) -> object:
-    return require_prepared_policy(
-        di, "task_line_parsing", "task_line_parsing"
-    ).TASK_INCLUDE_KEYS
+    return _task_line_policy_attr(di, "TASK_INCLUDE_KEYS")
 
 
 def get_role_include_keys(di: object | None = None) -> object:
-    return require_prepared_policy(
-        di, "task_line_parsing", "task_line_parsing"
-    ).ROLE_INCLUDE_KEYS
+    return _task_line_policy_attr(di, "ROLE_INCLUDE_KEYS")
 
 
 def get_include_vars_keys(di: object | None = None) -> object:
-    return require_prepared_policy(
-        di, "task_line_parsing", "task_line_parsing"
-    ).INCLUDE_VARS_KEYS
+    return _task_line_policy_attr(di, "INCLUDE_VARS_KEYS")
 
 
 def get_set_fact_keys(di: object | None = None) -> object:
-    return require_prepared_policy(
-        di, "task_line_parsing", "task_line_parsing"
-    ).SET_FACT_KEYS
+    return _task_line_policy_attr(di, "SET_FACT_KEYS")
 
 
 def get_task_block_keys(di: object | None = None) -> object:
-    return require_prepared_policy(
-        di, "task_line_parsing", "task_line_parsing"
-    ).TASK_BLOCK_KEYS
+    return _task_line_policy_attr(di, "TASK_BLOCK_KEYS")
 
 
 def get_task_meta_keys(di: object | None = None) -> object:
-    return require_prepared_policy(
-        di, "task_line_parsing", "task_line_parsing"
-    ).TASK_META_KEYS
+    return _task_line_policy_attr(di, "TASK_META_KEYS")
 
 
 def get_templated_include_re(di: object | None = None) -> re.Pattern[str] | object:
-    return require_prepared_policy(
-        di, "task_line_parsing", "task_line_parsing"
-    ).TEMPLATED_INCLUDE_RE
+    return _task_line_policy_attr(di, "TEMPLATED_INCLUDE_RE")
 
 
 def _extract_constrained_when_values(

@@ -6,6 +6,7 @@ import threading
 from typing import Any
 
 from prism.scanner_core.di import DIContainer
+from prism.scanner_core.di_helpers import get_event_bus_or_none
 from prism.scanner_core.events import PHASE_VARIABLE_DISCOVERY
 from prism.scanner_data.contracts_request import validate_variable_discovery_inputs
 from prism.scanner_data.contracts_variables import VariableRow
@@ -47,7 +48,7 @@ class VariableDiscovery:
         """Discover static variables from defaults/vars/argument_specs/set_fact."""
         plugin = self._resolve_plugin()
         if plugin is not None:
-            event_bus = getattr(self._di, "factory_event_bus", lambda: None)()
+            event_bus = get_event_bus_or_none(self._di)
             ctx = {"role_path": self._role_path, "step": "static"}
             if event_bus is not None:
                 with event_bus.phase(PHASE_VARIABLE_DISCOVERY, context=ctx):
@@ -70,7 +71,7 @@ class VariableDiscovery:
         """Discover referenced variable names from tasks/templates/handlers/README."""
         plugin = self._resolve_plugin()
         if plugin is not None:
-            event_bus = getattr(self._di, "factory_event_bus", lambda: None)()
+            event_bus = get_event_bus_or_none(self._di)
             ctx = {"role_path": self._role_path, "step": "referenced"}
             if event_bus is not None:
                 with event_bus.phase(PHASE_VARIABLE_DISCOVERY, context=ctx):

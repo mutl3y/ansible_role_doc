@@ -37,3 +37,8 @@ def require_prepared_policy(
         f"prepared_policy_bundle.{policy_name} must be provided before "
         f"{context_label} canonical execution"
     )
+
+
+def get_event_bus_or_none(di: object) -> Any:
+    """Return the event bus from DI or None if the factory is not registered."""
+    return getattr(di, "factory_event_bus", lambda: None)()

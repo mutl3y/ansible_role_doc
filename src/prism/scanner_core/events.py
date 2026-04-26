@@ -88,11 +88,12 @@ class EventBus:
         for listener in listeners_snapshot:
             try:
                 listener(event)
-            except Exception:  # pragma: no cover - defensive
+            except Exception as exc:  # pragma: no cover - defensive
                 logger.exception(
-                    "EventBus listener raised for phase=%s kind=%s",
+                    "EventBus listener raised for phase=%s kind=%s (listener_exc=%s)",
                     event.phase_name,
                     event.kind,
+                    type(exc).__name__,
                 )
 
     @contextmanager

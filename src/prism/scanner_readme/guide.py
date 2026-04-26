@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from prism.scanner_extract.requirements import normalize_requirements
-from prism.scanner_plugins.registry import plugin_registry as _plugin_registry
+from prism.scanner_plugins.defaults import resolve_readme_renderer_plugin
+
+logger = logging.getLogger(__name__)
 
 
 def _render_identity_galaxy_info_section(
@@ -130,12 +133,11 @@ def _render_guide_identity_sections(
 ) -> str | None:
     """Render style-guide sections focused on role identity and metadata."""
     platform_key = str((metadata or {}).get("platform_key") or "ansible")
-    plugin_class = _plugin_registry.get_readme_renderer_plugin(platform_key)
-    if plugin_class is None:
-        raise ValueError(
-            f"No readme_renderer plugin registered for platform '{platform_key}'"
+    if not (metadata or {}).get("platform_key"):
+        logger.warning(
+            "platform_key missing from metadata; defaulting to 'ansible' in render_guide_identity_section"
         )
-    return plugin_class().render_identity_section(
+    return resolve_readme_renderer_plugin(platform_key).render_identity_section(
         section_id,
         role_name,
         description,
@@ -156,12 +158,11 @@ def render_guide_section_body(
 ) -> str:
     """Render foundational README section body content for known section IDs."""
     platform_key = str((metadata or {}).get("platform_key") or "ansible")
-    plugin_class = _plugin_registry.get_readme_renderer_plugin(platform_key)
-    if plugin_class is None:
-        raise ValueError(
-            f"No readme_renderer plugin registered for platform '{platform_key}'"
+    if not (metadata or {}).get("platform_key"):
+        logger.warning(
+            "platform_key missing from metadata; defaulting to 'ansible' in render_guide_section_body"
         )
-    result = plugin_class().render_section_body(
+    result = resolve_readme_renderer_plugin(platform_key).render_section_body(
         section_id,
         role_name,
         description,

@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
+import copy
 from pathlib import Path
-from typing import Any, Callable, cast
+from typing import Any, Callable
 
 from prism.scanner_data.contracts_output import (
     RunScanOutputPayload,
-    ScanMetadata,
     validate_output_orchestrator_inputs,
     validate_run_scan_output_payload,
     validate_runbook_sidecar_inputs,
@@ -50,7 +50,7 @@ class OutputOrchestrator:
         emission_args = _build_output_emission_context(
             output_payload={
                 **validated_payload,
-                "metadata": cast(ScanMetadata, dict(validated_payload["metadata"])),
+                "metadata": copy.copy(validated_payload["metadata"]),
             },
             output=self._output_path,
             output_format=self._options.get("output_format", "md"),

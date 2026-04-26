@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from prism.errors import PrismRuntimeError
@@ -18,6 +19,16 @@ from prism.scanner_plugins.parsers.comment_doc.role_notes_parser import (
 )
 from prism.scanner_plugins.interfaces import CommentDrivenDocumentationPlugin
 from prism.scanner_plugins.registry import plugin_registry
+from prism.scanner_data.contracts_request import (
+    PreparedJinjaAnalysisPolicy,
+    PreparedTaskAnnotationPolicy,
+    PreparedTaskLineParsingPolicy,
+    PreparedTaskTraversalPolicy,
+    PreparedVariableExtractorPolicy,
+    PreparedYAMLParsingPolicy,
+)
+
+logger = logging.getLogger(__name__)
 
 
 def _resolve_registry(di: object | None = None, registry: Any | None = None):
@@ -142,6 +153,12 @@ def _construct_registry_plugin(
                     "error": str(exc),
                 },
             ) from exc
+        logger.warning(
+            "Failed to construct %s plugin (class=%s); falling back to default. error=%s",
+            plugin_kind,
+            getattr(plugin_class, "__name__", "unknown"),
+            type(exc).__name__,
+        )
         return fallback_plugin
     return plugin
 
@@ -248,7 +265,7 @@ def resolve_task_line_parsing_policy_plugin(
     *,
     strict_mode: bool = True,
     registry: Any | None = None,
-) -> Any:
+) -> PreparedTaskLineParsingPolicy:
     return _resolve_plugin_with_precedence(
         di=di,
         di_factory_name="factory_task_line_parsing_policy_plugin",
@@ -274,7 +291,7 @@ def resolve_task_annotation_policy_plugin(
     *,
     strict_mode: bool = True,
     registry: Any | None = None,
-) -> Any:
+) -> PreparedTaskAnnotationPolicy:
     return _resolve_plugin_with_precedence(
         di=di,
         di_factory_name="factory_task_annotation_policy_plugin",
@@ -297,7 +314,7 @@ def resolve_task_traversal_policy_plugin(
     *,
     strict_mode: bool = True,
     registry: Any | None = None,
-) -> Any:
+) -> PreparedTaskTraversalPolicy:
     return _resolve_plugin_with_precedence(
         di=di,
         di_factory_name="factory_task_traversal_policy_plugin",
@@ -325,7 +342,7 @@ def resolve_variable_extractor_policy_plugin(
     *,
     strict_mode: bool = True,
     registry: Any | None = None,
-) -> Any:
+) -> PreparedVariableExtractorPolicy:
     return _resolve_plugin_with_precedence(
         di=di,
         di_factory_name="factory_variable_extractor_policy_plugin",
@@ -345,7 +362,7 @@ def resolve_yaml_parsing_policy_plugin(
     *,
     strict_mode: bool = True,
     registry: Any | None = None,
-) -> Any:
+) -> PreparedYAMLParsingPolicy:
     return _resolve_plugin_with_precedence(
         di=di,
         di_factory_name="factory_yaml_parsing_policy_plugin",
@@ -366,7 +383,7 @@ def resolve_jinja_analysis_policy_plugin(
     *,
     strict_mode: bool = True,
     registry: Any | None = None,
-) -> Any:
+) -> PreparedJinjaAnalysisPolicy:
     return _resolve_plugin_with_precedence(
         di=di,
         di_factory_name="factory_jinja_analysis_policy_plugin",
@@ -444,12 +461,28 @@ def collect_molecule_scenarios(
     return collect_molecule_scenarios(role_path, exclude_paths, di=di)
 
 
+def resolve_readme_renderer_plugin(
+    platform_key: str,
+    *,
+    registry: Any | None = None,
+) -> Any:
+    """Resolve readme renderer plugin class for the given platform key."""
+    registry_obj = _resolve_registry(None, registry)
+    plugin_class = registry_obj.get_readme_renderer_plugin(platform_key)
+    if plugin_class is None:
+        raise ValueError(
+            f"No readme_renderer plugin registered for platform '{platform_key}'"
+        )
+    return plugin_class()
+
+
 __all__ = [
     "collect_molecule_scenarios",
     "collect_unconstrained_dynamic_role_includes",
     "collect_unconstrained_dynamic_task_includes",
     "extract_role_notes_from_comments",
     "resolve_comment_driven_documentation_plugin",
+    "resolve_readme_renderer_plugin",
     "resolve_task_annotation_policy_plugin",
     "resolve_jinja_analysis_policy_plugin",
     "resolve_task_line_parsing_policy_plugin",

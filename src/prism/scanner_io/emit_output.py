@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import os
 from pathlib import Path
 from typing import Any, Callable, Protocol, cast
@@ -75,7 +76,7 @@ def write_concise_scanner_report_if_enabled(
         scanner_report_output=scanner_report_output,
         out_path=out_path,
     )
-    sidecar_metadata: ScanMetadata = cast(ScanMetadata, dict(metadata))
+    sidecar_metadata = copy.copy(metadata)
     sidecar_metadata["concise_readme"] = True
     sidecar_metadata["include_scanner_report_link"] = include_scanner_report_link
 
@@ -249,7 +250,7 @@ def orchestrate_output_emission(
 ) -> str | bytes:
     """Orchestrate coordinated output emission (primary plus sidecars)."""
     out_path = resolve_output_file_path(Path(args["output"]), args["output_format"])
-    metadata: ScanMetadata = cast(ScanMetadata, dict(args["metadata"]))
+    metadata: ScanMetadata = copy.copy(args["metadata"])
 
     if not args["dry_run"]:
         out_path.parent.mkdir(parents=True, exist_ok=True)
