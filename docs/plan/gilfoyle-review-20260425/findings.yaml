@@ -247,7 +247,7 @@ findings:
   - id: FIND-09
     category: abstraction
     severity: medium
-    status: open
+    status: closed
     title: Tests reach into private symbols (`_get_variable_extractor_policy`, `_JINJA_ENV`)
     description: >
       `tests/test_t1_02_coverage_lift_batch4.py` imports `_get_variable_extractor_policy` from
@@ -323,7 +323,7 @@ findings:
   - id: FIND-12
     category: silent_fallback
     severity: medium
-    status: open
+    status: closed
     title: Eleven medium-severity broad `except Exception` blocks across non-kernel paths
     description: >
       `scanner_extract/discovery.py` x4 (103, 144, 186, 199), `scanner_extract/variable_extractor.py:88`,
@@ -347,7 +347,7 @@ findings:
   - id: FIND-13
     category: test_gap
     severity: medium
-    status: open
+    status: closed
     title: Eight additional public modules without dedicated unit tests
     description: >
       `scanner_config/{audit_rules.py, section.py}`, `scanner_io/{collection_payload.py, collection_renderer.py}`,
