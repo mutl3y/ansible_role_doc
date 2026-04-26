@@ -378,3 +378,16 @@
     4 silent-swallow excepts emit logger.debug.
     FIND-G16-07 deferred: require_prepared_policy() -> Any needs Literal-typed overloads (20+ sites).
     commit feab271.
+
+- cycle: g17
+  primary: performance
+  result: zero_critical_high
+  gate_state: GREEN
+  depth: thorough
+  notes: >
+    959 passed / 7 skipped, ruff clean, black clean, mypy 99 errors (delta=0).
+    5 findings closed: @functools.cache on marker_utils + patterns.py builtin policy loader;
+    feature_detection dual file-read eliminated via raw_lines_cache; style_parser.py 11
+    module-level compiled constants replacing 8+ inline re.match/re.search/re.sub calls.
+    2 deferred: DEFAULT_PLUGIN_REGISTRY intentional singleton; PolicyBackedProxy intentional DI proxy.
+    commit e89c5ab.

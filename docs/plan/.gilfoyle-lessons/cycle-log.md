@@ -352,3 +352,16 @@ registry_boilerplate → ownership → ownership-impl) all GREEN. Sign-off bar e
 **Gates:** pytest 959 passed / 7 skipped, ruff clean, black clean, mypy 99 errors (delta=0). commit feab271.
 
 **Sixteen consecutive thorough cycles.**
+
+## g17 — 2026-04-26 — focus_axis: performance — grade: B+
+
+- Scope: hot-path caching, redundant regex compilation, dual file reads, inline pattern literals.
+- Closed:
+  - FIND-G17-01: @functools.cache on get_marker_line_re() — eliminates re.compile() per scan file
+  - FIND-G17-02: @functools.cache on _load_builtin_policy() — eliminates glob+yaml.safe_load per scan
+  - FIND-G17-03: feature_detection.detect_features() dual file read — raw_lines_cache dict in first loop; second loop reads from cache; OSError handled once at read site
+  - FIND-G17-04: style_parser.py 8+ inline re.match/re.search patterns → 8 module-level compiled constants (_FENCE_RE, _SETEXT_H1_RE, _SETEXT_H2_RE, _ATX_HEADING_DETECT_RE, _ATX_HEADING_RE, _TABLE_ROW_RE, _BULLET_VAR_RE, _BULLET_DEFAULT_RE)
+  - FIND-G17-05: _normalize_style_heading() 3 inline re.sub() patterns → 3 module-level constants (_MARKDOWN_LINK_RE, _NON_ALPHANUM_RE, _WHITESPACE_RE) — bundled with FIND-G17-04
+- Deferred: FIND-G17-D01 (DEFAULT_PLUGIN_REGISTRY intentional singleton), FIND-G17-D02 (PolicyBackedProxy intentional DI test-injection proxy)
+- Gate: GREEN (959 passed / 7 skipped, ruff clean, black clean, mypy 99 errors delta=0).
+- commit e89c5ab.
