@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import pathlib
-from typing import Any, Protocol, TypedDict
+from typing import Any, Protocol, TypedDict, runtime_checkable
 
 from prism.scanner_data import RunScanOutputPayload, VariableRow
 from prism.scanner_data.contracts_request import (
@@ -153,6 +153,7 @@ class PlatformExecutionBundleProvider(Protocol):
     ) -> PlatformExecutionBundle: ...
 
 
+@runtime_checkable
 class ReadmeRendererPlugin(Protocol):
     """Protocol for platform-specific README renderer plugin implementations.
 
