@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import re
 
+from prism.scanner_data.contracts_request import TaskAnnotation
 from prism.scanner_plugins.parsers.comment_doc.marker_utils import (
     COMMENT_CONTINUATION_RE,
     DEFAULT_DOC_MARKER_PREFIX,
@@ -72,13 +73,13 @@ def extract_task_annotations_for_file(
     lines: list[str],
     marker_prefix: str = DEFAULT_DOC_MARKER_PREFIX,
     include_task_index: bool = False,
-) -> tuple[list[dict[str, object]], dict[str, list[dict[str, object]]]]:
+) -> tuple[list[TaskAnnotation], dict[str, list[TaskAnnotation]]]:
     from bisect import bisect_right
     from collections import defaultdict
 
     marker_line_re = get_marker_line_re(marker_prefix)
-    implicit: list[dict[str, object]] = []
-    explicit: dict[str, list[dict[str, object]]] = defaultdict(list)
+    implicit: list[TaskAnnotation] = []
+    explicit: dict[str, list[TaskAnnotation]] = defaultdict(list)
     task_line_indices = [
         idx
         for idx, source_line in enumerate(lines)
@@ -133,7 +134,7 @@ def extract_task_annotations_for_file(
 
         if body:
             yaml_like = annotation_payload_looks_yaml(body)
-            item: dict[str, object] = {"kind": kind, "text": body}
+            item: TaskAnnotation = {"kind": kind, "text": body}
             if disabled:
                 item["disabled"] = True
             if yaml_like:

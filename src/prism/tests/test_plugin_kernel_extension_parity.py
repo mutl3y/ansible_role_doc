@@ -608,11 +608,7 @@ def test_fsrc_scanner_plugins_package_does_not_import_readme_or_reporting() -> N
         bad = [
             line
             for line in imports
-            if (
-                "prism.scanner_readme" in line
-                and "prism.scanner_readme.rendering_seams" not in line
-            )
-            or "prism.scanner_reporting" in line
+            if "prism.scanner_readme" in line or "prism.scanner_reporting" in line
         ]
         for line in bad:
             relative = plugin_file.relative_to(FSRC_SOURCE_ROOT).as_posix()

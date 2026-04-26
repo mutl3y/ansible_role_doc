@@ -13,7 +13,9 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, NamedTuple
 
-from prism.scanner_readme.rendering_seams import build_render_jinja_environment
+from prism.scanner_plugins.parsers.comment_doc.jinja_utils import (
+    build_render_jinja_environment,
+)
 
 
 class RunbookRow(NamedTuple):

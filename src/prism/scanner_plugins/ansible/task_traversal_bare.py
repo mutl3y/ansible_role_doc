@@ -11,6 +11,10 @@ from typing import Any
 
 import yaml
 
+from prism.scanner_plugins.ansible.task_keywords import (
+    TASK_BLOCK_KEYS as TASK_BLOCK_KEYS,
+)
+from prism.scanner_plugins.ansible.task_keywords import TASK_META_KEYS as TASK_META_KEYS
 from prism.scanner_plugins.ansible.task_regex import (
     TEMPLATED_INCLUDE_RE,
     WHEN_IN_LIST_RE,
@@ -36,42 +40,6 @@ INCLUDE_VARS_KEYS: frozenset[str] = frozenset(
     {"include_vars", "ansible.builtin.include_vars"}
 )
 SET_FACT_KEYS: frozenset[str] = frozenset({"set_fact", "ansible.builtin.set_fact"})
-TASK_BLOCK_KEYS: tuple[str, ...] = ("block", "rescue", "always")
-TASK_META_KEYS: frozenset[str] = frozenset(
-    {
-        "name",
-        "when",
-        "tags",
-        "register",
-        "notify",
-        "vars",
-        "become",
-        "become_user",
-        "become_method",
-        "check_mode",
-        "changed_when",
-        "failed_when",
-        "ignore_errors",
-        "ignore_unreachable",
-        "delegate_to",
-        "run_once",
-        "loop",
-        "loop_control",
-        "with_items",
-        "with_dict",
-        "with_fileglob",
-        "with_first_found",
-        "with_nested",
-        "with_sequence",
-        "environment",
-        "args",
-        "retries",
-        "delay",
-        "until",
-        "throttle",
-        "no_log",
-    }
-)
 
 
 def extract_constrained_when_values(task: dict, variable: str) -> list[str]:

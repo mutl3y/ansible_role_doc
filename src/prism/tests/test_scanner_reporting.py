@@ -197,11 +197,6 @@ def test_w2_t01_scanner_reporting_import_boundary() -> None:
             if line.strip().startswith("from ") or line.strip().startswith("import ")
         }
 
-    forbidden = [
-        line
-        for line in imports
-        if "prism.scanner_readme." in line
-        and "prism.scanner_readme.rendering_seams" not in line
-    ]
+    forbidden = [line for line in imports if "prism.scanner_readme." in line]
 
     assert not forbidden

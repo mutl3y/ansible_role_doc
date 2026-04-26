@@ -13,6 +13,7 @@ from prism.scanner_plugins.ansible import (
 from prism.scanner_plugins.parsers.jinja import (
     collect_undeclared_jinja_variables as _collect_undeclared_jinja_variables,
 )
+from prism.scanner_data.contracts_request import TaskAnnotation
 from prism.scanner_plugins.parsers.comment_doc.marker_utils import (
     NormalizesMarkerPrefix,
 )
@@ -166,7 +167,7 @@ class AnsibleTaskAnnotationPolicyPlugin(NormalizesMarkerPrefix):
         lines: list[str],
         marker_prefix: str = DEFAULT_DOC_MARKER_PREFIX,
         include_task_index: bool = False,
-    ) -> tuple[list[dict[str, object]], dict[str, list[dict[str, object]]]]:
+    ) -> tuple[list[TaskAnnotation], dict[str, list[TaskAnnotation]]]:
         return task_annotation_strategy.extract_task_annotations_for_file(
             lines=lines,
             marker_prefix=marker_prefix,

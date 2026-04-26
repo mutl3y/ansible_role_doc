@@ -130,6 +130,16 @@ class PreparedTaskTraversalPolicy(Protocol):
     ) -> list[dict[str, str]]: ...
 
 
+class TaskAnnotation(TypedDict, total=False):
+    """Typed shape for a single task annotation produced by extract_task_annotations_for_file."""
+
+    kind: Required[str]
+    text: Required[str]
+    disabled: bool
+    format_warning: str
+    task_index: int
+
+
 class PreparedTaskAnnotationPolicy(Protocol):
     """Minimum task-annotation capability surface required after ingress."""
 
@@ -141,7 +151,7 @@ class PreparedTaskAnnotationPolicy(Protocol):
         lines: list[str],
         marker_prefix: str = ...,
         include_task_index: bool = ...,
-    ) -> tuple[list[dict[str, object]], dict[str, list[dict[str, object]]]]: ...
+    ) -> tuple[list[TaskAnnotation], dict[str, list[TaskAnnotation]]]: ...
     def task_anchor(self, file_path: str, task_name: str, index: int) -> str: ...
 
 

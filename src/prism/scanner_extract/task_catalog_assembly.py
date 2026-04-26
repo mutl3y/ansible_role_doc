@@ -4,10 +4,12 @@ from __future__ import annotations
 
 from collections import defaultdict
 from pathlib import Path
+from typing import cast
 
 import prism.scanner_extract.task_annotation_parsing as tap
 import prism.scanner_extract.task_file_traversal as tft
 from prism.scanner_core.di_helpers import require_prepared_policy
+from prism.scanner_data.contracts_request import TaskAnnotation
 from prism.scanner_extract.variable_helpers import format_inline_yaml
 
 
@@ -84,8 +86,8 @@ def _collect_task_handler_catalog(
                 di=di,
             )
         )
-        implicit_by_task_index: dict[int, list[dict[str, object]]] = defaultdict(list)
-        implicit_fallback: list[dict[str, object]] = []
+        implicit_by_task_index: dict[int, list[TaskAnnotation]] = defaultdict(list)
+        implicit_fallback: list[TaskAnnotation] = []
         for annotation in implicit_annotations:
             task_index = annotation.get("task_index")
             if isinstance(task_index, int):
@@ -101,10 +103,17 @@ def _collect_task_handler_catalog(
         for task in tft.iter_task_mappings(data, di=di):
             module_name = _detect_task_module(task, di=di) or "unknown"
             task_name = str(task.get("name") or "(unnamed task)")
-            annotations: list[dict[str, object]] = []
+            annotations: list[TaskAnnotation] = []
             if task_index in implicit_by_task_index:
                 annotations.extend(
-                    {key: value for key, value in item.items() if key != "task_index"}
+                    cast(
+                        TaskAnnotation,
+                        {
+                            key: value
+                            for key, value in item.items()
+                            if key != "task_index"
+                        },
+                    )
                     for item in implicit_by_task_index[task_index]
                 )
             elif implicit_index < len(implicit_fallback):

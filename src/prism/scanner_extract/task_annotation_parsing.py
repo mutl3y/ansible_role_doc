@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from prism.scanner_core.di_helpers import require_prepared_policy
+from prism.scanner_data.contracts_request import TaskAnnotation
 
 
 def _split_task_annotation_label(
@@ -41,7 +42,7 @@ def _extract_task_annotations_for_file(
     include_task_index: bool = False,
     *,
     di: object | None = None,
-) -> tuple[list[dict[str, object]], dict[str, list[dict[str, object]]]]:
+) -> tuple[list[TaskAnnotation], dict[str, list[TaskAnnotation]]]:
     return require_prepared_policy(
         di, "task_annotation_parsing", "task_annotation_parsing"
     ).extract_task_annotations_for_file(
@@ -73,7 +74,7 @@ def extract_task_annotations_for_file(
     include_task_index: bool = False,
     *,
     di: object | None = None,
-) -> tuple[list[dict[str, object]], dict[str, list[dict[str, object]]]]:
+) -> tuple[list[TaskAnnotation], dict[str, list[TaskAnnotation]]]:
     return _extract_task_annotations_for_file(
         lines,
         marker_prefix=marker_prefix,

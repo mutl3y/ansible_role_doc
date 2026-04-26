@@ -4,6 +4,7 @@ from collections.abc import Collection, Iterable
 from pathlib import Path
 from typing import ClassVar, Protocol
 
+from prism.scanner_data.contracts_request import TaskAnnotation
 from prism.scanner_plugins.ansible.task_vocabulary import (
     INCLUDE_VARS_KEYS,
     ROLE_INCLUDE_KEYS,
@@ -153,7 +154,7 @@ class AnsibleDefaultTaskAnnotationPolicyPlugin(NormalizesMarkerPrefix):
         lines: list[str],
         marker_prefix: str = DEFAULT_DOC_MARKER_PREFIX,
         include_task_index: bool = False,
-    ) -> tuple[list[dict[str, object]], dict[str, list[dict[str, object]]]]:
+    ) -> tuple[list[TaskAnnotation], dict[str, list[TaskAnnotation]]]:
         return extract_task_annotations_for_file(
             lines=lines,
             marker_prefix=marker_prefix,

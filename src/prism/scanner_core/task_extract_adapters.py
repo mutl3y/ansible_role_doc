@@ -7,6 +7,7 @@ marker-prefix injection adapters for annotation/catalog extraction.
 from __future__ import annotations
 
 from prism.scanner_core.di_helpers import scan_options_from_di
+from prism.scanner_data.contracts_request import TaskAnnotation
 from prism.scanner_extract.task_annotation_parsing import (
     extract_task_annotations_for_file as _extract_task_annotations_for_file,
 )
@@ -56,7 +57,7 @@ def extract_task_annotations_for_file(
     *,
     include_task_index: bool = False,
     di: object | None = None,
-) -> tuple[list[dict[str, object]], dict[str, list[dict[str, object]]]]:
+) -> tuple[list[TaskAnnotation], dict[str, list[TaskAnnotation]]]:
     return _extract_task_annotations_for_file(
         raw_lines,
         marker_prefix=_resolve_marker_prefix(di),
