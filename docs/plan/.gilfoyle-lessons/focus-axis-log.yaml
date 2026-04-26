@@ -351,3 +351,15 @@
     after TypedDict narrowing; scanner_readme direct plugin_registry import was a
     pre-existing layer boundary violation that escaped g6 ownership sweep.
     commit 942d9cc.
+- cycle: g15
+  primary: security
+  result: zero_critical_high
+  gate_state: GREEN
+  depth: thorough
+  notes: >
+    959 passed / 7 skipped (+10 tests), ruff clean, black clean, mypy 99 errors (delta=0).
+    Key outcomes: HTTPS-only guard on urlopen, StrictUndefined as Jinja default,
+    style-parser relocated to scanner_config (neutral location breaks scanner_readme↔scanner_plugins
+    circular dep), _TRUTHY_VALUES dedup, 10 new security/coverage tests.
+    FIND-G15-08 false positive: set() at registry.py:128 is instance var not module-level constant.
+    commit abfacd7.

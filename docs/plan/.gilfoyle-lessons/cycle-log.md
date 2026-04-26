@@ -309,3 +309,21 @@ registry_boilerplate → ownership → ownership-impl) all GREEN. Sign-off bar e
 **Gates:** pytest 949 passed / 7 skipped, ruff 0, black 0, mypy 99 errors (delta=0). commit 942d9cc.
 
 **Fourteen consecutive thorough cycles.**
+
+## Cycle g15 — security (2026-04-26)
+
+**Axis:** security — first time primary; first use of HTTPS enforcement, Jinja undefined hardening, and subprocess injection audit.
+
+**Closed (7+1 false positive):**
+- **FIND-G15-01** `_TRUTHY_VALUES` duplication — `feature_flags.py` defined a local frozenset identical to `repo_context.py:_TRUTHY_VALUES`. Removed local copy; `feature_flags.py` now imports from `scanner_kernel.repo_context`.
+- **FIND-G15-02** `scanner_readme/style.py` layer violation — `style.py` imported `parse_style_readme`, `detect_style_section_level`, `build_section_title_stats` from `scanner_plugins.parsers.markdown.style_parser` (plugins domain). Functions moved to `scanner_config/style_parser.py` (neutral). Both `scanner_readme/style.py` and the `scanner_plugins` shim now import from `scanner_config.style_parser`. Guardrail tests pass (`test_fsrc_markdown_parser_domain_does_not_import_scanner_readme`, `test_fsrc_scanner_plugins_package_does_not_import_readme_or_reporting`).
+- **FIND-G15-03** `scanner_config/patterns.py` HTTPS allowlist — `_fetch_remote_policy_content` called `urllib.request.urlopen(url)` without scheme validation. Added guard: raises `RuntimeError("REMOTE_POLICY_URL_CONTRACT_INVALID: ...")` for any non-HTTPS URL before network I/O.
+- **FIND-G15-04** Jinja2 permissive Undefined default — `build_render_jinja_environment` in `rendering_seams.py` and `jinja_utils.py` defaulted to `jinja2.Undefined` (silent empty string). Flipped: `StrictUndefined` is now default; `undefined_policy="lenient"` opts out. Silent template variable omission is now a loud error.
+- **FIND-G15-05** `get_event_bus_or_none` no tests — Added 3 unit tests to `test_di_helpers.py`: None-DI returns None, DI without factory returns None, DI with factory returns bus.
+- **FIND-G15-06** `resolve_readme_renderer_plugin` no tests — Added 4 unit tests to `test_readme_renderer_registry_wiring.py`: registered platform returns instance, unregistered raises ValueError, injected registry respects override, injected empty registry raises for missing.
+- **FIND-G15-07** `repo_services.clone_repo` subprocess security audit — Added 3 tests to `test_api_cli_repo_parity.py`: list-form confirmed (shell metachar URL raises PrismRuntimeError, not shell expansion), SubprocessError mock wraps as PrismRuntimeError, CalledProcessError mock wraps as PrismRuntimeError.
+- **FIND-G15-08** `_reserved_unsupported_platforms` mutable — False positive. `set()` at `registry.py:128` is an instance variable inside `__init__`, not a module-level constant. LESSON-01 anti-pattern does not apply. Closed without code change.
+
+**Gates:** pytest 959 passed / 7 skipped (+10 tests), ruff clean, black clean, mypy 99 errors (delta=0). commit abfacd7.
+
+**Fifteen consecutive thorough cycles.**
