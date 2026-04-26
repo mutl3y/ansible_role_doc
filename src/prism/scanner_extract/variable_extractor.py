@@ -17,7 +17,7 @@ from prism.scanner_extract.variable_helpers import is_sensitive_variable
 from prism.scanner_io.loader import load_yaml_file
 
 
-def _get_variable_extractor_policy(di: object | None = None):
+def get_variable_extractor_policy(di: object | None = None):
     scan_options = scan_options_from_di(di)
     if isinstance(scan_options, dict):
         prepared_policy_bundle = scan_options.get("prepared_policy_bundle")
@@ -64,7 +64,7 @@ def collect_include_vars_files(
     *,
     di: object | None = None,
 ) -> list[Path]:
-    return _get_variable_extractor_policy(di).collect_include_vars_files(
+    return get_variable_extractor_policy(di).collect_include_vars_files(
         role_path=role_path,
         exclude_paths=exclude_paths,
         collect_task_files=_tft_collect_task_files,

@@ -13,7 +13,7 @@ from jinja2.sandbox import SandboxedEnvironment
 # .parse() (AST-only inspection); no template is ever rendered or evaluated
 # from role content. Sandbox guards against future regressions where a render
 # path is added by mistake.
-_JINJA_ENV = SandboxedEnvironment()
+JINJA_ENV = SandboxedEnvironment()
 
 
 class DefaultJinjaAnalysisPolicyPlugin:
@@ -30,7 +30,7 @@ def collect_undeclared_jinja_variables(text: str) -> set[str]:
     if "{{" not in text and "{%" not in text:
         return set()
     try:
-        parsed = _JINJA_ENV.parse(text)
+        parsed = JINJA_ENV.parse(text)
     except (
         jinja2.exceptions.TemplateAssertionError,
         jinja2.exceptions.TemplateSyntaxError,

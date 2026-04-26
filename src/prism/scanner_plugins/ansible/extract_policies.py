@@ -27,6 +27,8 @@ _ANSIBLE_ROLE_INCLUDE_KEYS = task_line_parsing_module.ROLE_INCLUDE_KEYS
 class AnsibleTaskLineParsingPolicyPlugin:
     """Expose ansible task-line parsing contracts via a policy plugin object."""
 
+    PLUGIN_IS_STATELESS: bool = True
+
     TASK_INCLUDE_KEYS: Collection[str] = frozenset(
         task_line_parsing_module.TASK_INCLUDE_KEYS
     )

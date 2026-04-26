@@ -18,11 +18,11 @@ import jinja2
 from jinja2.sandbox import SandboxedEnvironment
 
 from prism.scanner_readme.rendering_seams import build_render_jinja_environment
-from prism.scanner_plugins.parsers.jinja.analysis_policy import _JINJA_ENV
+from prism.scanner_plugins.parsers.jinja.analysis_policy import JINJA_ENV
 
 
 def test_analysis_env_is_sandboxed() -> None:
-    assert isinstance(_JINJA_ENV, SandboxedEnvironment)
+    assert isinstance(JINJA_ENV, SandboxedEnvironment)
 
 
 def test_render_env_returns_jinja_environment(tmp_path: Path) -> None:

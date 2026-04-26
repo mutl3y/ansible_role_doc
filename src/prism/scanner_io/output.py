@@ -81,7 +81,7 @@ def render_final_output(
     if output_format == "pdf":
         try:
             from weasyprint import HTML
-        except Exception as exc:
+        except ImportError as exc:
             raise RuntimeError(
                 "PDF output requires optional dependency 'weasyprint'"
             ) from exc

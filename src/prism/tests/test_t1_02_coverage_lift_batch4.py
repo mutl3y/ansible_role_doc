@@ -140,25 +140,25 @@ def test_extract_default_target_var() -> None:
     assert extract_default_target_var("") is None
 
 
-def test_get_variable_extractor_policy_raises_without_bundle() -> None:
-    from prism.scanner_extract.variable_extractor import _get_variable_extractor_policy
+def testget_variable_extractor_policy_raises_without_bundle() -> None:
+    from prism.scanner_extract.variable_extractor import get_variable_extractor_policy
 
     class _DI:
         scan_options: dict = {}
 
     with pytest.raises(ValueError, match="prepared_policy_bundle.variable_extractor"):
-        _get_variable_extractor_policy(_DI())
+        get_variable_extractor_policy(_DI())
 
 
-def test_get_variable_extractor_policy_returns_bundle_value() -> None:
-    from prism.scanner_extract.variable_extractor import _get_variable_extractor_policy
+def testget_variable_extractor_policy_returns_bundle_value() -> None:
+    from prism.scanner_extract.variable_extractor import get_variable_extractor_policy
 
     sentinel = object()
 
     class _DI:
         scan_options = {"prepared_policy_bundle": {"variable_extractor": sentinel}}
 
-    assert _get_variable_extractor_policy(_DI()) is sentinel
+    assert get_variable_extractor_policy(_DI()) is sentinel
 
 
 def test_load_seed_variables_empty_paths() -> None:
