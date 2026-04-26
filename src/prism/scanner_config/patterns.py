@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import functools
 import hashlib
 import json
 import logging
@@ -94,6 +95,7 @@ def _normalise(policy: dict[str, Any]) -> dict[str, Any]:
     return policy
 
 
+@functools.cache
 def _load_builtin_policy() -> dict[str, Any]:
     """Load and merge all per-topic YAML files from the data directory."""
     if not _BUILTIN_DATA_DIR.is_dir():

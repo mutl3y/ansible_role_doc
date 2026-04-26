@@ -15,13 +15,26 @@ from prism.scanner_config.style_aliases import (
 )
 
 
+_MARKDOWN_LINK_RE = re.compile(r"\[([^\]]+)\]\([^)]*\)")
+_NON_ALPHANUM_RE = re.compile(r"[^a-z0-9()]+")
+_WHITESPACE_RE = re.compile(r"\s+")
+
+
 def _normalize_style_heading(heading: str) -> str:
-    cleaned = re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", heading)
-    normalized = re.sub(r"[^a-z0-9()]+", " ", cleaned.lower()).strip()
-    return re.sub(r"\s+", " ", normalized)
+    cleaned = _MARKDOWN_LINK_RE.sub(r"\1", heading)
+    normalized = _NON_ALPHANUM_RE.sub(" ", cleaned.lower()).strip()
+    return _WHITESPACE_RE.sub(" ", normalized)
 
 
 YAML_FENCE_RE = re.compile(r"```yaml", flags=re.IGNORECASE)
+_FENCE_RE = re.compile(r"^\s*([`~]{3,})")
+_SETEXT_H1_RE = re.compile(r"^=+$")
+_SETEXT_H2_RE = re.compile(r"^-+$")
+_ATX_HEADING_DETECT_RE = re.compile(r"^(#{1,6})\s+")
+_ATX_HEADING_RE = re.compile(r"^(#{1,6})\s+(.*?)\s*$")
+_TABLE_ROW_RE = re.compile(r"^\s*\|.*\|\s*$", re.MULTILINE)
+_BULLET_VAR_RE = re.compile(r"^\s*[*-]\s+`[^`]+`", re.MULTILINE)
+_BULLET_DEFAULT_RE = re.compile(r"^\s*[*-]\s+Default:", re.MULTILINE)
 
 
 class _SectionTitleBucket(TypedDict):
@@ -83,7 +96,7 @@ def detect_style_section_level(lines: list[str]) -> int:
         line = raw_line.rstrip()
         next_line = lines[index + 1].rstrip() if index + 1 < len(lines) else ""
 
-        fence_match = re.match(r"^\s*([`~]{3,})", line)
+        fence_match = _FENCE_RE.match(line)
         if fence_match:
             marker = fence_match.group(1)
             marker_char = marker[0]
@@ -101,10 +114,10 @@ def detect_style_section_level(lines: list[str]) -> int:
         if in_fence:
             continue
 
-        if re.match(r"^-+$", next_line):
+        if _SETEXT_H2_RE.match(next_line):
             return 2
 
-        atx_match = re.match(r"^(#{1,6})\s+", line)
+        atx_match = _ATX_HEADING_DETECT_RE.match(line)
         if not atx_match:
             continue
         level = len(atx_match.group(1))
@@ -142,7 +155,7 @@ def parse_style_readme(
         line = lines[i].rstrip()
         next_line = lines[i + 1].rstrip() if i + 1 < len(lines) else ""
 
-        fence_match = re.match(r"^\s*([`~]{3,})", line)
+        fence_match = _FENCE_RE.match(line)
         if fence_match:
             marker = fence_match.group(1)
             marker_char = marker[0]
@@ -166,7 +179,7 @@ def parse_style_readme(
             i += 1
             continue
 
-        atx_match = re.match(r"^(#{1,6})\s+(.*?)\s*$", line)
+        atx_match = _ATX_HEADING_RE.match(line)
         if atx_match:
             level = len(atx_match.group(1))
             title = atx_match.group(2).strip()
@@ -189,14 +202,14 @@ def parse_style_readme(
             i += 1
             continue
 
-        if re.match(r"^=+$", next_line):
+        if _SETEXT_H1_RE.match(next_line):
             title_style = "setext"
             if not title_text:
                 title_text = line.strip()
             i += 2
             continue
 
-        if re.match(r"^-+$", next_line):
+        if _SETEXT_H2_RE.match(next_line):
             section_style = "setext"
             normalized_title = _normalize_style_heading(line)
             canonical = alias_map.get(normalized_title, "unknown")
@@ -232,7 +245,7 @@ def parse_style_readme(
             intro_match = YAML_FENCE_RE.split(body, maxsplit=1)
             intro = intro_match[0].strip() if intro_match else ""
             variable_intro = intro or None
-        elif re.search(r"^\s*\|.*\|\s*$", body, flags=re.MULTILINE):
+        elif _TABLE_ROW_RE.search(body):
             variable_style = "table"
             intro_lines: list[str] = []
             for raw_line in body.splitlines():
@@ -242,9 +255,7 @@ def parse_style_readme(
                 if stripped:
                     intro_lines.append(stripped)
             variable_intro = "\n".join(intro_lines) if intro_lines else None
-        elif re.search(r"^\s*[*-]\s+`[^`]+`", body, flags=re.MULTILINE) and re.search(
-            r"^\s*[*-]\s+Default:", body, flags=re.MULTILINE
-        ):
+        elif _BULLET_VAR_RE.search(body) and _BULLET_DEFAULT_RE.search(body):
             variable_style = "nested_bullets"
             intro_lines_nb: list[str] = []
             for raw_line in body.splitlines():

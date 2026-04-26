@@ -76,8 +76,15 @@ class AnsibleFeatureDetectionPlugin:
         included_role_calls = 0
         dynamic_included_role_calls = 0
         dynamic_included_roles: set[str] = set()
+        raw_lines_cache: dict = {}
 
         for task_file in task_files:
+            try:
+                raw_lines_cache[task_file] = task_file.read_text(
+                    encoding="utf-8"
+                ).splitlines()
+            except OSError:
+                raw_lines_cache[task_file] = []
             data = load_task_yaml_file(task_file, di=self._di)
             include_count += len(iter_task_include_targets(data, di=self._di))
 
@@ -118,10 +125,7 @@ class AnsibleFeatureDetectionPlugin:
         yaml_like_task_annotations = 0
         marker_prefix = self._resolve_marker_prefix(options)
         for task_file in task_files:
-            try:
-                raw_lines = task_file.read_text(encoding="utf-8").splitlines()
-            except OSError:
-                raw_lines = []
+            raw_lines = raw_lines_cache.get(task_file, [])
 
             impl_anns, expl_anns = extract_task_annotations_for_file(
                 raw_lines,

@@ -6,6 +6,7 @@ marker behavior; scanner_data owns only schema contracts.
 
 from __future__ import annotations
 
+import functools
 import re
 
 from prism.scanner_config.section import DEFAULT_DOC_MARKER_PREFIX
@@ -32,6 +33,7 @@ class NormalizesMarkerPrefix:
         return normalize_marker_prefix(marker_prefix)
 
 
+@functools.cache
 def get_marker_line_re(marker_prefix: str = DEFAULT_DOC_MARKER_PREFIX):
     escaped_prefix = re.escape(normalize_marker_prefix(marker_prefix))
     return re.compile(
