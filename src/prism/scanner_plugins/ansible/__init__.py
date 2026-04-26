@@ -27,6 +27,7 @@ from prism.scanner_plugins.ansible.extract_policies import (
 from prism.scanner_plugins.ansible.feature_detection import (
     AnsibleFeatureDetectionPlugin,
 )
+from prism.scanner_plugins.ansible.readme_renderer import AnsibleReadmeRendererPlugin
 from prism.scanner_plugins.ansible.variable_discovery import (
     AnsibleVariableDiscoveryPlugin,
 )
@@ -144,6 +145,7 @@ __all__ = [
     "ANSIBLE_KERNEL_PLUGIN_MANIFEST",
     "AnsibleBaselineKernelPlugin",
     "AnsibleFeatureDetectionPlugin",
+    "AnsibleReadmeRendererPlugin",
     "AnsibleScanPipelinePlugin",
     "AnsibleVariableDiscoveryPlugin",
     "AnsibleTaskAnnotationPolicyPlugin",

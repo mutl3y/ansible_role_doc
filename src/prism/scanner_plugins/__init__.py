@@ -10,6 +10,7 @@ from typing import cast
 
 from prism.scanner_plugins.default_scan_pipeline import DefaultScanPipelinePlugin
 from prism.scanner_plugins.ansible import AnsibleScanPipelinePlugin
+from prism.scanner_plugins.ansible import AnsibleReadmeRendererPlugin
 from prism.scanner_plugins.ansible.default_policies import (
     AnsibleDefaultTaskAnnotationPolicyPlugin,
     AnsibleDefaultTaskLineParsingPolicyPlugin,
@@ -51,6 +52,7 @@ from prism.scanner_plugins.interfaces import ScanPipelinePlugin
 # accepts a directly-imported class.
 _DIRECT_REGISTRATIONS: tuple[tuple[str, str, type], ...] = (
     ("comment_driven_doc", "default", CommentDrivenDocumentationParser),
+    ("readme_renderer", "ansible", AnsibleReadmeRendererPlugin),
     ("scan_pipeline", "default", cast(type, DefaultScanPipelinePlugin)),
     ("scan_pipeline", "ansible", cast(type, AnsibleScanPipelinePlugin)),
     ("extract_policy", "task_line_parsing", AnsibleDefaultTaskLineParsingPolicyPlugin),
@@ -122,6 +124,10 @@ _DIRECT_SLOT_DISPATCH: dict[str, tuple[str, str]] = {
     "jinja_analysis_policy": (
         "list_jinja_analysis_policy_plugins",
         "register_jinja_analysis_policy_plugin",
+    ),
+    "readme_renderer": (
+        "list_readme_renderer_plugins",
+        "register_readme_renderer_plugin",
     ),
 }
 
