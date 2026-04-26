@@ -9,10 +9,11 @@ from typing import Any
 from prism.scanner_plugins.interfaces import CommentDrivenDocumentationPlugin
 from prism.scanner_plugins.interfaces import ExtractPolicyPlugin
 from prism.scanner_plugins.interfaces import FeatureDetectionPlugin
+from prism.scanner_plugins.interfaces import JinjaAnalysisPolicyPlugin
 from prism.scanner_plugins.interfaces import OutputOrchestrationPlugin
+from prism.scanner_plugins.interfaces import ReadmeRendererPlugin
 from prism.scanner_plugins.interfaces import ScanPipelinePlugin
 from prism.scanner_plugins.interfaces import VariableDiscoveryPlugin
-from prism.scanner_plugins.interfaces import JinjaAnalysisPolicyPlugin
 from prism.scanner_plugins.interfaces import YAMLParsingPolicyPlugin
 
 
@@ -30,10 +31,11 @@ class PluginStatelessRequired(TypeError):
 # Slots whose plugins are intended to be safe for singleton reuse across scans.
 _STATELESS_REQUIRED_SLOTS: frozenset[str] = frozenset(
     {
+        "extract_policy",
+        "jinja_analysis_policy",
+        "readme_renderer",
         "scan_pipeline",
         "yaml_parsing_policy",
-        "jinja_analysis_policy",
-        "extract_policy",
     }
 )
 
@@ -132,6 +134,7 @@ class PluginRegistry:
         self._jinja_analysis_policy_plugins: dict[
             str, type[JinjaAnalysisPolicyPlugin]
         ] = {}
+        self._readme_renderer_plugins: dict[str, type[ReadmeRendererPlugin]] = {}
         self._loaded_plugins: dict[tuple[str, str], Any] = {}
         self._deferred_variable_discovery: dict[str, tuple[str, str]] = {}
         self._deferred_feature_detection: dict[str, tuple[str, str]] = {}
@@ -235,6 +238,16 @@ class PluginRegistry:
         with self._lock:
             self._jinja_analysis_policy_plugins[name] = plugin_class
 
+    def register_readme_renderer_plugin(
+        self,
+        name: str,
+        plugin_class: type[ReadmeRendererPlugin],
+    ) -> None:
+        validate_plugin_api_version(plugin_class, name=name, slot="readme_renderer")
+        require_stateless_plugin(plugin_class, name=name, slot="readme_renderer")
+        with self._lock:
+            self._readme_renderer_plugins[name] = plugin_class
+
     def register_reserved_unsupported_platform(self, name: str) -> None:
         with self._lock:
             self._reserved_unsupported_platforms.add(name)
@@ -308,6 +321,11 @@ class PluginRegistry:
     ) -> type[JinjaAnalysisPolicyPlugin] | None:
         return self._jinja_analysis_policy_plugins.get(name)
 
+    def get_readme_renderer_plugin(
+        self, name: str
+    ) -> type[ReadmeRendererPlugin] | None:
+        return self._readme_renderer_plugins.get(name)
+
     def list_variable_discovery_plugins(self) -> list[str]:
         names = set(self._variable_discovery_plugins.keys())
         names.update(self._deferred_variable_discovery.keys())
@@ -335,6 +353,9 @@ class PluginRegistry:
 
     def list_jinja_analysis_policy_plugins(self) -> list[str]:
         return list(self._jinja_analysis_policy_plugins.keys())
+
+    def list_readme_renderer_plugins(self) -> dict[str, type[ReadmeRendererPlugin]]:
+        return dict(self._readme_renderer_plugins)
 
     def set_default_platform_key(self, name: str) -> None:
         """Explicitly nominate a platform key as the registry default."""

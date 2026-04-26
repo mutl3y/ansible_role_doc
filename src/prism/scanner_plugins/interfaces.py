@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import pathlib
 from typing import Any, Protocol, TypedDict
 
 from prism.scanner_data import RunScanOutputPayload, VariableRow
@@ -150,3 +151,52 @@ class PlatformExecutionBundleProvider(Protocol):
     def build_execution_bundle(
         self, scan_options: dict[str, Any]
     ) -> PlatformExecutionBundle: ...
+
+
+class ReadmeRendererPlugin(Protocol):
+    """Protocol for platform-specific README renderer plugin implementations.
+
+    Each platform plugin owns its full README rendering vertical: section
+    taxonomy, identity blocks, legacy marker prefixes, template path, and
+    scanner-report blurb. All signatures are platform-neutral; platform-
+    specific dict keys flow through the generic ``identity_metadata`` and
+    ``metadata`` parameters.
+    """
+
+    PRISM_PLUGIN_API_VERSION: tuple[int, int]
+    PLUGIN_IS_STATELESS: bool
+
+    def default_section_specs(self) -> tuple[tuple[str, str], ...]: ...
+
+    def extra_section_ids(self) -> frozenset[str]: ...
+
+    def scanner_stats_section_ids(self) -> frozenset[str]: ...
+
+    def merge_eligible_section_ids(self) -> frozenset[str]: ...
+
+    def legacy_merge_marker_prefixes(self) -> tuple[str, ...]: ...
+
+    def render_section_body(
+        self,
+        section_id: str,
+        role_name: str,
+        description: str,
+        variables: dict[str, Any],
+        requirements: list[Any],
+        default_filters: list[dict[str, Any]],
+        metadata: dict[str, Any],
+    ) -> str | None: ...
+
+    def render_identity_section(
+        self,
+        section_id: str,
+        role_name: str,
+        description: str,
+        requirements: list[Any],
+        identity_metadata: dict[str, Any],
+        metadata: dict[str, Any],
+    ) -> str | None: ...
+
+    def default_template_path(self) -> pathlib.Path | None: ...
+
+    def scanner_report_blurb(self, scanner_report_relpath: str) -> str: ...
