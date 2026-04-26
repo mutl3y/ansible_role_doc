@@ -34,16 +34,77 @@ def test_strip_prior_generated_merge_block_passthrough() -> None:
     assert result == guide_body
 
 
-def test_resolve_section_content_mode_returns_string() -> None:
+def test_strip_prior_generated_merge_block_removes_marked_content() -> None:
+    from prism.scanner_readme.render import (
+        _strip_prior_generated_merge_block as strip_prior_generated_merge_block,
+    )
+
+    section = {"id": "requirements"}
+    guide_body = (
+        "Header text\n\n"
+        "<!-- prism:generated:start:requirements -->\n"
+        "auto generated\n"
+        "<!-- prism:generated:end:requirements -->\n\n"
+        "Footer text"
+    )
+
+    result = strip_prior_generated_merge_block(section, guide_body)
+    assert result == "Header text\n\nFooter text"
+
+
+def test_strip_prior_generated_merge_block_removes_legacy_requirements_label() -> None:
+    from prism.scanner_readme.render import (
+        _strip_prior_generated_merge_block as strip_prior_generated_merge_block,
+    )
+
+    section = {"id": "requirements"}
+    guide_body = "Requirements body\n\nDetected requirements from scanner:\n- pkg"
+
+    result = strip_prior_generated_merge_block(section, guide_body)
+    assert result == "Requirements body"
+
+
+def test_resolve_section_content_mode_honors_configured_modes() -> None:
     from prism.scanner_readme.render import (
         _resolve_section_content_mode as resolve_section_content_mode,
     )
 
     section = {"id": "purpose", "body": "some content"}
-    modes: dict[str, str] = {}
-    result = resolve_section_content_mode(section, modes)
-    assert isinstance(result, str)
-    assert result in {"generate", "replace", "merge"}
+
+    assert resolve_section_content_mode(section, {"purpose": "replace"}) == "replace"
+    assert resolve_section_content_mode(section, {"purpose": "merge"}) == "merge"
+    assert resolve_section_content_mode(section, {"purpose": "generate"}) == "generate"
+
+
+def test_resolve_section_content_mode_defaults_to_merge_for_requirements() -> None:
+    from prism.scanner_readme.render import (
+        _resolve_section_content_mode as resolve_section_content_mode,
+    )
+
+    section = {"id": "requirements", "body": ""}
+    assert resolve_section_content_mode(section, {}) == "merge"
+
+
+def test_resolve_section_content_mode_defaults_to_merge_for_allowlisted_section_with_body() -> (
+    None
+):
+    from prism.scanner_readme.render import (
+        _resolve_section_content_mode as resolve_section_content_mode,
+    )
+
+    section = {"id": "purpose", "body": "authored guidance"}
+    assert resolve_section_content_mode(section, {}) == "merge"
+
+
+def test_resolve_section_content_mode_defaults_to_generate_for_unlisted_sections() -> (
+    None
+):
+    from prism.scanner_readme.render import (
+        _resolve_section_content_mode as resolve_section_content_mode,
+    )
+
+    section = {"id": "custom_section", "body": "authored guidance"}
+    assert resolve_section_content_mode(section, {}) == "generate"
 
 
 def test_render_guide_identity_sections_callable() -> None:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 import pytest
 
@@ -62,3 +63,13 @@ def test_env_var_names_are_documented_constants() -> None:
         KERNEL_ENABLED_ENV_VAR not in os.environ
         or os.environ.get(KERNEL_ENABLED_ENV_VAR) is not None
     )
+
+
+def test_feature_flags_module_avoids_private_kernel_constant_import() -> None:
+    module_path = (
+        Path(__file__).resolve().parents[1] / "scanner_plugins/ansible/feature_flags.py"
+    )
+    source = module_path.read_text(encoding="utf-8")
+
+    assert "scanner_kernel.repo_context" not in source
+    assert "_TRUTHY_VALUES" not in source
