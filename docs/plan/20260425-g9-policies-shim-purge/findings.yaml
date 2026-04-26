@@ -2,7 +2,15 @@ cycle: g9
 date: 2026-04-25
 axis: architectural-debt / deprecation-shim purge
 plan_id: 20260425-g9-policies-shim-purge
-status: in_progress
+status: closed
+closed_date: 2026-04-25
+closed_evidence: |
+  All 5 findings closed in commit 6e2090f. Removed scanner_plugins/policies/
+  directory (facade __init__.py + 3 deprecation shims). Relocated
+  DefaultScanPipelinePlugin to scanner_plugins/default_scan_pipeline.py.
+  Rewired 9 imports across scanner_plugins/__init__.py, defaults.py, and
+  test_plugin_kernel_extension_parity.py. Deleted TestPoliciesShimContract.
+  Gate: 751 passed, ruff PASS, black PASS, mypy delta=0.
 
 context: >
   Per user standing directive (2026-04-25, recorded in focus-axis-log.yaml under
@@ -26,7 +34,7 @@ findings:
     file: src/prism/scanner_plugins/policies/__init__.py:1-30
     statement: "scanner_plugins/policies/__init__.py is a pure re-export façade. It imports four Ansible default-policy classes from scanner_plugins.ansible.default_policies, JinjaAnalysisPolicyPlugin from scanner_plugins.parsers.jinja, YAMLParsingPolicyPlugin from scanner_plugins.parsers.yaml, and DefaultScanPipelinePlugin from scanner_plugins.policies.default_scan_pipeline. The directory name lies: it owns zero policies."
     fix: "Rewire the two consumer modules (scanner_plugins/__init__.py and scanner_plugins/defaults.py) to import from canonical paths. Relocate default_scan_pipeline.py to scanner_plugins/default_scan_pipeline.py (top-level, since it is platform-neutral and is the only owned content). Delete the policies/ directory."
-    status: pending
+    status: closed
 
   - id: FIND-G9-02
     severity: high
@@ -34,7 +42,7 @@ findings:
     file: src/prism/scanner_plugins/policies/annotation_parsing.py
     statement: "Pure deprecation shim. 34 lines: a DeprecationWarning + re-exports of six symbols from scanner_plugins.parsers.comment_doc.annotation_parsing. Per user directive 'no deprecation cycle, delete on relocation' (2026-04-25), this shim should not exist."
     fix: "Delete the file. Verify zero non-test consumers (already verified — only test_extract_defaults_ansible_ownership.py references it to ASSERT it's a deprecation shim)."
-    status: pending
+    status: closed
 
   - id: FIND-G9-03
     severity: high
@@ -42,7 +50,7 @@ findings:
     file: src/prism/scanner_plugins/policies/extract_defaults.py
     statement: "Pure deprecation shim. 107 lines of DeprecationWarning + re-exports from ansible/default_policies, ansible/task_regex, ansible/task_traversal_bare, ansible/task_vocabulary, parsers/comment_doc/annotation_parsing, parsers/comment_doc/marker_utils, parsers/yaml/line_shape. Same deletion mandate."
     fix: "Delete the file."
-    status: pending
+    status: closed
 
   - id: FIND-G9-04
     severity: high
@@ -50,7 +58,7 @@ findings:
     file: src/prism/scanner_plugins/policies/constants.py
     statement: "Pure deprecation shim. 64 lines of DeprecationWarning + constant re-exports from ansible/task_regex, ansible/task_vocabulary, parsers/comment_doc/marker_utils, parsers/yaml/line_shape. Same deletion mandate."
     fix: "Delete the file."
-    status: pending
+    status: closed
 
   - id: FIND-G9-05
     severity: medium
@@ -58,7 +66,7 @@ findings:
     file: src/prism/tests/test_extract_defaults_ansible_ownership.py:73-119
     statement: "TestPoliciesShimContract class exists solely to verify the deprecation shims emit warnings. Once the shims are deleted the contract becomes vacuous. The test class is testing dead code paths."
     fix: "Delete the TestPoliciesShimContract class. The test_scanner_reporting_runbook_submodule_emits_deprecation_warning test (last method in the class) is a separate scanner_reporting/runbook.py shim concern — defer."
-    status: pending
+    status: closed
 
 waves:
   - wave: W1

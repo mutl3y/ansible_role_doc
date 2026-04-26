@@ -2,7 +2,16 @@ cycle: g12
 date: 2026-04-25
 axis: protocol/concrete name collision
 plan_id: 20260425-g12-protocol-vs-concrete-naming-collision
-status: in_progress
+status: closed
+closed_date: 2026-04-25
+closed_evidence: |
+  Both findings closed in commit 0e8be4f. Renamed concrete
+  YAMLParsingPolicyPlugin -> DefaultYAMLParsingPolicyPlugin and
+  JinjaAnalysisPolicyPlugin -> DefaultJinjaAnalysisPolicyPlugin. Switched
+  registry.py to import the Protocols from scanner_plugins.interfaces. Updated
+  10 files (parsers/{yaml,jinja}, scanner_plugins/__init__.py, ansible/__init__.py,
+  defaults.py, registry.py, 2 test files). Gate: 751 passed / 7 skipped, ruff PASS,
+  black PASS, mypy delta=0.
 
 context: >
   Two plugin slots have a Protocol and a concrete default impl sharing the
@@ -27,7 +36,7 @@ findings:
     file: src/prism/scanner_plugins/parsers/yaml/parsing_policy.py:13
     statement: "Concrete YAMLParsingPolicyPlugin shares its name with the Protocol scanner_plugins.interfaces.YAMLParsingPolicyPlugin. Registry imports the concrete and types its slot dict against it, so 3rd-party plugin authors cannot register an alternative YAML-parsing policy without subclassing the concrete default."
     fix: "Rename concrete YAMLParsingPolicyPlugin -> DefaultYAMLParsingPolicyPlugin (matches DefaultScanPipelinePlugin convention). Switch registry.py to import the Protocol from scanner_plugins.interfaces. Update parsers/yaml/__init__.py, scanner_plugins/__init__.py registration tuple, scanner_plugins/ansible/__init__.py + defaults.py instantiation sites, and 2 test files that exercise the static methods."
-    status: pending
+    status: closed
 
   - id: FIND-G12-02
     severity: medium
@@ -35,7 +44,7 @@ findings:
     file: src/prism/scanner_plugins/parsers/jinja/analysis_policy.py:19
     statement: "Concrete JinjaAnalysisPolicyPlugin shares its name with the Protocol scanner_plugins.interfaces.JinjaAnalysisPolicyPlugin. Same registry-typing leak as FIND-G12-01."
     fix: "Rename concrete JinjaAnalysisPolicyPlugin -> DefaultJinjaAnalysisPolicyPlugin. Switch registry.py to import the Protocol from scanner_plugins.interfaces. Update parsers/jinja/__init__.py, scanner_plugins/__init__.py registration tuple, scanner_plugins/ansible/__init__.py + defaults.py instantiation sites."
-    status: pending
+    status: closed
 
 waves:
   - wave: W1

@@ -40,7 +40,7 @@ findings:
       `scanner_plugins/defaults.py`. Update `scanner_plugins/policies/__init__.py` exports.
       Verify `test_no_ansible_builtin_in_module_constants` still passes (it should — the
       neutrality contract is about constants, not class location).
-    status: open
+    status: closed
 
   - id: FIND-G2-02
     title: "Weak `Callable[..., Any]` aliases at DI / orchestrator boundary should be Protocols"
@@ -75,7 +75,7 @@ findings:
         - VariableDiscoveryFactory / FeatureDetectorFactory (the *_cls aliases)
         - BlockerFactBuilderFactory
       Update annotations at the call sites. Existing call shapes preserved; only types change.
-    status: open
+    status: closed
 
   - id: FIND-G2-03
     title: "`JINJA_*` regexes owned by scanner_extract and duplicated; belong in parsers/jinja"
@@ -96,7 +96,7 @@ findings:
       `scanner_plugins/parsers/jinja/__init__.py` (or a new patterns.py inside that pkg).
       Re-export from `scanner_extract.variable_extractor` and `scanner_extract.variable_helpers`
       to preserve back-compat. Verify `test_package_export_parity.py` JINJA_* assertions stay green.
-    status: open
+    status: closed
 
   - id: FIND-G2-04
     title: "Ansible-shaped literal `\"tasks/\"` hardcoded in scanner_core/variable_discovery.py"
@@ -122,7 +122,7 @@ findings:
       with sensible default.
       Defer the contract change to a follow-up if it turns out to require tests touch;
       do (b) in g2 to remove the literal cleanly.
-    status: open
+    status: closed
 
   - id: FIND-G2-05
     title: "Stale `fsrc`-lane naming in test scaffolding post-promotion"
@@ -156,7 +156,7 @@ findings:
           contract; it just measures that nobody re-added a top-level scanner.py module.
           That's a legitimate guardrail BUT name it accordingly:
           `test_no_top_level_scanner_module_in_canonical_lane`.
-    status: open
+    status: closed
 
 deferred_to_g3:
   - FIND-10  # scanner_core ← scanner_plugins layer-direction; carry-over from g1.

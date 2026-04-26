@@ -42,7 +42,6 @@ def _get_yaml_parsing_policy(di: object | None = None):
     # Loader runs in discovery paths that execute before a prepared_policy_bundle
     # is threaded through (e.g. standalone file-load helpers, pre-scan discovery).
     # Unlike other policy getters, this path does NOT raise on a missing bundle.
-    # See FIND-04 in docs/plan/fsrc-gilfoyle-review-20260422/findings.yaml.
     from prism.scanner_plugins.defaults import resolve_yaml_parsing_policy_plugin
 
     return _resolve_policy_with_registry(resolve_yaml_parsing_policy_plugin, di)
