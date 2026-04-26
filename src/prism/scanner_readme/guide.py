@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from prism.scanner_extract.requirements import normalize_requirements
+from prism.scanner_plugins.registry import plugin_registry as _plugin_registry
 
 
 def _render_identity_galaxy_info_section(
@@ -128,25 +129,20 @@ def _render_guide_identity_sections(
     metadata: dict[str, Any],
 ) -> str | None:
     """Render style-guide sections focused on role identity and metadata."""
-    if section_id == "galaxy_info":
-        return _render_identity_galaxy_info_section(role_name, description, galaxy)
-    if section_id == "requirements":
-        return _render_identity_requirements_section(requirements)
-    if section_id == "installation":
-        return _render_identity_installation_section(role_name, galaxy)
-    if section_id == "license":
-        return _render_identity_license_section(galaxy)
-    if section_id == "author_information":
-        return _render_identity_author_section(galaxy)
-    if section_id == "license_author":
-        return _render_identity_license_author_section(galaxy)
-    if section_id == "sponsors":
-        return "No sponsorship metadata detected for this role."
-    if section_id == "purpose":
-        return _render_identity_purpose_section(metadata)
-    if section_id == "role_notes":
-        return _render_identity_role_notes_section(metadata.get("role_notes"))
-    return None
+    platform_key = str((metadata or {}).get("platform_key") or "ansible")
+    plugin_class = _plugin_registry.get_readme_renderer_plugin(platform_key)
+    if plugin_class is None:
+        raise ValueError(
+            f"No readme_renderer plugin registered for platform '{platform_key}'"
+        )
+    return plugin_class().render_identity_section(
+        section_id,
+        role_name,
+        description,
+        requirements,
+        galaxy,
+        metadata or {},
+    )
 
 
 def render_guide_section_body(
@@ -159,34 +155,19 @@ def render_guide_section_body(
     metadata: dict[str, Any],
 ) -> str:
     """Render foundational README section body content for known section IDs."""
-    if section_id == "purpose":
-        return description or f"Role `{role_name}`"
-
-    if section_id == "requirements":
-        if not requirements:
-            return "No additional requirements."
-        return "\n".join(f"- {item}" for item in requirements)
-
-    if section_id == "role_variables":
-        if not variables:
-            return "No role variables detected."
-        lines = []
-        for name, detail in variables.items():
-            default_value = ""
-            if isinstance(detail, dict):
-                default_value = str(detail.get("default", ""))
-            lines.append(f"- `{name}`: `{default_value}`")
-        return "\n".join(lines)
-
-    if section_id == "default_filters":
-        if not default_filters:
-            return "No default() filter usage detected."
-        return "\n".join(f"- `{entry.get('target', '')}`" for entry in default_filters)
-
-    if section_id == "role_notes":
-        role_notes = metadata.get("role_notes") if isinstance(metadata, dict) else None
-        if not isinstance(role_notes, list) or not role_notes:
-            return "No role notes detected."
-        return "\n".join(f"- {note}" for note in role_notes)
-
-    return ""
+    platform_key = str((metadata or {}).get("platform_key") or "ansible")
+    plugin_class = _plugin_registry.get_readme_renderer_plugin(platform_key)
+    if plugin_class is None:
+        raise ValueError(
+            f"No readme_renderer plugin registered for platform '{platform_key}'"
+        )
+    result = plugin_class().render_section_body(
+        section_id,
+        role_name,
+        description,
+        variables,
+        requirements,
+        default_filters,
+        metadata or {},
+    )
+    return result if result is not None else ""

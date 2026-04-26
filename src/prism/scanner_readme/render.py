@@ -8,6 +8,7 @@ from typing import Any, NamedTuple
 from prism.scanner_readme.guide import render_guide_section_body
 from prism.scanner_readme.style import format_heading
 from prism.scanner_readme.rendering_seams import build_render_jinja_environment
+from prism.scanner_plugins.registry import plugin_registry as _plugin_registry
 
 
 DEFAULT_SECTION_SPECS = [
@@ -62,17 +63,28 @@ SCANNER_STATS_SECTION_IDS: frozenset[str] = frozenset(
 DEFAULT_MERGE_GENERATED_CONTENT_LABEL = "Generated content"
 
 
-def _generated_merge_markers(section_id: str) -> list[tuple[str, str]]:
+def _get_readme_renderer_plugin(metadata: dict[str, Any]) -> Any:
+    platform_key = str(metadata.get("platform_key") or "ansible")
+    plugin_class = _plugin_registry.get_readme_renderer_plugin(platform_key)
+    if plugin_class is None:
+        raise ValueError(
+            f"No readme_renderer plugin registered for platform '{platform_key}'"
+        )
+    return plugin_class()
+
+
+def _generated_merge_markers(
+    section_id: str,
+    prefixes: tuple[str, ...] | None = None,
+) -> list[tuple[str, str]]:
     """Return supported hidden marker pairs for generated merge payloads."""
+    active_prefixes = prefixes or ("prism", "ansible-role-doc")
     return [
         (
-            f"<!-- prism:generated:start:{section_id} -->",
-            f"<!-- prism:generated:end:{section_id} -->",
-        ),
-        (
-            f"<!-- ansible-role-doc:generated:start:{section_id} -->",
-            f"<!-- ansible-role-doc:generated:end:{section_id} -->",
-        ),
+            f"<!-- {prefix}:generated:start:{section_id} -->",
+            f"<!-- {prefix}:generated:end:{section_id} -->",
+        )
+        for prefix in active_prefixes
     ]
 
 
@@ -164,11 +176,11 @@ def _compose_section_body(
     return generated_body
 
 
-def _default_ordered_style_sections() -> list[dict[str, Any]]:
-    """Return default style sections when no style guide sections are supplied."""
+def _default_ordered_style_sections(plugin: Any) -> list[dict[str, Any]]:
+    """Return default style sections sourced from the platform plugin."""
     return [
         {"id": section_id, "title": title}
-        for section_id, title in DEFAULT_SECTION_SPECS
+        for section_id, title in plugin.default_section_specs()
     ]
 
 
@@ -188,9 +200,10 @@ def _resolve_ordered_style_sections(
     enabled_sections = set(metadata.get("enabled_sections") or [])
     section_content_modes = metadata.get("section_content_modes") or {}
     keep_unknown_style_sections = bool(metadata.get("keep_unknown_style_sections"))
+    plugin = _get_readme_renderer_plugin(metadata)
 
     if not ordered_sections:
-        ordered_sections = _default_ordered_style_sections()
+        ordered_sections = _default_ordered_style_sections(plugin)
 
     if not keep_unknown_style_sections:
         ordered_sections = [
@@ -219,6 +232,7 @@ def append_scanner_report_section_if_enabled(
     scanner_report_relpath: str | None,
     include_scanner_report_link: bool,
     enabled_sections: set[str],
+    metadata: dict[str, Any] | None = None,
 ) -> None:
     """Append scanner report section when concise/section settings allow it."""
     if (
@@ -229,6 +243,7 @@ def append_scanner_report_section_if_enabled(
     ):
         return
 
+    plugin = _get_readme_renderer_plugin(metadata or {})
     parts.append(
         format_heading(
             "Scanner report",
@@ -237,9 +252,7 @@ def append_scanner_report_section_if_enabled(
         )
     )
     parts.append("")
-    parts.append(
-        f"Detailed scanner output is available in `{scanner_report_relpath}`. It includes task/module statistics, role-content inventory, baseline comparison details, and undocumented `default()` findings."
-    )
+    parts.append(plugin.scanner_report_blurb(scanner_report_relpath))
     parts.append("")
 
 
@@ -312,6 +325,7 @@ def _render_readme_with_style_guide(
             metadata.get("include_scanner_report_link", True)
         ),
         enabled_sections=enabled_sections,
+        metadata=metadata,
     )
     return "\n".join(parts).strip() + "\n"
 
@@ -343,11 +357,16 @@ def render_readme(
             return str(Path(output).resolve())
         return rendered
 
-    tpl_file = (
-        Path(template)
-        if template
-        else Path(__file__).resolve().parent.parent / "templates" / "README.md.j2"
-    )
+    if template:
+        tpl_file = Path(template)
+    else:
+        plugin = _get_readme_renderer_plugin(metadata)
+        plugin_path = plugin.default_template_path()
+        tpl_file = (
+            plugin_path
+            if plugin_path is not None
+            else Path(__file__).resolve().parent.parent / "templates" / "README.md.j2"
+        )
     env = build_render_jinja_environment(
         template_dir=tpl_file.parent,
         metadata=metadata,
