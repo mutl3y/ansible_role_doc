@@ -13,6 +13,7 @@ from prism.scanner_data.contracts_request import (
     validate_feature_detector_inputs,
 )
 from prism.scanner_core.task_extract_adapters import collect_task_handler_catalog
+from prism.scanner_plugins.interfaces import FeatureDetectionPlugin
 
 
 class FeatureDetector:
@@ -32,11 +33,11 @@ class FeatureDetector:
         self._di = di
         self._role_path = role_path
         self._options = options
-        self._plugin: Any | None = None
+        self._plugin: FeatureDetectionPlugin | None = None
         self._plugin_resolved = False
         self._plugin_lock = threading.Lock()
 
-    def _resolve_plugin(self) -> Any | None:
+    def _resolve_plugin(self) -> FeatureDetectionPlugin | None:
         if self._plugin_resolved:
             return self._plugin
         with self._plugin_lock:

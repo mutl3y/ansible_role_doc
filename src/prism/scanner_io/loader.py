@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 import os
 from pathlib import Path
 from typing import Callable
 
 import yaml
+
+
+logger = logging.getLogger(__name__)
 
 
 def _resolve_plugin_registry(di: object | None = None):
@@ -183,5 +187,6 @@ def load_yaml_file(path: Path, *, di: object | None = None) -> object:
     try:
         text = path.read_text(encoding="utf-8")
         return yaml.safe_load(text)
-    except (OSError, UnicodeDecodeError, yaml.YAMLError, ValueError):
+    except (OSError, UnicodeDecodeError, yaml.YAMLError, ValueError) as exc:
+        logger.debug("load_yaml_file failed for %s: %s", path, exc)
         return None

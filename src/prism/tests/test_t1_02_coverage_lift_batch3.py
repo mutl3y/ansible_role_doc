@@ -78,11 +78,12 @@ def test_render_final_output_html_basic_structure() -> None:
     assert "Title &lt;X&gt;" in out
 
 
-def test_render_final_output_unknown_format_falls_back_to_html() -> None:
+def test_render_final_output_unknown_format_raises() -> None:
     from prism.scanner_io.output import render_final_output
+    import pytest
 
-    out = render_final_output("body", "weird", "T")
-    assert isinstance(out, str) and out.startswith("<!doctype html>")
+    with pytest.raises(ValueError, match="unknown output_format"):
+        render_final_output("body", "weird", "T")
 
 
 def test_write_output_text_and_bytes(tmp_path: Path) -> None:

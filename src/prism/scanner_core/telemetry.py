@@ -16,6 +16,7 @@ import json
 import logging
 import os
 import sys
+import threading
 import time
 from contextlib import contextmanager
 from typing import IO, Iterator, TypedDict
@@ -55,6 +56,7 @@ class TelemetryCollector:
     """
 
     def __init__(self, log_stream: IO[str] | None = None) -> None:
+        self._lock = threading.Lock()
         self._phase_starts: dict[str, float] = {}
         self._phases: list[PhaseTelemetry] = []
         self._scan_started: float = time.monotonic()
@@ -63,15 +65,18 @@ class TelemetryCollector:
 
     def __call__(self, event: ScanPhaseEvent) -> None:
         if event.kind == "pre":
-            self._phase_starts[event.phase_name] = time.monotonic()
+            with self._lock:
+                self._phase_starts[event.phase_name] = time.monotonic()
             if self._json_log_enabled:
                 self._emit_json({"phase": event.phase_name, "kind": "pre"})
             return
-        start = self._phase_starts.pop(event.phase_name, None)
+        with self._lock:
+            start = self._phase_starts.pop(event.phase_name, None)
         duration_ms = int((time.monotonic() - start) * 1000) if start is not None else 0
-        self._phases.append(
-            PhaseTelemetry(phase_name=event.phase_name, duration_ms=duration_ms)
-        )
+        with self._lock:
+            self._phases.append(
+                PhaseTelemetry(phase_name=event.phase_name, duration_ms=duration_ms)
+            )
         if self._json_log_enabled:
             self._emit_json(
                 {

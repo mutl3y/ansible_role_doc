@@ -8,10 +8,6 @@ import prism.scanner_readme as scanner_readme
 
 
 _EXPECTED_ALL = {
-    "ALL_SECTION_IDS",
-    "DEFAULT_SECTION_SPECS",
-    "EXTRA_SECTION_IDS",
-    "SCANNER_STATS_SECTION_IDS",
     "render_readme",
     "append_scanner_report_section_if_enabled",
     "render_guide_section_body",
@@ -54,7 +50,7 @@ def test_nonexistent_public_name_raises_without_private_message() -> None:
 def test_public_symbols_are_importable() -> None:
     for name in _EXPECTED_ALL:
         obj = getattr(scanner_readme, name)
-        assert obj is not None or name in {"ALL_SECTION_IDS"}
+        assert obj is not None
 
 
 def test_refresh_policy_derived_state_callable() -> None:

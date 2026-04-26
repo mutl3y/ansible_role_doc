@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import logging
 import os
 from pathlib import Path
 from typing import Callable
+
+
+logger = logging.getLogger(__name__)
 
 
 def scan_for_default_filters(
@@ -132,7 +136,8 @@ def scan_file_for_default_filters(
                         "args": args,
                     }
                 )
-    except (UnicodeDecodeError, PermissionError, OSError):
+    except (UnicodeDecodeError, PermissionError, OSError) as exc:
+        logger.debug("scan_for_default_filters skipped file: %s", exc)
         return []
     return occurrences
 
@@ -184,6 +189,7 @@ def scan_file_for_all_filters(
                         "filter_name": filter_name,
                     }
                 )
-    except (UnicodeDecodeError, PermissionError, OSError):
+    except (UnicodeDecodeError, PermissionError, OSError) as exc:
+        logger.debug("scan_file_for_all_filters skipped file: %s", exc)
         return []
     return occurrences

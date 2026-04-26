@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import logging
 import os
 import urllib.error
 import urllib.request
@@ -14,6 +15,8 @@ from typing import Any
 import yaml
 
 from prism.scanner_data.contracts_request import PolicyContext
+
+logger = logging.getLogger(__name__)
 
 # Try fsrc data dir first, fall back to src data dir (sibling in repo)
 _CANDIDATE_DATA_DIR = Path(__file__).resolve().parent.parent / "data"
@@ -46,7 +49,8 @@ def _load_yaml(path: Path) -> dict[str, Any]:
         with path.open(encoding="utf-8") as fh:
             data = yaml.safe_load(fh)
         return data if isinstance(data, dict) else {}
-    except (OSError, UnicodeDecodeError, yaml.YAMLError, ValueError):
+    except (OSError, UnicodeDecodeError, yaml.YAMLError, ValueError) as exc:
+        logger.debug("_load_yaml failed for %s: %s", path, exc)
         return {}
 
 

@@ -8,6 +8,7 @@ long scans give visible feedback. stdout stays JSON-clean.
 from __future__ import annotations
 
 import sys
+import threading
 import time
 from contextlib import contextmanager
 from typing import IO, Iterator
@@ -24,14 +25,17 @@ class ProgressReporter:
 
     def __init__(self, stream: IO[str] | None = None) -> None:
         self._stream = stream if stream is not None else sys.stderr
+        self._lock = threading.Lock()
         self._phase_starts: dict[str, float] = {}
 
     def __call__(self, event: ScanPhaseEvent) -> None:
         if event.kind == "pre":
-            self._phase_starts[event.phase_name] = time.monotonic()
+            with self._lock:
+                self._phase_starts[event.phase_name] = time.monotonic()
             self._stream.write(f"[prism] {event.phase_name}: start\n")
         else:
-            start = self._phase_starts.pop(event.phase_name, None)
+            with self._lock:
+                start = self._phase_starts.pop(event.phase_name, None)
             elapsed_ms = (
                 int((time.monotonic() - start) * 1000) if start is not None else 0
             )

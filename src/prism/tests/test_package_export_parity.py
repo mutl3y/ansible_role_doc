@@ -100,10 +100,6 @@ REQUIRED_SCANNER_PACKAGE_EXPORTS: dict[str, set[str]] = {
         "build_requirements_display",
     },
     "prism.scanner_readme": {
-        "ALL_SECTION_IDS",
-        "DEFAULT_SECTION_SPECS",
-        "EXTRA_SECTION_IDS",
-        "SCANNER_STATS_SECTION_IDS",
         "render_readme",
         "append_scanner_report_section_if_enabled",
         "render_guide_section_body",

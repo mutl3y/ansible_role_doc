@@ -5,76 +5,9 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from prism.scanner_extract.requirements import normalize_requirements
 from prism.scanner_plugins.defaults import resolve_readme_renderer_plugin
 
 logger = logging.getLogger(__name__)
-
-
-def _render_identity_galaxy_info_section(
-    role_name: str,
-    description: str,
-    galaxy: dict[str, Any],
-) -> str:
-    """Render Galaxy metadata section details."""
-    if not galaxy:
-        return "No Galaxy metadata found."
-    lines = [
-        f"- **Role name**: {galaxy.get('role_name', role_name)}",
-        f"- **Description**: {galaxy.get('description', description)}",
-        f"- **License**: {galaxy.get('license', 'N/A')}",
-        f"- **Min Ansible Version**: {galaxy.get('min_ansible_version', 'N/A')}",
-    ]
-    tags = galaxy.get("galaxy_tags")
-    if tags:
-        lines.append(f"- **Tags**: {', '.join(tags)}")
-    return "\n".join(lines)
-
-
-def _render_identity_requirements_section(requirements: list[Any]) -> str:
-    """Render normalized requirements bullet list."""
-    requirement_lines = normalize_requirements(requirements)
-    if not requirement_lines:
-        return "No additional requirements."
-    return "\n".join(f"- {line}" for line in requirement_lines)
-
-
-def _render_identity_installation_section(
-    role_name: str, galaxy: dict[str, Any]
-) -> str:
-    """Render installation guidance using Ansible Galaxy and requirements.yml."""
-    install_name = str(galaxy.get("role_name") or role_name)
-    return (
-        "Install the role with Ansible Galaxy:\n\n"
-        "```bash\n"
-        f"ansible-galaxy install {install_name}\n"
-        "```\n\n"
-        "Or pin it in `requirements.yml`:\n\n"
-        "```yaml\n"
-        f"- src: {install_name}\n"
-        "```"
-    )
-
-
-def _render_identity_license_section(galaxy: dict[str, Any]) -> str:
-    """Render license value from Galaxy metadata when present."""
-    if galaxy and galaxy.get("license"):
-        return str(galaxy.get("license"))
-    return "N/A"
-
-
-def _render_identity_author_section(galaxy: dict[str, Any]) -> str:
-    """Render author value from Galaxy metadata when present."""
-    if galaxy and galaxy.get("author"):
-        return str(galaxy.get("author"))
-    return "N/A"
-
-
-def _render_identity_license_author_section(galaxy: dict[str, Any]) -> str:
-    """Render combined license/author identity section."""
-    license_value = str(galaxy.get("license", "N/A")) if galaxy else "N/A"
-    author_value = str(galaxy.get("author", "N/A")) if galaxy else "N/A"
-    return f"License: {license_value}\n\nAuthor: {author_value}"
 
 
 def _render_identity_purpose_section(metadata: dict[str, Any]) -> str:

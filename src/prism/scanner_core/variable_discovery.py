@@ -10,6 +10,7 @@ from prism.scanner_core.di_helpers import get_event_bus_or_none
 from prism.scanner_core.events import PHASE_VARIABLE_DISCOVERY
 from prism.scanner_data.contracts_request import validate_variable_discovery_inputs
 from prism.scanner_data.contracts_variables import VariableRow
+from prism.scanner_plugins.interfaces import VariableDiscoveryPlugin
 
 __all__ = [
     "VariableDiscovery",
@@ -29,11 +30,11 @@ class VariableDiscovery:
         self._di = di
         self._role_path = role_path
         self._options = options
-        self._plugin: Any | None = None
+        self._plugin: VariableDiscoveryPlugin | None = None
         self._plugin_resolved = False
         self._plugin_lock = threading.Lock()
 
-    def _resolve_plugin(self) -> Any | None:
+    def _resolve_plugin(self) -> VariableDiscoveryPlugin | None:
         if self._plugin_resolved:
             return self._plugin
         with self._plugin_lock:

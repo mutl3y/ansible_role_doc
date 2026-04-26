@@ -63,6 +63,10 @@
     {
       "file": "src/prism/scanner_io/output.py",
       "kind": "RuntimeError"
+    },
+    {
+      "file": "src/prism/scanner_io/output.py",
+      "kind": "ValueError"
     }
   ],
   "description": "Allowlist of raw exception raises at module boundaries. Each entry is identified by (file, kind). Update via scripts/audit_error_boundaries.py --update after wrapping a raise in PrismRuntimeError or adding a new justified raise."

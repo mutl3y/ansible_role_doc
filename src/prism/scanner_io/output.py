@@ -87,7 +87,7 @@ def render_final_output(
             ) from exc
         return HTML(string=html_doc).write_pdf()
 
-    return html_doc
+    raise ValueError(f"unknown output_format {output_format!r}")
 
 
 def write_output(path: Path, content: str | bytes) -> str:

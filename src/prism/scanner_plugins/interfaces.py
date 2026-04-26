@@ -7,6 +7,7 @@ from typing import Any, Protocol, TypedDict, runtime_checkable
 
 from prism.scanner_data import RunScanOutputPayload, VariableRow
 from prism.scanner_data.contracts_request import (
+    FeaturesContext,
     PreparedJinjaAnalysisPolicy,
     PreparedPolicyBundle,
     PreparedTaskLineParsingPolicy,
@@ -42,7 +43,7 @@ class FeatureDetectionPlugin(Protocol):
 
     def detect_features(
         self, role_path: str, options: dict[str, Any]
-    ) -> dict[str, Any]: ...
+    ) -> FeaturesContext: ...
 
     def analyze_task_catalog(
         self,

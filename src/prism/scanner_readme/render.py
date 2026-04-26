@@ -11,55 +11,6 @@ from prism.scanner_readme.rendering_seams import build_render_jinja_environment
 from prism.scanner_plugins.defaults import resolve_readme_renderer_plugin
 
 
-DEFAULT_SECTION_SPECS = [
-    ("galaxy_info", "Galaxy Info"),
-    ("requirements", "Requirements"),
-    ("purpose", "Role purpose and capabilities"),
-    ("role_notes", "Role notes"),
-    ("variable_summary", "Inputs / variables summary"),
-    ("task_summary", "Task/module usage summary"),
-    ("example_usage", "Inferred example usage"),
-    ("role_variables", "Role Variables"),
-    ("role_contents", "Role contents summary"),
-    ("features", "Auto-detected role features"),
-    ("comparison", "Comparison against local baseline role"),
-    ("default_filters", "Detected usages of the default() filter"),
-]
-
-EXTRA_SECTION_IDS: frozenset[str] = frozenset(
-    {
-        "basic_authorization",
-        "handlers",
-        "installation",
-        "license",
-        "author_information",
-        "license_author",
-        "sponsors",
-        "template_overrides",
-        "variable_guidance",
-        "local_testing",
-        "faq_pitfalls",
-        "contributing",
-        "scanner_report",
-        "role_notes",
-    }
-)
-
-ALL_SECTION_IDS: frozenset[str] = (
-    frozenset({section_id for section_id, _ in DEFAULT_SECTION_SPECS})
-    | EXTRA_SECTION_IDS
-)
-
-SCANNER_STATS_SECTION_IDS: frozenset[str] = frozenset(
-    {
-        "task_summary",
-        "role_contents",
-        "features",
-        "comparison",
-        "default_filters",
-    }
-)
-
 DEFAULT_MERGE_GENERATED_CONTENT_LABEL = "Generated content"
 
 

@@ -253,15 +253,13 @@ class PluginRegistry:
             self._reserved_unsupported_platforms.add(name)
 
     def is_reserved_unsupported_platform(self, name: str) -> bool:
-        return name in self._reserved_unsupported_platforms
+        with self._lock:
+            return name in self._reserved_unsupported_platforms
 
     def get_variable_discovery_plugin(
         self,
         name: str,
     ) -> type[VariableDiscoveryPlugin] | None:
-        result = self._variable_discovery_plugins.get(name)
-        if result is not None:
-            return result
         with self._lock:
             result = self._variable_discovery_plugins.get(name)
             if result is not None:
@@ -278,9 +276,6 @@ class PluginRegistry:
         self,
         name: str,
     ) -> type[FeatureDetectionPlugin] | None:
-        result = self._feature_detection_plugins.get(name)
-        if result is not None:
-            return result
         with self._lock:
             result = self._feature_detection_plugins.get(name)
             if result is not None:
@@ -297,65 +292,81 @@ class PluginRegistry:
         self,
         name: str,
     ) -> type[OutputOrchestrationPlugin] | None:
-        return self._output_orchestration_plugins.get(name)
+        with self._lock:
+            return self._output_orchestration_plugins.get(name)
 
     def get_scan_pipeline_plugin(self, name: str) -> type[ScanPipelinePlugin] | None:
-        return self._scan_pipeline_plugins.get(name)
+        with self._lock:
+            return self._scan_pipeline_plugins.get(name)
 
     def get_comment_driven_doc_plugin(
         self,
         name: str,
     ) -> type[CommentDrivenDocumentationPlugin] | None:
-        return self._comment_driven_doc_plugins.get(name)
+        with self._lock:
+            return self._comment_driven_doc_plugins.get(name)
 
     def get_extract_policy_plugin(self, name: str) -> type[ExtractPolicyPlugin] | None:
-        return self._extract_policy_plugins.get(name)
+        with self._lock:
+            return self._extract_policy_plugins.get(name)
 
     def get_yaml_parsing_policy_plugin(
         self, name: str
     ) -> type[YAMLParsingPolicyPlugin] | None:
-        return self._yaml_parsing_policy_plugins.get(name)
+        with self._lock:
+            return self._yaml_parsing_policy_plugins.get(name)
 
     def get_jinja_analysis_policy_plugin(
         self, name: str
     ) -> type[JinjaAnalysisPolicyPlugin] | None:
-        return self._jinja_analysis_policy_plugins.get(name)
+        with self._lock:
+            return self._jinja_analysis_policy_plugins.get(name)
 
     def get_readme_renderer_plugin(
         self, name: str
     ) -> type[ReadmeRendererPlugin] | None:
-        return self._readme_renderer_plugins.get(name)
+        with self._lock:
+            return self._readme_renderer_plugins.get(name)
 
     def list_variable_discovery_plugins(self) -> list[str]:
-        names = set(self._variable_discovery_plugins.keys())
-        names.update(self._deferred_variable_discovery.keys())
-        return sorted(names)
+        with self._lock:
+            names = set(self._variable_discovery_plugins.keys())
+            names.update(self._deferred_variable_discovery.keys())
+            return sorted(names)
 
     def list_feature_detection_plugins(self) -> list[str]:
-        names = set(self._feature_detection_plugins.keys())
-        names.update(self._deferred_feature_detection.keys())
-        return sorted(names)
+        with self._lock:
+            names = set(self._feature_detection_plugins.keys())
+            names.update(self._deferred_feature_detection.keys())
+            return sorted(names)
 
     def list_output_orchestration_plugins(self) -> list[str]:
-        return list(self._output_orchestration_plugins.keys())
+        with self._lock:
+            return list(self._output_orchestration_plugins.keys())
 
     def list_scan_pipeline_plugins(self) -> list[str]:
-        return list(self._scan_pipeline_plugins.keys())
+        with self._lock:
+            return list(self._scan_pipeline_plugins.keys())
 
     def list_comment_driven_doc_plugins(self) -> list[str]:
-        return list(self._comment_driven_doc_plugins.keys())
+        with self._lock:
+            return list(self._comment_driven_doc_plugins.keys())
 
     def list_extract_policy_plugins(self) -> list[str]:
-        return list(self._extract_policy_plugins.keys())
+        with self._lock:
+            return list(self._extract_policy_plugins.keys())
 
     def list_yaml_parsing_policy_plugins(self) -> list[str]:
-        return list(self._yaml_parsing_policy_plugins.keys())
+        with self._lock:
+            return list(self._yaml_parsing_policy_plugins.keys())
 
     def list_jinja_analysis_policy_plugins(self) -> list[str]:
-        return list(self._jinja_analysis_policy_plugins.keys())
+        with self._lock:
+            return list(self._jinja_analysis_policy_plugins.keys())
 
     def list_readme_renderer_plugins(self) -> dict[str, type[ReadmeRendererPlugin]]:
-        return dict(self._readme_renderer_plugins)
+        with self._lock:
+            return dict(self._readme_renderer_plugins)
 
     def set_default_platform_key(self, name: str) -> None:
         """Explicitly nominate a platform key as the registry default."""

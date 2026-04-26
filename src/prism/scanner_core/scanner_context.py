@@ -7,9 +7,13 @@ import logging
 from typing import Any, Callable, cast
 
 from prism.errors import PrismRuntimeError
+from prism.scanner_core.di import DIContainer
 from prism.scanner_core.metadata_merger import merge_policy_warning_entries
 from prism.scanner_data.contracts_request import ScanContextPayload, ScanOptionsDict
-from prism.scanner_data.contracts_request import ScanPolicyBlockerFacts
+from prism.scanner_data.contracts_request import (
+    ScanPolicyBlockerFacts,
+    PreparedPolicyBundle,
+)
 from prism.scanner_core.execution_request_builder import (
     NonCollectionRunScanExecutionRequest,
     build_non_collection_run_scan_execution_request,
@@ -48,7 +52,7 @@ _RECOVERABLE_PHASE_ERRORS: tuple[type[Exception], ...] = (PrismRuntimeError,)
 
 def _require_prepared_policy_bundle(
     scan_options: ScanOptionsDict,
-) -> dict[str, Any]:
+) -> PreparedPolicyBundle:
     prepared_policy_bundle = scan_options.get("prepared_policy_bundle")
     if not isinstance(prepared_policy_bundle, dict):
         raise ValueError(
@@ -70,7 +74,7 @@ def _require_prepared_policy_bundle(
             "ScannerContext orchestration"
         )
 
-    return cast(dict[str, Any], prepared_policy_bundle)
+    return cast(PreparedPolicyBundle, prepared_policy_bundle)
 
 
 __all__ = [
@@ -86,7 +90,7 @@ class ScannerContext:
     def __init__(
         self,
         *,
-        di: Any,
+        di: DIContainer,
         role_path: str,
         scan_options: ScanOptionsDict,
         build_run_scan_options_fn: Callable[..., ScanOptionsDict] | None = None,
@@ -162,7 +166,7 @@ class ScannerContext:
     def _detect_features(self) -> dict[str, Any]:
         try:
             detector = self._di.factory_feature_detector()
-            return detector.detect()
+            return cast(dict[str, Any], detector.detect())
         except Exception as error:
             logger = logging.getLogger(__name__)
             if self._strict_phase_failures or not isinstance(
