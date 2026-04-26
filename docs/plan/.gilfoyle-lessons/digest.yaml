@@ -1,8 +1,8 @@
 # Gilfoyle review-loop digest — index for next cycle's Phase 0 sweep
-# Last updated: g15 close (2026-04-26)
+# Last updated: g16 close (2026-04-26)
 
-closed_findings_count: 57  # g1=7 + g2=5 + g3=1 + g4=1 + g5=2 + g6=5 + g7b=1 + g8=6 + g9=5 + g10=2 + g11=1 + g12=2 + g13=3 + g14=8 + g15=7(+1 false positive)
-deferred_findings_count: 7  # unchanged from g14
+closed_findings_count: 66  # g1=7 + g2=5 + g3=1 + g4=1 + g5=2 + g6=5 + g7b=1 + g8=6 + g9=5 + g10=2 + g11=1 + g12=2 + g13=3 + g14=8 + g15=7(+1 false positive) + g16=9
+deferred_findings_count: 8  # +1 from g16: FIND-G16-07 (require_prepared_policy overloads)
 
 open_in_other_cycles:
   - id: FIND-G2-LOADER-DUAL-PATH
@@ -155,7 +155,7 @@ do_not_re_flag:
       regressions in load_meta's contract.
 
 open_questions_for_next_cycle:
-  focus_axis_due_next: concurrency  # covered so far: typing(g1), architecture(g2), coupling(g3), registry_lifecycle(g4), registry_boilerplate(g5), ownership(g6+g7), dedup/layer/TypedDict(g13), typing+error_handling(g14), security(g15) — remaining: concurrency, performance, test_gaps
+  focus_axis_due_next: performance  # covered so far: typing(g1), architecture(g2), coupling(g3), registry_lifecycle(g4), registry_boilerplate(g5), ownership(g6+g7), dedup/layer/TypedDict(g13), typing+error_handling(g14), security(g15), concurrency(g16) — remaining: performance, test_gaps
   - >
     FIND-10 (coupling / g3): with G2-01 closing the AnsibleDefault* ownership leak and
     G2-02 protocoling the DI/kernel boundary, the residual scanner_core→scanner_plugins

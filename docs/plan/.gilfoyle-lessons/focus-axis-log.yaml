@@ -363,3 +363,18 @@
     circular dep), _TRUTHY_VALUES dedup, 10 new security/coverage tests.
     FIND-G15-08 false positive: set() at registry.py:128 is instance var not module-level constant.
     commit abfacd7.
+
+- cycle: g16
+  primary: concurrency
+  result: zero_critical_high
+  gate_state: GREEN
+  depth: thorough
+  notes: >
+    959 passed / 7 skipped, ruff clean, black clean, mypy 99 errors (delta=0).
+    Key outcomes: PluginRegistry 15 readers + TelemetryCollector + ProgressReporter
+    threading.Lock guards; 6 dead guide.py functions + 4 Ansible taxonomy constants deleted;
+    FeatureDetector/_plugin/ScannerContext.di narrowed from Any to Protocol/DIContainer;
+    FeatureDetectionPlugin.detect_features -> FeaturesContext; output.py fail-closed ValueError;
+    4 silent-swallow excepts emit logger.debug.
+    FIND-G16-07 deferred: require_prepared_policy() -> Any needs Literal-typed overloads (20+ sites).
+    commit feab271.

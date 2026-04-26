@@ -327,3 +327,28 @@ registry_boilerplate → ownership → ownership-impl) all GREEN. Sign-off bar e
 **Gates:** pytest 959 passed / 7 skipped (+10 tests), ruff clean, black clean, mypy 99 errors (delta=0). commit abfacd7.
 
 **Fifteen consecutive thorough cycles.**
+
+## Cycle g16 — concurrency (2026-04-26)
+
+**Axis:** concurrency — first time primary; first use of threading.Lock coverage audit across registries and collectors.
+
+**Closed (9):**
+- **FIND-G16-01** `PluginRegistry` 15 reader methods bypass `self._lock` — All 15 public reader methods, both `list_variable_discovery_plugins`/`list_feature_detection_plugins` two-dict reads, and the `get_variable_discovery_plugin`/`get_feature_detection_plugin` double-checked blocks wrapped in single `with self._lock:` guards.
+- **FIND-G16-02** `TelemetryCollector` + `ProgressReporter` `_phase_starts` dict unguarded — Added `import threading`, `self._lock = threading.Lock()` to both classes; `_phase_starts` mutations (set, pop) inside `with self._lock:` blocks; `_phases.append()` separately guarded.
+- **FIND-G16-03** `scanner_readme/guide.py` 6 dead `_render_identity_*` functions — All 6 functions deleted along with stale `normalize_requirements` import.
+- **FIND-G16-04** `scanner_readme/render.py` 4 Ansible taxonomy constants duplicated from plugin — `DEFAULT_SECTION_SPECS`, `EXTRA_SECTION_IDS`, `ALL_SECTION_IDS`, `SCANNER_STATS_SECTION_IDS` deleted from `render.py`; removed from `__init__.py` `__all__`; `test_package_export_parity.py` + `test_scanner_readme_init.py` updated.
+- **FIND-G16-05** `FeatureDetector` + `VariableDiscovery` `_plugin` typed `Any` — `_plugin` and `_resolve_plugin` return types narrowed to `FeatureDetectionPlugin | None` / `VariableDiscoveryPlugin | None` via Protocol imports.
+- **FIND-G16-06** `ScannerContext` `di: Any` parameter and `PreparedPolicyBundle` cast-down — `di: Any` → `di: DIContainer`; `_require_prepared_policy_bundle` return type tightened to `PreparedPolicyBundle`; `cast(dict[str, Any], ...)` → `cast(PreparedPolicyBundle, ...)`.
+- **FIND-G16-08** `FeatureDetectionPlugin.detect_features()` returns `dict[str, Any]` when `FeaturesContext` TypedDict exists — Protocol return type narrowed to `FeaturesContext`; `FeaturesContext` imported in `interfaces.py`; `_detect_features()` in `ScannerContext` uses `cast(dict[str, Any], ...)` to preserve mypy delta=0.
+- **FIND-G16-09** `scanner_io/output.py` non-exhaustive format dispatch — Added `raise ValueError(f"unknown output_format {output_format!r}")` at end of dispatch chain; error-boundary baseline refreshed (45 entries); test updated to expect `ValueError`.
+- **FIND-G16-10** Four silent-swallow except blocks — Added `logger.debug` with filename + exc repr in `patterns.py`, `loader.py`, `filter_scanner.py` (×2); `import logging` + `logger = getLogger(__name__)` added to each file.
+
+**Deferred (1 newly + 3 carry-forward):**
+- **FIND-G16-07** `require_prepared_policy() -> Any` — Function returns 8+ distinct policy types keyed by `policy_name`; a single `-> PreparedPolicyBundle` annotation would be semantically wrong. Correct fix requires Literal-typed overloads across 20+ call sites. Deferred.
+- FIND-G16-D01 (long param lists), FIND-G16-D02/D03 (readme platform slice) — carry-forward deferred.
+
+**Gate fixes during close:** error-boundary baseline updated (45 entries, +1 for output.py ValueError); `test_render_final_output_unknown_format` updated to expect ValueError; `FeaturesContext → dict[str, Any]` cast added to preserve `_detect_features` delta=0.
+
+**Gates:** pytest 959 passed / 7 skipped, ruff clean, black clean, mypy 99 errors (delta=0). commit feab271.
+
+**Sixteen consecutive thorough cycles.**
