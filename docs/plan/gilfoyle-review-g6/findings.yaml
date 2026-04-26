@@ -124,7 +124,8 @@ findings:
   - id: FIND-G6-06
     category: architecture
     severity: high
-    status: deferred_to_planning_slice
+    status: closed
+    closed_in_commit: "G6-06 W1-W5 (b18f4bb, a803a0b, c40edfa, 483bfa2 + ledger)"
     title: "scanner_readme/* hardcodes Ansible role rendering — blocks Terraform/K8s/AAP plug-and-play"
     description: >
       Product vision (confirmed by user 2026-04-25) is plug-and-play platform
@@ -162,6 +163,30 @@ findings:
       cheaper than waiting for one well-shaped slice. The debt is real and
       blocks the stated product direction; this finding records the contract
       so the next planning cycle starts with the constraint already written down.
+    resolution: >
+      Implemented in 5 waves as planning slice 'FIND-G6-06':
+      W1 — ReadmeRendererPlugin protocol (@runtime_checkable, 8 methods) +
+           registry slot 'readme_renderer' in _STATELESS_REQUIRED_SLOTS.
+      W2 — AnsibleReadmeRendererPlugin (full 8-method impl) + ansible/templates/
+           README.md.j2 copy; bootstrap wiring via _DIRECT_REGISTRATIONS /
+           _DIRECT_SLOT_DISPATCH; exported from ansible/__init__.py.
+      W3 — scanner_readme/render.py + guide.py delegated to plugin:
+           _get_readme_renderer_plugin() dispatches by metadata['platform_key'];
+           fails closed with ValueError for unknown platform; render_section_body,
+           render_identity_section, default_template_path, legacy markers, and
+           scanner_report_blurb all routed through plugin.
+      W4 — 4 test files (70 tests): protocol compliance, registry round-trip,
+           output parity, Terraform stub isolation.
+      W5 — Full gate: 949 passed (879 + 70 new), mypy 99 errors (baseline),
+           ruff clean, black clean.
+    evidence:
+      test_count_before: 879
+      test_count_after: 949
+      new_tests: 70
+      mypy_errors: 99
+      mypy_baseline: 99
+      ruff: clean
+      black: clean
 
 # --- Status legend ---
 # open                       : Finding identified, not yet started
