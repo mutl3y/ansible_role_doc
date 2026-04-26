@@ -185,3 +185,41 @@ def test_render_readme_raises_for_unregistered_platform() -> None:
                 [],
                 metadata={"platform_key": "unknown_platform_xyz"},
             )
+
+
+# ---- resolve_readme_renderer_plugin resolver tests -----------------------
+
+
+def test_resolve_readme_renderer_plugin_returns_instance_for_registered_platform() -> (
+    None
+):
+    from prism.scanner_plugins.defaults import resolve_readme_renderer_plugin
+
+    instance = resolve_readme_renderer_plugin("ansible")
+    assert isinstance(instance, AnsibleReadmeRendererPlugin)
+
+
+def test_resolve_readme_renderer_plugin_raises_for_unknown_platform() -> None:
+    from prism.scanner_plugins.defaults import resolve_readme_renderer_plugin
+
+    with pytest.raises(ValueError, match="no_such_platform_xyz"):
+        resolve_readme_renderer_plugin("no_such_platform_xyz")
+
+
+def test_resolve_readme_renderer_plugin_uses_injected_registry() -> None:
+    from prism.scanner_plugins.defaults import resolve_readme_renderer_plugin
+
+    reg = PluginRegistry()
+    reg.register_readme_renderer_plugin("custom", AnsibleReadmeRendererPlugin)
+
+    instance = resolve_readme_renderer_plugin("custom", registry=reg)
+    assert isinstance(instance, AnsibleReadmeRendererPlugin)
+
+
+def test_resolve_readme_renderer_plugin_injected_registry_raises_for_missing() -> None:
+    from prism.scanner_plugins.defaults import resolve_readme_renderer_plugin
+
+    empty_reg = PluginRegistry()
+
+    with pytest.raises(ValueError, match="ansible"):
+        resolve_readme_renderer_plugin("ansible", registry=empty_reg)

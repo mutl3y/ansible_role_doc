@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import os
 
+from prism.scanner_kernel.repo_context import _TRUTHY_VALUES
+
 KERNEL_ENABLED_ENV_VAR = "PRISM_KERNEL_ENABLED"
 ANSIBLE_PLUGIN_ENABLED_ENV_VAR = "PRISM_ANSIBLE_PLUGIN_ENABLED"
-
-_TRUTHY_VALUES = frozenset({"1", "true", "yes", "on"})
 
 
 def is_ansible_plugin_enabled() -> bool:

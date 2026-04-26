@@ -230,6 +230,10 @@ def fetch_remote_policy(
 
     raw_bytes: bytes | None = None
     try:
+        if not url.lower().startswith("https://"):
+            raise RuntimeError(
+                "REMOTE_POLICY_URL_CONTRACT_INVALID: remote policy URL must use HTTPS"
+            )
         with urllib.request.urlopen(url, timeout=timeout) as resp:  # noqa: S310
             raw_bytes = resp.read()
     except urllib.error.URLError as exc:

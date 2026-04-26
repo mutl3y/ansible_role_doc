@@ -28,9 +28,9 @@ def build_render_jinja_environment(
 
     undefined_policy = str(metadata.get("jinja_undefined_policy") or "").strip()
     undefined_cls = (
-        jinja2.StrictUndefined
-        if undefined_policy.lower() == "strict"
-        else jinja2.Undefined
+        jinja2.Undefined
+        if undefined_policy.lower() == "lenient"
+        else jinja2.StrictUndefined
     )
     return jinja2.Environment(
         loader=jinja2.FileSystemLoader(str(template_dir)),

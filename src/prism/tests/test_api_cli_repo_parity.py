@@ -11,6 +11,8 @@ from contextlib import contextmanager
 from pathlib import Path
 from urllib.error import URLError
 
+import pytest
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 SRC_SOURCE_ROOT = PROJECT_ROOT / "src"
@@ -570,3 +572,71 @@ def test_fsrc_api_run_scan_surfaces_role_notes_in_metadata(tmp_path: Path) -> No
     role_notes = payload["metadata"].get("role_notes")
     assert isinstance(role_notes, dict)
     assert "emitted from marker comment" in role_notes.get("notes", [])
+
+
+# ---- repo_services subprocess security boundary tests -------------------
+
+
+def test_clone_repo_uses_list_form_no_shell_injection(tmp_path: Path) -> None:
+    """Verify clone_repo builds its command as a list, not a shell string.
+
+    A URL containing shell metacharacters must be passed verbatim to git
+    rather than being interpreted by /bin/sh. This test confirms that
+    SubprocessError is raised (because git rejects the URL) without any
+    shell expansion side-effects.
+    """
+    import subprocess
+
+    from prism.repo_services import clone_repo, PrismRuntimeError
+
+    malicious_url = "https://example.com/repo; echo INJECTED"
+    dest = tmp_path / "target"
+
+    with pytest.raises(PrismRuntimeError) as exc_info:
+        clone_repo(malicious_url, dest)
+
+    assert exc_info.value.code == "repo_clone_failed"
+    assert isinstance(exc_info.value.__cause__, (subprocess.SubprocessError, OSError))
+
+
+def test_clone_repo_wraps_subprocess_error_as_prism_runtime_error(
+    tmp_path: Path,
+) -> None:
+    """SubprocessError from git must be re-raised as PrismRuntimeError."""
+    import subprocess
+    from unittest.mock import patch
+
+    from prism.repo_services import clone_repo, PrismRuntimeError
+
+    dest = tmp_path / "target"
+
+    with patch(
+        "prism.repo_services.subprocess.run",
+        side_effect=subprocess.SubprocessError("git exploded"),
+    ):
+        with pytest.raises(PrismRuntimeError) as exc_info:
+            clone_repo("https://example.com/repo.git", dest)
+
+    assert exc_info.value.code == "repo_clone_failed"
+    assert isinstance(exc_info.value.__cause__, subprocess.SubprocessError)
+
+
+def test_clone_repo_wraps_called_process_error_as_prism_runtime_error(
+    tmp_path: Path,
+) -> None:
+    """CalledProcessError (exit ≠ 0) is a SubprocessError subclass and must propagate."""
+    import subprocess
+    from unittest.mock import patch
+
+    from prism.repo_services import clone_repo, PrismRuntimeError
+
+    dest = tmp_path / "target"
+
+    with patch(
+        "prism.repo_services.subprocess.run",
+        side_effect=subprocess.CalledProcessError(1, ["git", "clone"]),
+    ):
+        with pytest.raises(PrismRuntimeError) as exc_info:
+            clone_repo("https://example.com/repo.git", dest)
+
+    assert exc_info.value.code == "repo_clone_failed"

@@ -76,3 +76,39 @@ def test_no_scan_options_attr_returns_none():
         fn = _load_helper()
         di = object()
         assert fn(di) is None
+
+
+def _load_event_bus_helper():
+    with _prefer_fsrc_prism_on_sys_path():
+        module = importlib.import_module("prism.scanner_core.di_helpers")
+        return module.get_event_bus_or_none
+
+
+def test_get_event_bus_or_none_returns_none_when_factory_absent() -> None:
+    helper = _load_event_bus_helper()
+    assert helper(object()) is None
+
+
+def test_get_event_bus_or_none_returns_none_when_factory_returns_none() -> None:
+    helper = _load_event_bus_helper()
+
+    class _DI:
+        def factory_event_bus(self):
+            return None
+
+    assert helper(_DI()) is None
+
+
+def test_get_event_bus_or_none_returns_bus_when_factory_present() -> None:
+    helper = _load_event_bus_helper()
+
+    class _FakeBus:
+        pass
+
+    fake_bus = _FakeBus()
+
+    class _DI:
+        def factory_event_bus(self):
+            return fake_bus
+
+    assert helper(_DI()) is fake_bus
