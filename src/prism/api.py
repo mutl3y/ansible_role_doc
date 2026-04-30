@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import json
 import re as _re
-from typing import Any
 
 import yaml
 
 from prism.api_layer import collection as api_collection
 from prism.api_layer import non_collection as api_non_collection
+from prism.api_layer import plugin_facade
 from prism.errors import PrismRuntimeError
 from prism.errors import FailurePolicy
 from prism.path_safety import assert_safe_role_path
@@ -27,10 +27,12 @@ from prism.scanner_reporting.collection_dependencies import (
 )
 from prism.scanner_readme import render_readme
 from prism.scanner_reporting import render_runbook, render_runbook_csv
-from prism.scanner_core.di import DIContainer
-from prism.scanner_core.feature_detector import FeatureDetector
-from prism.scanner_core.scan_cache import ScanCacheBackend
-from prism.scanner_core.scanner_context import ScannerContext
+from prism.scanner_core import (
+    DIContainer,
+    FeatureDetector,
+    ScanCacheBackend,
+    ScannerContext,
+)
 from prism.scanner_data import CollectionScanResult, RepoScanResult, RoleScanResult
 
 API_PUBLIC_ENTRYPOINTS: tuple[str, ...] = ("scan_collection", "scan_role", "scan_repo")
@@ -52,14 +54,13 @@ _COLLECTION_ROLE_RUNTIME_RECOVERABLE_ERRORS: tuple[type[Exception], ...] = (
 
 build_run_scan_options_canonical = api_non_collection.build_run_scan_options_canonical
 route_scan_payload_orchestration = api_non_collection.route_scan_payload_orchestration
-orchestrate_scan_payload_with_selected_plugin = (
-    api_non_collection.orchestrate_scan_payload_with_selected_plugin
-)
 
-resolve_comment_driven_documentation_plugin = (
-    api_non_collection.resolve_comment_driven_documentation_plugin
-)
-DEFAULT_PLUGIN_REGISTRY = api_non_collection.DEFAULT_PLUGIN_REGISTRY
+
+def _get_default_plugin_registry():
+    return plugin_facade.get_default_plugin_registry()
+
+
+DEFAULT_PLUGIN_REGISTRY = _get_default_plugin_registry()
 
 __all__ = ["scan_collection", "scan_repo", "scan_role"]
 
@@ -131,13 +132,13 @@ def run_scan(
         build_run_scan_options_canonical_fn=build_run_scan_options_canonical,
         route_scan_payload_orchestration_fn=route_scan_payload_orchestration,
         orchestrate_scan_payload_with_selected_plugin_fn=(
-            orchestrate_scan_payload_with_selected_plugin
+            api_non_collection.orchestrate_scan_payload_with_selected_plugin
         ),
         di_container_cls=DIContainer,
         feature_detector_cls=FeatureDetector,
         scanner_context_cls=ScannerContext,
         resolve_comment_driven_documentation_plugin_fn=(
-            resolve_comment_driven_documentation_plugin
+            plugin_facade.resolve_comment_driven_documentation_plugin
         ),
         default_plugin_registry=DEFAULT_PLUGIN_REGISTRY,
     )
@@ -362,11 +363,35 @@ def scan_repo(
 
 
 def resolve_default_style_guide_source(
-    explicit_path: str | None = None, **kwargs: Any
+    explicit_path: str | None = None,
+    *,
+    env_style_guide_source_path: str = "PRISM_STYLE_SOURCE",
+    xdg_data_home_env: str = "XDG_DATA_HOME",
+    style_guide_data_dirname: str = "prism",
+    style_guide_source_filename: str = "STYLE_GUIDE_SOURCE.md",
+    system_style_guide_source_path: object | None = None,
+    default_style_guide_source_path: object | None = None,
 ) -> str:
+    from pathlib import Path
     from prism.scanner_config.style import resolve_default_style_guide_source as _impl
 
-    return _impl(explicit_path=explicit_path, **kwargs)
+    return _impl(
+        explicit_path=explicit_path,
+        env_style_guide_source_path=env_style_guide_source_path,
+        xdg_data_home_env=xdg_data_home_env,
+        style_guide_data_dirname=style_guide_data_dirname,
+        style_guide_source_filename=style_guide_source_filename,
+        system_style_guide_source_path=(
+            Path(system_style_guide_source_path)
+            if isinstance(system_style_guide_source_path, str)
+            else system_style_guide_source_path  # type: ignore[arg-type]
+        ),
+        default_style_guide_source_path=(
+            Path(default_style_guide_source_path)
+            if isinstance(default_style_guide_source_path, str)
+            else default_style_guide_source_path  # type: ignore[arg-type]
+        ),
+    )
 
 
 _FILTER_IGNORED_DIRS: tuple[str, ...] = (

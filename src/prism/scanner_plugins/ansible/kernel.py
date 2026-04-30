@@ -14,6 +14,8 @@ PLUGIN_CONTRACT_VERSION: types.MappingProxyType[str, int] = types.MappingProxyTy
 class AnsibleBaselineKernelPlugin:
     """Baseline contract-v1 plugin for ansible scan orchestration."""
 
+    PLUGIN_IS_STATELESS = True
+
     contract_v1: types.MappingProxyType[str, Any] = types.MappingProxyType(
         {
             "plugin_id": "prism.ansible.baseline.v1",

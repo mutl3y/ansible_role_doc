@@ -3,26 +3,39 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, TypedDict
 
 from prism.scanner_data.contracts_request import FeaturesContext
-from prism.scanner_extract.task_annotation_parsing import (
+from prism.scanner_plugins.ansible.extract_utils import (
     extract_task_annotations_for_file,
 )
-from prism.scanner_extract.task_catalog_assembly import detect_task_module
-from prism.scanner_extract.task_catalog_assembly import (
+from prism.scanner_plugins.ansible.extract_utils import detect_task_module
+from prism.scanner_plugins.ansible.extract_utils import (
     extract_collection_from_module_name,
 )
-from prism.scanner_extract.task_file_traversal import collect_task_files
-from prism.scanner_extract.task_file_traversal import (
+from prism.scanner_plugins.ansible.extract_utils import collect_task_files
+from prism.scanner_plugins.ansible.extract_utils import (
     iter_dynamic_role_include_targets,
 )
-from prism.scanner_extract.task_file_traversal import iter_role_include_targets
-from prism.scanner_extract.task_file_traversal import iter_task_include_targets
-from prism.scanner_extract.task_file_traversal import iter_task_mappings
-from prism.scanner_extract.task_file_traversal import (
-    load_yaml_file as load_task_yaml_file,
+from prism.scanner_plugins.ansible.extract_utils import iter_role_include_targets
+from prism.scanner_plugins.ansible.extract_utils import iter_task_include_targets
+from prism.scanner_plugins.ansible.extract_utils import iter_task_mappings
+from prism.scanner_plugins.ansible.extract_utils import (
+    load_task_yaml_file,
 )
+
+
+class _TaskCatalogEntry(TypedDict):
+    """Per-file task catalog summary emitted by feature detection."""
+
+    task_count: int
+    async_count: int
+    modules_used: list[str]
+    collections_used: list[str]
+    handlers_notified: list[str]
+    privileged_tasks: int
+    conditional_tasks: int
+    tagged_tasks: int
 
 
 class AnsibleFeatureDetectionPlugin:
@@ -32,11 +45,13 @@ class AnsibleFeatureDetectionPlugin:
     Ansible-native detection logic previously inline in FeatureDetector.
     """
 
-    def __init__(self, di: Any = None) -> None:
+    PLUGIN_IS_STATELESS = True
+
+    def __init__(self, di: object | None = None) -> None:
         self._di = di
 
     @staticmethod
-    def _resolve_marker_prefix(options: dict[str, Any]) -> str:
+    def _resolve_marker_prefix(options: dict[str, object]) -> str:
         bundle = options.get("prepared_policy_bundle")
         if not isinstance(bundle, dict):
             raise ValueError(
@@ -76,7 +91,7 @@ class AnsibleFeatureDetectionPlugin:
         included_role_calls = 0
         dynamic_included_role_calls = 0
         dynamic_included_roles: set[str] = set()
-        raw_lines_cache: dict = {}
+        raw_lines_cache: dict[Path, list[str]] = {}
 
         for task_file in task_files:
             try:
@@ -177,7 +192,7 @@ class AnsibleFeatureDetectionPlugin:
         self,
         role_path: str,
         options: dict[str, Any],
-    ) -> dict[str, dict[str, Any]]:
+    ) -> dict[str, _TaskCatalogEntry]:
         role_root = Path(role_path).resolve()
         exclude_patterns = options.get("exclude_path_patterns")
         task_files = collect_task_files(
@@ -186,7 +201,7 @@ class AnsibleFeatureDetectionPlugin:
             di=self._di,
         )
 
-        result: dict[str, dict[str, Any]] = {}
+        result: dict[str, _TaskCatalogEntry] = {}
         for task_file in task_files:
             rel_path = str(task_file.relative_to(role_root))
             data = load_task_yaml_file(task_file, di=self._di)
