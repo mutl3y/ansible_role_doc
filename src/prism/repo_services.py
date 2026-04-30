@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from contextlib import contextmanager
+from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass
 import json
 import os
 from pathlib import Path
 import subprocess
 import tempfile
-from typing import Any, Callable
+from typing import Any, Callable, Protocol
 
 from prism.errors import (
     REPO_CLONE_FAILED,
@@ -52,6 +52,10 @@ class RepoScanRunResult:
 
     checkout: RepoScanTarget
     scan_output: dict[str, Any] | str
+
+
+class RepoScanWorkspaceFactory(Protocol):
+    def __call__(self, base_dir: str | None = None) -> AbstractContextManager[Path]: ...
 
 
 @contextmanager
@@ -237,7 +241,7 @@ def _run_repo_scan(
     lightweight_readme_only: bool,
     scan_role_fn: Callable[..., dict[str, Any] | str],
     resolve_repo_scan_target_fn: Callable[..., RepoScanTarget] | None = None,
-    repo_scan_workspace_fn: Callable[..., Any] | None = None,
+    repo_scan_workspace_fn: RepoScanWorkspaceFactory | None = None,
     normalize_repo_scan_payload_fn: Callable[..., dict[str, Any] | str] | None = None,
 ) -> dict[str, Any] | str:
     normalize_repo_scan_payload_fn = (
@@ -282,7 +286,7 @@ class RepoScanFacade:
     build_repo_intake_components: Callable[[], dict[str, object]]
     clone_repo: Callable[..., Path]
     normalize_repo_scan_payload: Callable[..., dict[str, Any] | str]
-    repo_scan_workspace: Callable[..., Any]
+    repo_scan_workspace: RepoScanWorkspaceFactory
     resolve_repo_scan_target: Callable[..., RepoScanTarget]
     run_repo_scan: Callable[..., dict[str, Any] | str]
 

@@ -14,7 +14,7 @@ from prism.errors import (
     SCAN_ROLE_PAYLOAD_SHAPE_INVALID,
     SCAN_ROLE_PAYLOAD_TYPE_INVALID,
 )
-from prism.scanner_data.payload_helpers import (  # noqa: F401  (re-export)
+from prism.api_layer.payload_helpers import (  # noqa: F401  (re-export)
     normalize_scan_role_payload_shape,
 )
 

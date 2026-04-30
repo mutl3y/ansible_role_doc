@@ -2,31 +2,50 @@
 
 from __future__ import annotations
 
-from typing import Any
+import logging
+from typing import TYPE_CHECKING, Any, Callable
+from collections.abc import Mapping
 
 from prism.errors import PrismRuntimeError
-from prism.scanner_plugins.policies import (
-    DefaultTaskAnnotationPolicyPlugin,
+from prism.scanner_plugins.ansible.default_policies import (
+    AnsibleDefaultTaskAnnotationPolicyPlugin,
+    AnsibleDefaultTaskLineParsingPolicyPlugin,
+    AnsibleDefaultTaskTraversalPolicyPlugin,
+    AnsibleDefaultVariableExtractorPolicyPlugin,
 )
-from prism.scanner_plugins.policies import (
-    DefaultTaskLineParsingPolicyPlugin,
-)
-from prism.scanner_plugins.policies import (
-    DefaultTaskTraversalPolicyPlugin,
-)
-from prism.scanner_plugins.policies import (
-    DefaultVariableExtractorPolicyPlugin,
-)
-from prism.scanner_plugins.parsers.yaml import YAMLParsingPolicyPlugin
-from prism.scanner_plugins.parsers.jinja import JinjaAnalysisPolicyPlugin
+from prism.scanner_plugins.parsers.yaml import DefaultYAMLParsingPolicyPlugin
+from prism.scanner_plugins.parsers.jinja import DefaultJinjaAnalysisPolicyPlugin
 from prism.scanner_plugins.parsers.comment_doc.role_notes_parser import (
     CommentDrivenDocumentationParser,
 )
-from prism.scanner_plugins.interfaces import CommentDrivenDocumentationPlugin
-from prism.scanner_plugins.registry import plugin_registry
+from prism.scanner_plugins.interfaces import (
+    CommentDrivenDocumentationPlugin,
+    ReadmeRendererPlugin,
+)
+from prism.scanner_data.contracts_request import (
+    PreparedJinjaAnalysisPolicy,
+    PreparedTaskAnnotationPolicy,
+    PreparedTaskLineParsingPolicy,
+    PreparedTaskTraversalPolicy,
+    PreparedVariableExtractorPolicy,
+    PreparedYAMLParsingPolicy,
+)
+
+if TYPE_CHECKING:
+    from prism.scanner_plugins.registry import PluginRegistry
+    from prism.scanner_plugins.parsers.comment_doc.runbook_renderer import RunbookRow
+
+logger = logging.getLogger(__name__)
 
 
-def _resolve_registry(di: object | None = None, registry: Any | None = None):
+def _resolve_registry(
+    di: object | None = None, registry: "PluginRegistry | None" = None
+) -> "PluginRegistry":
+    """Resolve plugin registry: explicit registry > DI registry > bootstrap singleton.
+
+    Uses scanner_plugins.bootstrap facade (O008/O010 remediation) instead of
+    direct plugin_registry import to maintain explicit bootstrap phase ordering.
+    """
     if registry is not None:
         return registry
 
@@ -34,19 +53,80 @@ def _resolve_registry(di: object | None = None, registry: Any | None = None):
         di_registry = getattr(di, "plugin_registry", None)
         if di_registry is not None:
             return di_registry
-    return plugin_registry
+
+    from prism.scanner_plugins.bootstrap import get_default_plugin_registry
+
+    return get_default_plugin_registry()
 
 
+# ANSIBLE-FIRST PRODUCT CONSTRAINT (intentional, not an oversight)
+# The six fallback singletons below (_TASK_LINE_PARSING_FALLBACK,
+# _TASK_ANNOTATION_FALLBACK, _TASK_TRAVERSAL_FALLBACK,
+# _VARIABLE_EXTRACTOR_FALLBACK, _YAML_PARSING_FALLBACK,
+# _JINJA_ANALYSIS_FALLBACK) are Ansible-backed by design.
+#
+# A platform-declared default-provider seam would allow the registry to
+# surface the correct fallback class for any platform (Kubernetes, Terraform,
+# etc.) without hardcoding Ansible here. That seam depends on the
+# ReadmeRendererPlugin protocol design (FIND-G6-06), which has not landed yet.
+# Until FIND-G6-06 is resolved, Ansible is the only supported default platform
+# and these singletons intentionally reflect that constraint.
+#
 # Singleton fallback plugin instances — module-level globals intentionally shared.
 # INVARIANT: All plugin classes below must remain stateless (no mutable instance
 # state, caches, or registries). If any plugin class acquires mutable state,
 # replace with per-call factory functions to prevent cross-caller contamination.
-_TASK_LINE_PARSING_FALLBACK = DefaultTaskLineParsingPolicyPlugin()
-_TASK_ANNOTATION_FALLBACK = DefaultTaskAnnotationPolicyPlugin()
-_TASK_TRAVERSAL_FALLBACK = DefaultTaskTraversalPolicyPlugin()
-_VARIABLE_EXTRACTOR_FALLBACK = DefaultVariableExtractorPolicyPlugin()
-_YAML_PARSING_FALLBACK = YAMLParsingPolicyPlugin()
-_JINJA_ANALYSIS_FALLBACK = JinjaAnalysisPolicyPlugin()
+# Validation of the PLUGIN_IS_STATELESS invariant is deferred to bootstrap phase
+# (scanner_plugins.bootstrap.initialize_default_registry) to avoid import-time
+# failures and make bootstrap order explicit.
+_TASK_LINE_PARSING_FALLBACK = AnsibleDefaultTaskLineParsingPolicyPlugin()
+_TASK_ANNOTATION_FALLBACK = AnsibleDefaultTaskAnnotationPolicyPlugin()
+_TASK_TRAVERSAL_FALLBACK = AnsibleDefaultTaskTraversalPolicyPlugin()
+_VARIABLE_EXTRACTOR_FALLBACK = AnsibleDefaultVariableExtractorPolicyPlugin()
+_YAML_PARSING_FALLBACK = DefaultYAMLParsingPolicyPlugin()
+_JINJA_ANALYSIS_FALLBACK = DefaultJinjaAnalysisPolicyPlugin()
+
+_FALLBACK_SINGLETONS = [
+    _TASK_LINE_PARSING_FALLBACK,
+    _TASK_ANNOTATION_FALLBACK,
+    _TASK_TRAVERSAL_FALLBACK,
+    _VARIABLE_EXTRACTOR_FALLBACK,
+    _YAML_PARSING_FALLBACK,
+    _JINJA_ANALYSIS_FALLBACK,
+]
+
+# Bootstrap validation tracking
+_singleton_invariants_validated = False
+
+
+def _validate_singleton_invariants() -> None:
+    """Validate PLUGIN_IS_STATELESS invariant for module-level fallback singletons.
+
+    Called by scanner_plugins.bootstrap.initialize_default_registry() to defer
+    validation from import-time to explicit bootstrap phase. This prevents
+    import-time RuntimeError when plugin classes are missing PLUGIN_IS_STATELESS.
+
+    Raises:
+        RuntimeError: If any singleton plugin class lacks PLUGIN_IS_STATELESS = True
+    """
+    global _singleton_invariants_validated
+
+    if _singleton_invariants_validated:
+        logger.debug("Singleton invariants already validated; skipping re-validation")
+        return
+
+    for singleton in _FALLBACK_SINGLETONS:
+        if not getattr(type(singleton), "PLUGIN_IS_STATELESS", False):
+            raise RuntimeError(
+                f"{type(singleton).__name__} must declare PLUGIN_IS_STATELESS = True "
+                "to be used as a module-level singleton fallback"
+            )
+
+    _singleton_invariants_validated = True
+    logger.debug(
+        "Singleton invariants validated for %d fallback plugins",
+        len(_FALLBACK_SINGLETONS),
+    )
 
 
 def _raise_malformed_plugin_shape_error(
@@ -119,6 +199,8 @@ def _construct_registry_plugin(
 ) -> Any:
     try:
         plugin = plugin_class()
+    # Broad: plugin_class() is third-party plugin __init__ that can raise
+    # arbitrary errors; raised in strict mode, falls back otherwise.
     except Exception as exc:
         if strict_mode:
             raise PrismRuntimeError(
@@ -131,6 +213,12 @@ def _construct_registry_plugin(
                     "error": str(exc),
                 },
             ) from exc
+        logger.warning(
+            "Failed to construct %s plugin (class=%s); falling back to default. error=%s",
+            plugin_kind,
+            getattr(plugin_class, "__name__", "unknown"),
+            type(exc).__name__,
+        )
         return fallback_plugin
     return plugin
 
@@ -139,7 +227,7 @@ def resolve_comment_driven_documentation_plugin(
     di: object | None,
     *,
     strict_mode: bool = True,
-    registry: Any | None = None,
+    registry: "PluginRegistry | None" = None,
 ) -> CommentDrivenDocumentationPlugin:
     """Resolve plugin with precedence: DI override, registry default, then fallback."""
     registry_obj = _resolve_registry(di, registry)
@@ -190,7 +278,7 @@ def _resolve_plugin_with_precedence(
     required_attributes: tuple[str, ...],
     fallback_plugin: Any,
     strict_mode: bool,
-    registry: Any | None = None,
+    registry: "PluginRegistry | None" = None,
     registry_getter_name: str = "get_extract_policy_plugin",
 ) -> Any:
     registry_obj = _resolve_registry(di, registry)
@@ -236,8 +324,8 @@ def resolve_task_line_parsing_policy_plugin(
     di: object | None = None,
     *,
     strict_mode: bool = True,
-    registry: Any | None = None,
-) -> Any:
+    registry: "PluginRegistry | None" = None,
+) -> PreparedTaskLineParsingPolicy:
     return _resolve_plugin_with_precedence(
         di=di,
         di_factory_name="factory_task_line_parsing_policy_plugin",
@@ -262,8 +350,8 @@ def resolve_task_annotation_policy_plugin(
     di: object | None = None,
     *,
     strict_mode: bool = True,
-    registry: Any | None = None,
-) -> Any:
+    registry: "PluginRegistry | None" = None,
+) -> PreparedTaskAnnotationPolicy:
     return _resolve_plugin_with_precedence(
         di=di,
         di_factory_name="factory_task_annotation_policy_plugin",
@@ -285,8 +373,8 @@ def resolve_task_traversal_policy_plugin(
     di: object | None = None,
     *,
     strict_mode: bool = True,
-    registry: Any | None = None,
-) -> Any:
+    registry: "PluginRegistry | None" = None,
+) -> PreparedTaskTraversalPolicy:
     return _resolve_plugin_with_precedence(
         di=di,
         di_factory_name="factory_task_traversal_policy_plugin",
@@ -313,8 +401,8 @@ def resolve_variable_extractor_policy_plugin(
     di: object | None = None,
     *,
     strict_mode: bool = True,
-    registry: Any | None = None,
-) -> Any:
+    registry: "PluginRegistry | None" = None,
+) -> PreparedVariableExtractorPolicy:
     return _resolve_plugin_with_precedence(
         di=di,
         di_factory_name="factory_variable_extractor_policy_plugin",
@@ -333,8 +421,8 @@ def resolve_yaml_parsing_policy_plugin(
     di: object | None = None,
     *,
     strict_mode: bool = True,
-    registry: Any | None = None,
-) -> Any:
+    registry: "PluginRegistry | None" = None,
+) -> PreparedYAMLParsingPolicy:
     return _resolve_plugin_with_precedence(
         di=di,
         di_factory_name="factory_yaml_parsing_policy_plugin",
@@ -354,8 +442,8 @@ def resolve_jinja_analysis_policy_plugin(
     di: object | None = None,
     *,
     strict_mode: bool = True,
-    registry: Any | None = None,
-) -> Any:
+    registry: "PluginRegistry | None" = None,
+) -> PreparedJinjaAnalysisPolicy:
     return _resolve_plugin_with_precedence(
         di=di,
         di_factory_name="factory_jinja_analysis_policy_plugin",
@@ -372,9 +460,19 @@ def resolve_jinja_analysis_policy_plugin(
 
 
 def _make_standalone_di(role_path: str, exclude_paths=None):
-    from prism.scanner_data.standalone_di import make_standalone_di
+    import types
 
-    return make_standalone_di(role_path, exclude_paths)
+    from prism.scanner_plugins.bundle_resolver import ensure_prepared_policy_bundle
+
+    options: dict = {
+        "role_path": role_path,
+        "exclude_path_patterns": exclude_paths,
+    }
+    ensure_prepared_policy_bundle(scan_options=options, di=None)
+    di = types.SimpleNamespace()
+    di.scan_options = options
+    di.plugin_registry = None
+    return di
 
 
 def extract_role_notes_from_comments(
@@ -397,7 +495,7 @@ def collect_unconstrained_dynamic_role_includes(
     role_path: str,
     exclude_paths: list[str] | None = None,
 ) -> list[dict[str, str]]:
-    from prism.scanner_extract.task_file_traversal import (
+    from prism.scanner_plugins.ansible.extract_utils import (
         collect_unconstrained_dynamic_role_includes as _impl,
     )
 
@@ -409,7 +507,7 @@ def collect_unconstrained_dynamic_task_includes(
     role_path: str,
     exclude_paths: list[str] | None = None,
 ) -> list[dict[str, str]]:
-    from prism.scanner_extract.task_file_traversal import (
+    from prism.scanner_plugins.ansible.extract_utils import (
         collect_unconstrained_dynamic_task_includes as _impl,
     )
 
@@ -421,10 +519,71 @@ def collect_molecule_scenarios(
     role_path: str,
     exclude_paths: list[str] | None = None,
 ) -> list[dict[str, object]]:
-    from prism.scanner_extract.task_catalog_assembly import collect_molecule_scenarios
+    from prism.scanner_plugins.ansible.extract_utils import (
+        collect_molecule_scenarios,
+    )
 
     di = _make_standalone_di(role_path, exclude_paths)
     return collect_molecule_scenarios(role_path, exclude_paths, di=di)
+
+
+def resolve_blocker_fact_builder() -> Callable[..., Any]:
+    """Return the canonical blocker-fact builder callable from the audit module.
+
+    Returns a callable matching BlockerFactBuilder Protocol shape, but typed
+    as Callable[..., Any] to avoid triggering structural type mismatch between
+    the concrete function signature (metadata: dict[str, Any]) and the Protocol
+    expectation (metadata: ScanMetadata).
+    """
+    from prism.scanner_plugins.audit.blocker_fact_evaluator import (
+        build_scan_policy_blocker_facts,
+    )
+
+    return build_scan_policy_blocker_facts
+
+
+def resolve_runbook_rows() -> Callable[[Mapping[str, Any] | None], list["RunbookRow"]]:
+    """Return build_runbook_rows from the canonical runbook renderer seam."""
+    from prism.scanner_plugins.parsers.comment_doc.runbook_renderer import (
+        build_runbook_rows,
+    )
+
+    return build_runbook_rows
+
+
+def resolve_render_runbook() -> (
+    Callable[[str, Mapping[str, Any] | None, str | None], str]
+):
+    """Return render_runbook from the canonical runbook renderer seam."""
+    from prism.scanner_plugins.parsers.comment_doc.runbook_renderer import (
+        render_runbook,
+    )
+
+    return render_runbook
+
+
+def resolve_render_runbook_csv() -> Callable[[Mapping[str, Any] | None], str]:
+    """Return render_runbook_csv from the canonical runbook renderer seam."""
+    from prism.scanner_plugins.parsers.comment_doc.runbook_renderer import (
+        render_runbook_csv,
+    )
+
+    return render_runbook_csv
+
+
+def resolve_readme_renderer_plugin(
+    platform_key: str,
+    *,
+    registry: "PluginRegistry | None" = None,
+) -> ReadmeRendererPlugin:
+    """Resolve readme renderer plugin class for the given platform key."""
+    registry_obj = _resolve_registry(None, registry)
+    plugin_class = registry_obj.get_readme_renderer_plugin(platform_key)
+    if plugin_class is None:
+        raise ValueError(
+            f"No readme_renderer plugin registered for platform '{platform_key}'"
+        )
+    return plugin_class()
 
 
 __all__ = [
@@ -432,7 +591,12 @@ __all__ = [
     "collect_unconstrained_dynamic_role_includes",
     "collect_unconstrained_dynamic_task_includes",
     "extract_role_notes_from_comments",
+    "resolve_blocker_fact_builder",
     "resolve_comment_driven_documentation_plugin",
+    "resolve_readme_renderer_plugin",
+    "resolve_render_runbook",
+    "resolve_render_runbook_csv",
+    "resolve_runbook_rows",
     "resolve_task_annotation_policy_plugin",
     "resolve_jinja_analysis_policy_plugin",
     "resolve_task_line_parsing_policy_plugin",

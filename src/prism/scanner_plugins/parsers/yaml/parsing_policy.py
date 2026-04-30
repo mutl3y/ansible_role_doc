@@ -3,19 +3,18 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import ClassVar
 
 import yaml
 
-
-def _format_candidate_failure_path(candidate: Path, role_root: Path) -> str:
-    try:
-        return candidate.relative_to(role_root).as_posix()
-    except ValueError:
-        return candidate.resolve().as_posix()
+from prism.scanner_data.contracts_request import YamlParseFailure
+from prism.scanner_io.loader import format_candidate_failure_path
 
 
-class YAMLParsingPolicyPlugin:
+class DefaultYAMLParsingPolicyPlugin:
     """Default YAML policy preserving current safe_load behavior and failure shape."""
+
+    PLUGIN_IS_STATELESS: ClassVar[bool] = True
 
     @staticmethod
     def load_yaml_file(path: str | Path) -> object:
@@ -30,7 +29,7 @@ class YAMLParsingPolicyPlugin:
     def parse_yaml_candidate(
         candidate: str | Path,
         role_root: str | Path,
-    ) -> dict[str, object] | None:
+    ) -> YamlParseFailure | None:
         candidate_path = Path(candidate)
         role_root_path = Path(role_root)
         try:
@@ -39,7 +38,7 @@ class YAMLParsingPolicyPlugin:
             return None
         except (OSError, UnicodeDecodeError) as exc:
             return {
-                "file": _format_candidate_failure_path(candidate_path, role_root_path),
+                "file": format_candidate_failure_path(candidate_path, role_root_path),
                 "line": None,
                 "column": None,
                 "error": f"read_error: {exc}",
@@ -52,11 +51,11 @@ class YAMLParsingPolicyPlugin:
             if not problem:
                 problem = str(exc).splitlines()[0].strip()
             return {
-                "file": _format_candidate_failure_path(candidate_path, role_root_path),
+                "file": format_candidate_failure_path(candidate_path, role_root_path),
                 "line": line,
                 "column": column,
                 "error": problem,
             }
 
 
-__all__ = ["YAMLParsingPolicyPlugin"]
+__all__ = ["DefaultYAMLParsingPolicyPlugin"]

@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any, Callable, NamedTuple
 
 from prism.scanner_io.loader import load_yaml_file
 from prism.scanner_io.loader import parse_yaml_candidate
+
+logger = logging.getLogger(__name__)
 
 
 class ScanIdentity(NamedTuple):
@@ -64,7 +67,7 @@ def load_meta(
     if meta_file.exists():
         role_root = Path(role_path).resolve()
         failure = parse_yaml_candidate(meta_file, role_root, di=di)
-        if isinstance(failure, dict):
+        if failure is not None:
             failure_error = str(failure.get("error", "")).strip() or "unknown"
             failure_line = failure.get("line")
             failure_column = failure.get("column")
@@ -90,6 +93,11 @@ def load_meta(
                 raise RuntimeError(
                     f"{ROLE_METADATA_YAML_INVALID}: {meta_file}: {failure_detail}"
                 )
+            logger.warning(
+                "YAML parsing failed for %s: %s (non-strict mode: returning empty dict)",
+                meta_file,
+                failure_detail,
+            )
             _record_metadata_warning(
                 warning_collector,
                 code=ROLE_METADATA_YAML_INVALID,
@@ -99,12 +107,21 @@ def load_meta(
             return {}
 
         try:
-            loaded = load_yaml_file(meta_file, di=di) or {}
+            _raw = load_yaml_file(meta_file, di=di)
+            if _raw is None:
+                logger.warning("Failed to load %s: using empty result", meta_file)
+            loaded = _raw or {}
         except Exception as exc:
             if strict:
                 raise RuntimeError(
                     f"{ROLE_METADATA_IO_ERROR}: {meta_file}: {exc}"
                 ) from exc
+            logger.warning(
+                "Failed to load %s: %s (type=%s, non-strict mode: returning empty dict)",
+                meta_file,
+                exc,
+                type(exc).__name__,
+            )
             _record_metadata_warning(
                 warning_collector,
                 code=ROLE_METADATA_IO_ERROR,
@@ -144,6 +161,12 @@ def load_requirements(
     except Exception as exc:
         if strict:
             raise RuntimeError(f"{REQUIREMENTS_IO_ERROR}: {path}: {exc}") from exc
+        logger.warning(
+            "Failed to load requirements from %s: %s (type=%s, non-strict mode: returning empty list)",
+            path,
+            exc,
+            type(exc).__name__,
+        )
         if warning_collector is not None:
             warning_collector.append(f"{REQUIREMENTS_IO_ERROR}: {path}: {exc}")
         return []
@@ -188,6 +211,12 @@ def load_variables(
                     raise RuntimeError(
                         f"{VARIABLE_FILE_IO_ERROR}: {path}: {exc}"
                     ) from exc
+                logger.warning(
+                    "Failed to load variable file %s: %s (type=%s, non-strict mode: skipping file)",
+                    path,
+                    exc,
+                    type(exc).__name__,
+                )
                 if warning_collector is not None:
                     warning_collector.append(f"{VARIABLE_FILE_IO_ERROR}: {path}: {exc}")
 
@@ -201,6 +230,12 @@ def load_variables(
                 raise RuntimeError(
                     f"{VARIABLE_FILE_IO_ERROR}: {extra_path}: {exc}"
                 ) from exc
+            logger.warning(
+                "Failed to load include_vars file %s: %s (type=%s, non-strict mode: skipping file)",
+                extra_path,
+                exc,
+                type(exc).__name__,
+            )
             if warning_collector is not None:
                 warning_collector.append(
                     f"{VARIABLE_FILE_IO_ERROR}: {extra_path}: {exc}"

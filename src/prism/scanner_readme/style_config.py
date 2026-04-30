@@ -8,7 +8,7 @@ from contextvars import ContextVar, Token
 from types import MappingProxyType
 from typing import Any
 
-from prism.scanner_data.style_aliases import (
+from prism.scanner_config.style_aliases import (
     get_default_style_section_aliases_snapshot,
 )
 

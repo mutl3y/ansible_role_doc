@@ -2,50 +2,112 @@
 
 from __future__ import annotations
 
+import logging
 import os
 from pathlib import Path
-from typing import Callable
+from typing import TYPE_CHECKING, Callable, TypeGuard, cast
 
 import yaml
 
-from prism.scanner_data.di_helpers import get_prepared_policy_or_none
+if TYPE_CHECKING:
+    from prism.scanner_data.contracts_request import (
+        PreparedYAMLParsingPolicy,
+        YamlParseFailure,
+    )
+
+
+logger = logging.getLogger(__name__)
+
+
+def _is_yaml_parse_failure(value: object) -> TypeGuard[YamlParseFailure]:
+    if not isinstance(value, dict):
+        return False
+    file_value = value.get("file")
+    line_value = value.get("line")
+    column_value = value.get("column")
+    error_value = value.get("error")
+    return (
+        isinstance(file_value, str)
+        and (line_value is None or isinstance(line_value, int))
+        and (column_value is None or isinstance(column_value, int))
+        and isinstance(error_value, str)
+    )
 
 
 def _resolve_plugin_registry(di: object | None = None):
     if di is None:
+        logger.debug("YAML parsing policy resolution: no DI provided")
         return None
     registry = getattr(di, "plugin_registry", None)
     if registry is not None:
+        logger.debug(
+            "YAML parsing policy resolution: using DI.plugin_registry override"
+        )
         return registry
     scan_options = getattr(di, "scan_options", None)
     if isinstance(scan_options, dict):
-        return scan_options.get("plugin_registry")
+        registry = scan_options.get("plugin_registry")
+        if registry is not None:
+            # WARNING: scan_options["plugin_registry"] is a non-standard bypass path that
+            # circumvents the DI container boundary. Registry ownership belongs at
+            # the container/bootstrap boundary (DIContainer constructor), not in scan_options
+            # payloads. This path is retained for deferred contract reshape
+            # (FIND-G2-LOADER-DUAL-PATH). If you are hitting this warning, thread registry
+            # through the DI container instead.
+            logger.warning(
+                "YAML parsing policy resolution: registry override via scan_options "
+                "bypasses DI contract boundary; use DIContainer(registry=...) instead"
+            )
+        return registry
     return None
 
 
 def _resolve_policy_with_registry(resolver, di: object | None = None):
     registry = _resolve_plugin_registry(di)
     if registry is None:
+        logger.debug(
+            "YAML parsing policy resolution: invoking resolver without registry override"
+        )
         return resolver(di)
-    try:
-        return resolver(di, registry=registry)
-    except TypeError:
-        return resolver(di)
+    logger.debug(
+        "YAML parsing policy resolution: invoking resolver with registry override"
+    )
+    return resolver(di, registry=registry)
 
 
-def _get_yaml_parsing_policy(di: object | None = None):
+def _get_yaml_parsing_policy(di: object | None = None) -> PreparedYAMLParsingPolicy:
+    """Resolve YAML parsing policy from prepared bundle or registry fallback.
+
+    Returns PreparedYAMLParsingPolicy with 'parse_yaml_candidate' and 'load_yaml_file'
+    callable members.
+    """
+    from prism.scanner_core.di_helpers import get_prepared_policy_or_none
+
     policy = get_prepared_policy_or_none(di, "yaml_parsing")
     if policy is not None:
-        return policy
+        logger.debug(
+            "YAML parsing policy resolution: using prepared_policy_bundle.yaml_parsing"
+        )
+        return cast("PreparedYAMLParsingPolicy", policy)
 
     # NOTE: Intentional dual-path — soft fallback to registry-resolved default.
     # Loader runs in discovery paths that execute before a prepared_policy_bundle
     # is threaded through (e.g. standalone file-load helpers, pre-scan discovery).
     # Unlike other policy getters, this path does NOT raise on a missing bundle.
-    # See FIND-04 in docs/plan/fsrc-gilfoyle-review-20260422/findings.yaml.
-    from prism.scanner_plugins.defaults import resolve_yaml_parsing_policy_plugin
+    from prism.scanner_plugins.defaults import (
+        resolve_yaml_parsing_policy_plugin as _resolve_yaml_plugin,
+    )
 
-    return _resolve_policy_with_registry(resolve_yaml_parsing_policy_plugin, di)
+    registry = _resolve_plugin_registry(di)
+    if registry is None:
+        logger.debug(
+            "YAML parsing policy resolution: invoking resolver without registry override"
+        )
+        return _resolve_yaml_plugin(di)
+    logger.debug(
+        "YAML parsing policy resolution: invoking resolver with registry override"
+    )
+    return _resolve_yaml_plugin(di, registry=registry)
 
 
 def _role_relative_candidate_path(path: Path, role_root: Path) -> str | None:
@@ -56,7 +118,7 @@ def _role_relative_candidate_path(path: Path, role_root: Path) -> str | None:
         return None
 
 
-def _format_candidate_failure_path(candidate: Path, role_root: Path) -> str:
+def format_candidate_failure_path(candidate: Path, role_root: Path) -> str:
     """Return a stable failure-path string without crashing on outside-root symlinks."""
     relpath = _role_relative_candidate_path(candidate, role_root)
     if relpath is not None:
@@ -97,27 +159,54 @@ def parse_yaml_candidate(
     role_root: Path,
     *,
     di: object | None = None,
-) -> dict[str, object] | None:
-    """Parse one YAML candidate and return a failure payload when parsing fails."""
+) -> YamlParseFailure | None:
+    """Parse one YAML candidate and return a failure payload when parsing fails.
+
+    Returns None on successful parse, or a YamlParseFailure payload on parse
+    failure. The payload preserves the existing four-key mapping and current
+    error-string prefixes.
+    """
     policy = _get_yaml_parsing_policy(di)
     parse_fn = getattr(policy, "parse_yaml_candidate", None)
     if callable(parse_fn):
         parsed_failure = parse_fn(candidate, role_root)
-        if isinstance(parsed_failure, dict) or parsed_failure is None:
+        if parsed_failure is None or _is_yaml_parse_failure(parsed_failure):
             return parsed_failure
 
     try:
         text = candidate.read_text(encoding="utf-8")
         yaml.safe_load(text)
         return None
-    except (OSError, UnicodeDecodeError) as exc:
+    except OSError as exc:
+        logger.warning(
+            "parse_yaml_candidate: IO error (%s) for %s",
+            type(exc).__name__,
+            candidate,
+            exc_info=True,
+        )
         return {
-            "file": _format_candidate_failure_path(candidate, role_root),
+            "file": format_candidate_failure_path(candidate, role_root),
             "line": None,
             "column": None,
-            "error": f"read_error: {exc}",
+            "error": f"io_error ({type(exc).__name__}): {exc}",
         }
-    except (yaml.YAMLError, ValueError) as exc:
+    except UnicodeDecodeError as exc:
+        logger.warning(
+            "parse_yaml_candidate: encoding error for %s", candidate, exc_info=True
+        )
+        return {
+            "file": format_candidate_failure_path(candidate, role_root),
+            "line": None,
+            "column": None,
+            "error": f"encoding_error: {exc}",
+        }
+    except yaml.YAMLError as exc:
+        logger.warning(
+            "parse_yaml_candidate: YAML parse error (%s) for %s",
+            type(exc).__name__,
+            candidate,
+            exc_info=True,
+        )
         mark = getattr(exc, "problem_mark", None)
         line = int(mark.line) + 1 if mark is not None else None
         column = int(mark.column) + 1 if mark is not None else None
@@ -125,10 +214,20 @@ def parse_yaml_candidate(
         if not problem:
             problem = str(exc).splitlines()[0].strip()
         return {
-            "file": _format_candidate_failure_path(candidate, role_root),
+            "file": format_candidate_failure_path(candidate, role_root),
             "line": line,
             "column": column,
-            "error": problem,
+            "error": f"yaml_error ({type(exc).__name__}): {problem}",
+        }
+    except ValueError as exc:
+        logger.warning(
+            "parse_yaml_candidate: value error for %s", candidate, exc_info=True
+        )
+        return {
+            "file": format_candidate_failure_path(candidate, role_root),
+            "line": None,
+            "column": None,
+            "error": f"value_error: {exc}",
         }
 
 
@@ -158,10 +257,10 @@ def collect_yaml_parse_failures(
     iter_yaml_candidates_fn: Callable[[Path, list[str] | None], list[Path]],
     *,
     di: object | None = None,
-) -> list[dict[str, object]]:
+) -> list[YamlParseFailure]:
     """Collect YAML parse failures with file/line context across a role tree."""
     role_root = Path(role_path).resolve()
-    failures: list[dict[str, object]] = []
+    failures: list[YamlParseFailure] = []
 
     for candidate in iter_yaml_candidates_fn(
         role_root,
@@ -185,4 +284,5 @@ def load_yaml_file(path: Path, *, di: object | None = None) -> object:
         text = path.read_text(encoding="utf-8")
         return yaml.safe_load(text)
     except (OSError, UnicodeDecodeError, yaml.YAMLError, ValueError):
+        logger.warning("load_yaml_file failed for %s", path, exc_info=True)
         return None

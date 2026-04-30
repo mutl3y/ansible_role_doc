@@ -13,6 +13,10 @@ from prism.scanner_plugins.ansible import (
 from prism.scanner_plugins.parsers.jinja import (
     collect_undeclared_jinja_variables as _collect_undeclared_jinja_variables,
 )
+from prism.scanner_data.contracts_request import TaskAnnotation
+from prism.scanner_plugins.parsers.comment_doc.marker_utils import (
+    NormalizesMarkerPrefix,
+)
 
 
 DEFAULT_DOC_MARKER_PREFIX = task_annotation_strategy.DEFAULT_DOC_MARKER_PREFIX
@@ -23,6 +27,8 @@ _ANSIBLE_ROLE_INCLUDE_KEYS = task_line_parsing_module.ROLE_INCLUDE_KEYS
 
 class AnsibleTaskLineParsingPolicyPlugin:
     """Expose ansible task-line parsing contracts via a policy plugin object."""
+
+    PLUGIN_IS_STATELESS: bool = True
 
     TASK_INCLUDE_KEYS: Collection[str] = frozenset(
         task_line_parsing_module.TASK_INCLUDE_KEYS
@@ -132,11 +138,10 @@ class AnsibleVariableExtractorPolicyPlugin:
         return _collect_undeclared_jinja_variables(text)
 
 
-class AnsibleTaskAnnotationPolicyPlugin:
+class AnsibleTaskAnnotationPolicyPlugin(NormalizesMarkerPrefix):
     """Expose ansible task-annotation parsing via a policy plugin object."""
 
     COMMENT_CONTINUATION_RE = task_annotation_strategy.COMMENT_CONTINUATION_RE
-    COMMENTED_TASK_ENTRY_RE = task_annotation_strategy.COMMENTED_TASK_ENTRY_RE
     TASK_ENTRY_RE = task_annotation_strategy.TASK_ENTRY_RE
     YAML_LIKE_KEY_VALUE_RE = task_annotation_strategy.YAML_LIKE_KEY_VALUE_RE
     YAML_LIKE_LIST_ITEM_RE = task_annotation_strategy.YAML_LIKE_LIST_ITEM_RE
@@ -144,10 +149,6 @@ class AnsibleTaskAnnotationPolicyPlugin:
     @staticmethod
     def split_task_annotation_label(text: str) -> tuple[str, str]:
         return task_annotation_strategy.split_task_annotation_label(text)
-
-    @staticmethod
-    def normalize_marker_prefix(marker_prefix: str | None) -> str:
-        return task_annotation_strategy.normalize_marker_prefix(marker_prefix)
 
     @staticmethod
     def get_marker_line_re(marker_prefix: str = DEFAULT_DOC_MARKER_PREFIX):
@@ -166,7 +167,7 @@ class AnsibleTaskAnnotationPolicyPlugin:
         lines: list[str],
         marker_prefix: str = DEFAULT_DOC_MARKER_PREFIX,
         include_task_index: bool = False,
-    ) -> tuple[list[dict[str, object]], dict[str, list[dict[str, object]]]]:
+    ) -> tuple[list[TaskAnnotation], dict[str, list[TaskAnnotation]]]:
         return task_annotation_strategy.extract_task_annotations_for_file(
             lines=lines,
             marker_prefix=marker_prefix,
