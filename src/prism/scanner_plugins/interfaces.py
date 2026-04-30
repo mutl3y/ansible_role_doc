@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
-from typing import Any, Protocol, TypedDict
+import pathlib
+from typing import Any, Protocol, TypedDict, runtime_checkable
 
 from prism.scanner_data import RunScanOutputPayload, VariableRow
 from prism.scanner_data.contracts_request import (
+    FeaturesContext,
     PreparedJinjaAnalysisPolicy,
     PreparedPolicyBundle,
     PreparedTaskLineParsingPolicy,
+    YamlParseFailure,
 )
 
 
@@ -41,7 +44,7 @@ class FeatureDetectionPlugin(Protocol):
 
     def detect_features(
         self, role_path: str, options: dict[str, Any]
-    ) -> dict[str, Any]: ...
+    ) -> FeaturesContext: ...
 
     def analyze_task_catalog(
         self,
@@ -81,9 +84,11 @@ class ScanPipelinePlugin(Protocol):
 
     def orchestrate_scan_payload(
         self,
+        *,
+        payload: dict[str, Any],
         scan_options: dict[str, Any],
-        scan_context: dict[str, Any],
-        metadata: dict[str, Any],
+        strict_mode: bool,
+        preflight_context: dict[str, Any] | None = None,
     ) -> dict[str, Any]: ...
 
 
@@ -98,16 +103,25 @@ class CommentDrivenDocumentationPlugin(Protocol):
     ) -> dict[str, list[str]]: ...
 
 
+class ExtractPolicyPlugin(Protocol):
+    """Protocol marker for extract-policy plugin slot.
+
+    Extract policy plugins cover task-line parsing, task annotation parsing,
+    task traversal, and variable extraction. Each sub-type has its own
+    specific interface; this Protocol serves as the registry slot type.
+    """
+
+
 class YAMLParsingPolicyPlugin(Protocol):
     """Protocol for YAML parsing/loading policy implementations."""
 
-    def load_yaml_file(self, path: str | Any) -> object: ...
+    def load_yaml_file(self, path: str | pathlib.Path) -> object: ...
 
     def parse_yaml_candidate(
         self,
-        candidate: str | Any,
-        role_root: str | Any,
-    ) -> dict[str, object] | None: ...
+        candidate: str | pathlib.Path,
+        role_root: str | pathlib.Path,
+    ) -> YamlParseFailure | None: ...
 
 
 class JinjaAnalysisPolicyPlugin(Protocol):
@@ -141,3 +155,53 @@ class PlatformExecutionBundleProvider(Protocol):
     def build_execution_bundle(
         self, scan_options: dict[str, Any]
     ) -> PlatformExecutionBundle: ...
+
+
+@runtime_checkable
+class ReadmeRendererPlugin(Protocol):
+    """Protocol for platform-specific README renderer plugin implementations.
+
+    Each platform plugin owns its full README rendering vertical: section
+    taxonomy, identity blocks, legacy marker prefixes, template path, and
+    scanner-report blurb. All signatures are platform-neutral; platform-
+    specific dict keys flow through the generic ``identity_metadata`` and
+    ``metadata`` parameters.
+    """
+
+    PRISM_PLUGIN_API_VERSION: tuple[int, int]
+    PLUGIN_IS_STATELESS: bool
+
+    def default_section_specs(self) -> tuple[tuple[str, str], ...]: ...
+
+    def extra_section_ids(self) -> frozenset[str]: ...
+
+    def scanner_stats_section_ids(self) -> frozenset[str]: ...
+
+    def merge_eligible_section_ids(self) -> frozenset[str]: ...
+
+    def legacy_merge_marker_prefixes(self) -> tuple[str, ...]: ...
+
+    def render_section_body(
+        self,
+        section_id: str,
+        role_name: str,
+        description: str,
+        variables: dict[str, Any],
+        requirements: list[Any],
+        default_filters: list[dict[str, Any]],
+        metadata: dict[str, Any],
+    ) -> str | None: ...
+
+    def render_identity_section(
+        self,
+        section_id: str,
+        role_name: str,
+        description: str,
+        requirements: list[Any],
+        identity_metadata: dict[str, Any],
+        metadata: dict[str, Any],
+    ) -> str | None: ...
+
+    def default_template_path(self) -> pathlib.Path | None: ...
+
+    def scanner_report_blurb(self, scanner_report_relpath: str) -> str: ...

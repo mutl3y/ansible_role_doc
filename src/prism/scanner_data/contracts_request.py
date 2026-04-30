@@ -2,7 +2,16 @@
 
 from __future__ import annotations
 
-from typing import Any, Collection, NotRequired, Protocol, TypedDict
+from pathlib import Path
+from typing import Any, Collection, NotRequired, Protocol, Required, TypedDict
+
+
+class ScanErrorEntry(TypedDict):
+    """Structured scan-phase error emitted during best-effort execution."""
+
+    phase: str
+    error_type: str
+    message: str
 
 
 class ScanPolicyWarning(TypedDict, total=False):
@@ -10,7 +19,7 @@ class ScanPolicyWarning(TypedDict, total=False):
 
     code: str
     message: str
-    detail: dict[str, Any]
+    detail: dict[str, object]
 
 
 class ScanPolicyDynamicIncludeFacts(TypedDict):
@@ -46,17 +55,72 @@ class ScanPolicyBlockerFacts(TypedDict):
     provenance: ScanPolicyBlockerProvenance
 
 
+class VariableInsight(TypedDict, total=False):
+    """Typed variable-insight payload carried in scan metadata."""
+
+    name: str
+    type: object
+    default: object
+    source: str | None
+    required: bool
+    documented: bool
+    secret: bool
+    is_unresolved: bool
+    is_ambiguous: bool
+    uncertainty_reason: str | None
+    provenance_confidence: float
+
+
+class YamlParseFailure(TypedDict):
+    """Structured YAML parse-failure row used across scan/report flows.
+
+    Success remains signaled by None. Failure rows always carry the existing
+    four-key payload and preserve error-string boundaries such as read_error:.
+    """
+
+    file: str
+    line: int | None
+    column: int | None
+    error: str
+
+
+class RoleNotes(TypedDict):
+    """Structured role-note buckets extracted from comment-doc parsing."""
+
+    warnings: list[str]
+    deprecations: list[str]
+    notes: list[str]
+    additionals: list[str]
+
+
+class DisplayVariableEntry(TypedDict, total=False):
+    """Canonical display-variable row emitted by scan orchestration."""
+
+    type: object
+    default: object
+    source: str | None
+    required: bool
+    documented: bool
+    secret: bool
+    is_unresolved: bool
+    is_ambiguous: bool
+    uncertainty_reason: str | None
+
+
+DisplayVariables = dict[str, DisplayVariableEntry]
+
+
 class ScanMetadata(TypedDict, total=False):
     """Metadata payload attached to scanner outputs."""
 
-    features: dict[str, Any]
-    scan_errors: list[dict[str, str]]
+    features: dict[str, object]
+    scan_errors: list[ScanErrorEntry]
     scan_degraded: bool
-    scan_policy_warnings: list[dict[str, Any]]
+    scan_policy_warnings: list[ScanPolicyWarning]
     scan_policy_blocker_facts: ScanPolicyBlockerFacts
-    variable_insights: list[dict[str, Any]]
-    yaml_parse_failures: list[Any]
-    role_notes: list[Any]
+    variable_insights: list[VariableInsight]
+    yaml_parse_failures: list[YamlParseFailure]
+    role_notes: RoleNotes
     ignore_unresolved_internal_underscore_references: bool
     underscore_filtered_unresolved_count: int
     concise_readme: bool
@@ -113,20 +177,32 @@ class PreparedJinjaAnalysisPolicy(Protocol):
 class PreparedTaskTraversalPolicy(Protocol):
     """Minimum task-traversal capability surface required after ingress."""
 
-    def iter_task_mappings(self, data: object) -> Any: ...
+    def iter_task_mappings(self, data: object) -> object: ...
     def iter_task_include_targets(self, data: object) -> list[str]: ...
     def iter_task_include_edges(self, data: object) -> list[dict[str, str]]: ...
     def expand_include_target_candidates(
-        self, task: dict, include_target: str
+        self, task: dict[str, object], include_target: str
     ) -> list[str]: ...
-    def iter_role_include_targets(self, task: dict) -> list[str]: ...
-    def iter_dynamic_role_include_targets(self, task: dict) -> list[str]: ...
+    def iter_role_include_targets(self, task: dict[str, object]) -> list[str]: ...
+    def iter_dynamic_role_include_targets(
+        self, task: dict[str, object]
+    ) -> list[str]: ...
     def collect_unconstrained_dynamic_task_includes(
-        self, *, role_root: Any, task_files: list[Any], load_yaml_file: Any
+        self, *, role_root: object, task_files: list[object], load_yaml_file: object
     ) -> list[dict[str, str]]: ...
     def collect_unconstrained_dynamic_role_includes(
-        self, *, role_root: Any, task_files: list[Any], load_yaml_file: Any
+        self, *, role_root: object, task_files: list[object], load_yaml_file: object
     ) -> list[dict[str, str]]: ...
+
+
+class TaskAnnotation(TypedDict, total=False):
+    """Typed shape for a single task annotation produced by extract_task_annotations_for_file."""
+
+    kind: Required[str]
+    text: Required[str]
+    disabled: bool
+    format_warning: str
+    task_index: int
 
 
 class PreparedTaskAnnotationPolicy(Protocol):
@@ -134,23 +210,23 @@ class PreparedTaskAnnotationPolicy(Protocol):
 
     def split_task_annotation_label(self, text: str) -> tuple[str, str]: ...
     def normalize_marker_prefix(self, marker_prefix: str | None) -> str: ...
-    def get_marker_line_re(self, marker_prefix: str = ...) -> Any: ...
+    def get_marker_line_re(self, marker_prefix: str = ...) -> object: ...
     def extract_task_annotations_for_file(
         self,
         lines: list[str],
         marker_prefix: str = ...,
         include_task_index: bool = ...,
-    ) -> tuple[list[dict[str, object]], dict[str, list[dict[str, object]]]]: ...
+    ) -> tuple[list[TaskAnnotation], dict[str, list[TaskAnnotation]]]: ...
     def task_anchor(self, file_path: str, task_name: str, index: int) -> str: ...
 
 
 class PreparedYAMLParsingPolicy(Protocol):
     """Minimum YAML parsing capability surface required after ingress."""
 
-    def load_yaml_file(self, path: str | Any) -> object: ...
+    def load_yaml_file(self, path: str | Path) -> object: ...
     def parse_yaml_candidate(
-        self, candidate: str | Any, role_root: str | Any
-    ) -> dict[str, object] | None: ...
+        self, candidate: str | Path, role_root: str | Path
+    ) -> YamlParseFailure | None: ...
 
 
 class PreparedVariableExtractorPolicy(Protocol):
@@ -161,21 +237,21 @@ class PreparedVariableExtractorPolicy(Protocol):
         *,
         role_path: str,
         exclude_paths: list[str] | None,
-        collect_task_files: Any,
-        load_yaml_file: Any,
-    ) -> list[Any]: ...
+        collect_task_files: object,
+        load_yaml_file: object,
+    ) -> list[object]: ...
 
 
 class PreparedPolicyBundle(TypedDict, total=False):
     """Runtime-scoped prepared policy instances carried with scan options."""
 
-    task_line_parsing: PreparedTaskLineParsingPolicy
-    jinja_analysis: PreparedJinjaAnalysisPolicy
+    task_line_parsing: Required[PreparedTaskLineParsingPolicy]
+    jinja_analysis: Required[PreparedJinjaAnalysisPolicy]
+    task_traversal: NotRequired[PreparedTaskTraversalPolicy]
+    yaml_parsing: NotRequired[PreparedYAMLParsingPolicy]
+    variable_extractor: NotRequired[PreparedVariableExtractorPolicy]
+    task_annotation_parsing: NotRequired[PreparedTaskAnnotationPolicy]
     comment_doc_marker_prefix: str
-    task_annotation_parsing: PreparedTaskAnnotationPolicy
-    task_traversal: PreparedTaskTraversalPolicy
-    yaml_parsing: PreparedYAMLParsingPolicy
-    variable_extractor: PreparedVariableExtractorPolicy
     ignore_unresolved_internal_underscore_references: bool
 
 
@@ -241,15 +317,15 @@ class ScanOptionsDict(TypedDict):
     fail_on_yaml_like_task_annotations: bool | None
     ignore_unresolved_internal_underscore_references: bool | None
     comment_doc_marker_prefix: NotRequired[str | None]
-    policy_context: NotRequired[ScanPolicyContext | dict[str, Any] | None]
-    prepared_policy_bundle: NotRequired[PreparedPolicyBundle | dict[str, Any] | None]
-    scan_policy_warnings: NotRequired[list[ScanPolicyWarning] | list[dict[str, Any]]]
+    policy_context: NotRequired[ScanPolicyContext | None]
+    prepared_policy_bundle: NotRequired[PreparedPolicyBundle | None]
+    scan_policy_warnings: NotRequired[list[ScanPolicyWarning]]
     strict_phase_failures: NotRequired[bool]
     concise_readme: NotRequired[bool]
     scanner_report_output: NotRequired[str | None]
     include_scanner_report_link: NotRequired[bool]
     scan_pipeline_plugin: NotRequired[str]
-    yaml_parse_failures: NotRequired[list[Any]]
+    yaml_parse_failures: NotRequired[list[YamlParseFailure]]
 
 
 class ScanContextPayload(TypedDict):
@@ -258,9 +334,9 @@ class ScanContextPayload(TypedDict):
     rp: str
     role_name: str
     description: str
-    requirements_display: list[Any]
-    undocumented_default_filters: list[Any]
-    display_variables: dict[str, Any]
+    requirements_display: list[dict[str, str]]
+    undocumented_default_filters: list[dict[str, object]]
+    display_variables: DisplayVariables
     metadata: ScanMetadata
 
 

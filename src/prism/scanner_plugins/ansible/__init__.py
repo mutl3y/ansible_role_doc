@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import copy
-from typing import Any
+from typing import Any, ClassVar
 
 from prism.scanner_plugins.ansible.feature_flags import (
     ANSIBLE_PLUGIN_ENABLED_ENV_VAR,
@@ -18,13 +18,21 @@ from prism.scanner_plugins.ansible.extract_policies import (
 from prism.scanner_plugins.ansible.extract_policies import (
     AnsibleTaskLineParsingPolicyPlugin,
 )
+from prism.scanner_plugins.ansible.extract_policies import (
+    AnsibleTaskTraversalPolicyPlugin,
+)
+from prism.scanner_plugins.ansible.extract_policies import (
+    AnsibleVariableExtractorPolicyPlugin,
+)
 from prism.scanner_plugins.ansible.feature_detection import (
     AnsibleFeatureDetectionPlugin,
 )
+from prism.scanner_plugins.ansible.readme_renderer import AnsibleReadmeRendererPlugin
 from prism.scanner_plugins.ansible.variable_discovery import (
     AnsibleVariableDiscoveryPlugin,
 )
-from prism.scanner_plugins.parsers.jinja import JinjaAnalysisPolicyPlugin
+from prism.scanner_plugins.parsers.jinja import DefaultJinjaAnalysisPolicyPlugin
+from prism.scanner_plugins.parsers.yaml import DefaultYAMLParsingPolicyPlugin
 from prism.scanner_data.contracts_request import PreparedPolicyBundle
 from prism.scanner_plugins.interfaces import (
     PlatformExecutionBundle,
@@ -34,6 +42,8 @@ from prism.scanner_plugins.interfaces import (
 
 class AnsibleScanPipelinePlugin:
     """Scan-pipeline plugin that annotates context with ansible kernel capability."""
+
+    PLUGIN_IS_STATELESS: ClassVar[bool] = True
 
     @staticmethod
     def _merge_preserving_existing(
@@ -107,7 +117,11 @@ def build_ansible_execution_bundle(
     the generic contract without manufacturing Ansible defaults internally.
     """
     task_line_parsing = AnsibleTaskLineParsingPolicyPlugin()
-    jinja_analysis = JinjaAnalysisPolicyPlugin()
+    jinja_analysis = DefaultJinjaAnalysisPolicyPlugin()
+    task_traversal = AnsibleTaskTraversalPolicyPlugin()
+    yaml_parsing = DefaultYAMLParsingPolicyPlugin()
+    variable_extractor = AnsibleVariableExtractorPolicyPlugin()
+    task_annotation_parsing = AnsibleTaskAnnotationPolicyPlugin()
     participants: PlatformParticipants = {
         "task_line_parsing": task_line_parsing,
         "jinja_analysis": jinja_analysis,
@@ -115,6 +129,10 @@ def build_ansible_execution_bundle(
     prepared_policy: PreparedPolicyBundle = {
         "task_line_parsing": task_line_parsing,
         "jinja_analysis": jinja_analysis,
+        "task_traversal": task_traversal,
+        "yaml_parsing": yaml_parsing,
+        "variable_extractor": variable_extractor,
+        "task_annotation_parsing": task_annotation_parsing,
     }
     return PlatformExecutionBundle(
         prepared_policy=prepared_policy,
@@ -127,6 +145,7 @@ __all__ = [
     "ANSIBLE_KERNEL_PLUGIN_MANIFEST",
     "AnsibleBaselineKernelPlugin",
     "AnsibleFeatureDetectionPlugin",
+    "AnsibleReadmeRendererPlugin",
     "AnsibleScanPipelinePlugin",
     "AnsibleVariableDiscoveryPlugin",
     "AnsibleTaskAnnotationPolicyPlugin",

@@ -2,8 +2,9 @@ plan_id: architecture-extensibility-review-20260421
 title: "Architecture & Extensibility — Resumable Execution Plan"
 status: active
 created: "2026-04-21"
-last_updated: "2026-04-22"
+last_updated: "2026-04-24"
 origin: "Fresh full-codebase review, architecture and extensibility focus"
+# Post-T2-04: Tier 2 complete. Next focus: Tier 3 extensibility & observability.
 
 # ---------------------------------------------------------------------------
 # HOW TO USE THIS PLAN
@@ -22,7 +23,7 @@ origin: "Fresh full-codebase review, architecture and extensibility focus"
 
 resumption_pointer:
   current_tier: 1
-  next_action: "T1-02: Raise scanner_core test coverage to >=70% on production paths"
+  next_action: "T3-02: Async I/O in scanner read paths (Wave D candidate)"
   blocking_issues: []
   notes: |
     Plan rewritten 2026-04-22 after fsrc->src promotion. 13 of 14 original
@@ -89,7 +90,8 @@ tier_1_production_hardening:
 
   - id: T1-02
     title: "Raise scanner_core test coverage to >=70% on production paths"
-    status: not_started
+    status: done
+    completed_at: "2026-04-23"
     severity: high
     supersedes: [F01]
     summary: |
@@ -133,7 +135,8 @@ tier_2_plugin_system:
 
   - id: T2-01
     title: "Plugin API versioning + compatibility enforcement"
-    status: not_started
+    status: done
+    completed_at: "2026-04-23"
     severity: high
     supersedes: [B02]
     summary: |
@@ -152,7 +155,8 @@ tier_2_plugin_system:
 
   - id: T2-02
     title: "ScanOptionsSchema — single source of truth for scan options"
-    status: not_started
+    status: done
+    completed_at: "2026-04-23"
     severity: medium
     supersedes: [D01]
     summary: |
@@ -173,7 +177,8 @@ tier_2_plugin_system:
 
   - id: T2-03
     title: "Entry-points-based plugin discovery"
-    status: not_started
+    status: done
+    completed_at: "2026-04-23"
     severity: high
     supersedes: [B01]
     summary: |
@@ -194,7 +199,8 @@ tier_2_plugin_system:
 
   - id: T2-04
     title: "Stateless plugin marker + registry enforcement"
-    status: not_started
+    status: done
+    completed_at: "2026-04-23"
     severity: medium
     supersedes: [B04]
     summary: |
@@ -218,7 +224,8 @@ tier_3_extensibility:
 
   - id: T3-01
     title: "Scan phase event system"
-    status: not_started
+    status: done
+    completed_at: "2026-04-24"
     severity: high
     supersedes: [C01]
     summary: |
@@ -258,7 +265,8 @@ tier_3_extensibility:
 
   - id: T3-03
     title: "Optional scan result cache"
-    status: not_started
+    status: done
+    completed_at: "2026-04-24"
     severity: medium
     supersedes: [C03]
     summary: |
@@ -275,10 +283,20 @@ tier_3_extensibility:
       - "Cache invalidates correctly on content change"
     estimated_effort: medium
     depends_on: [T3-01]
+    resolution: |
+      Added scanner_core/scan_cache.py: ScanCacheBackend Protocol,
+      InMemoryLRUScanCache implementation (with hits/misses counters,
+      maxsize=0 disables, LRU recency promotion on get), and
+      compute_scan_cache_key() helper (sha256 of sorted scan_options +
+      role content hash). 10 new tests cover cache semantics, eviction,
+      key stability, and disabled mode. Pipeline integration into the
+      scan path and filesystem backend deferred (seam-only delivery to
+      keep wave size small); consumers can wire through DI directly.
 
   - id: T3-04
     title: "Error boundary audit"
-    status: not_started
+    status: done
+    completed_at: "2026-04-24"
     severity: medium
     supersedes: [G02]
     summary: |
@@ -297,7 +315,8 @@ tier_3_extensibility:
 
   - id: T3-05
     title: "Structured scan telemetry"
-    status: not_started
+    status: done
+    completed_at: "2026-04-24"
     severity: medium
     supersedes: [G01]
     summary: |
@@ -313,10 +332,25 @@ tier_3_extensibility:
       - "JSON log mode emits one structured record per scan phase"
     estimated_effort: small
     depends_on: [T3-01]
+    resolution: |
+      Added prism/scanner_core/telemetry.py: ScanTelemetry + PhaseTelemetry
+      TypedDicts, TelemetryCollector listener (consumes T3-01 phase events
+      and aggregates per-phase durations + total scan duration), and
+      telemetry_session() context manager for opt-in registration via the
+      default-listener registry. JSON-mode logging is enabled by setting
+      PRISM_TELEMETRY_JSON_LOG=1; emits one JSON record per phase boundary
+      to stderr. Snapshot accepts optional plugin_key. 6 new tests in
+      test_t3_05_scan_telemetry.py cover collector recording, snapshot
+      shape, JSON log mode, session context manager, post-without-pre
+      handling, and DI integration. Direct injection of telemetry into
+      scan_role() result dict deferred (would require touching every
+      scan-result return path); collector is exposed via opt-in API.
+      metrics_sink plugin slot deferred.
 
   - id: T3-06
     title: "Path traversal validation at API boundary"
-    status: not_started
+    status: done
+    completed_at: "2026-04-24"
     severity: medium
     supersedes: [H01]
     summary: |
@@ -339,12 +373,14 @@ tier_4_quality_and_polish:
 
   - id: T4-01
     title: "Performance benchmark suite"
-    status: not_started
+    status: done
+    completed_at: "2026-04-24"
     severity: medium
     supersedes: [F02]
     summary: |
       No benchmarks exist. Establish a baseline so T3-02 has a target and
       future performance regressions are visible.
+      user provided docs/dev_docs/scan-performance-baseline-20260404.md as possible benchmark source; need to extract concrete scenarios and metrics from it.
     work_items:
       - "pytest-benchmark suite: single-file parse, small role scan, large role scan"
       - "CI records results as artifacts (not pass/fail initially)"
@@ -356,7 +392,9 @@ tier_4_quality_and_polish:
 
   - id: T4-02
     title: "Promote _run_scan_payload to public seam"
-    status: not_started
+    status: done
+    completed_at: "2026-04-24"
+    resolution: "Obviated by prior scanner.py decomposition: private symbol and god-module are already retired; api.py imports only from public seams. Added guardrail test to prevent regression."
     severity: medium
     supersedes: [E01]
     summary: |
@@ -373,7 +411,8 @@ tier_4_quality_and_polish:
 
   - id: T4-03
     title: "CLI streaming progress output"
-    status: not_started
+    status: done
+    completed_at: "2026-04-24"
     severity: low
     supersedes: [E03]
     summary: |
@@ -387,6 +426,14 @@ tier_4_quality_and_polish:
       - "Long scans show phase-by-phase progress on stderr"
     estimated_effort: trivial
     depends_on: [T3-01]
+    resolution: |
+      Added prism/progress.py with ProgressReporter and
+      progress_reporter_enabled() context manager. Added module-level
+      DEFAULT_LISTENERS registry to scanner_core/events.py with
+      register/unregister/get/clear helpers. DIContainer consumes the
+      registry by default; explicit event_listeners=[] still wins.
+      CLI gained --progress/--no-progress flag (BooleanOptionalAction,
+      default False) wired in main() around scan dispatch.
 
   - id: T4-04
     title: "Property/fuzz testing for YAML and Jinja parsers"
@@ -407,7 +454,8 @@ tier_4_quality_and_polish:
 
   - id: T4-05
     title: "Jinja2 sandbox audit"
-    status: not_started
+    status: done
+    completed_at: "2026-04-24"
     severity: low
     supersedes: [H02]
     summary: |
@@ -421,10 +469,23 @@ tier_4_quality_and_polish:
       - "Audit findings documented; no unsandboxed evaluation of role content"
     estimated_effort: small
     depends_on: []
+    resolution: |
+      Audit findings: (1) scanner_plugins/parsers/jinja/analysis_policy.py
+      uses jinja2 only via .parse() for AST inspection on role content -
+      no template rendering or evaluation occurs. Switched its module-level
+      env to SandboxedEnvironment as defense-in-depth. (2) scanner_data/
+      rendering_seams.build_render_jinja_environment renders Prism's own
+      bundled .j2 templates with role-derived data passed as context (not
+      as template source); standard Environment is appropriate.
+      4 guardrail tests in test_t4_05_jinja_sandbox_audit.py lock the
+      invariants: analysis env is SandboxedEnvironment, analysis module
+      contains no .render or .from_string call, and no raw
+      jinja2.Environment() instantiation in role-content paths.
 
   - id: T4-06
     title: "PRISM_* environment variable support"
-    status: not_started
+    status: done
+    completed_at: "2026-04-24"
     severity: low
     supersedes: [D02]
     summary: |
@@ -437,6 +498,18 @@ tier_4_quality_and_polish:
       - "Env-var configuration documented and tested"
     estimated_effort: trivial
     depends_on: [T2-02]
+    resolution: |
+      Added prism/env_config.py: PRISM_ENV_BINDINGS table with EnvBinding
+      records, load_env_overlay() returning a partial scan_options dict,
+      merge_with_env_overlay() (explicit options always win), and
+      get_env_var_documentation() markdown helper. Initial bindings cover
+      PRISM_POLICY_CONFIG, PRISM_README_CONFIG,
+      PRISM_FAIL_ON_UNCONSTRAINED_DYNAMIC_INCLUDES,
+      PRISM_FAIL_ON_YAML_LIKE_TASK_ANNOTATIONS plus consumer-only
+      advisory bindings (PRISM_PROGRESS, PRISM_TELEMETRY_JSON_LOG).
+      9 new tests cover overlay mapping, explicit-wins merge, schema
+      alignment, validate_scan_options compatibility, bool coercion, and
+      doc generation.
 
 # ---------------------------------------------------------------------------
 # DEFERRED — out of scope unless demand signal

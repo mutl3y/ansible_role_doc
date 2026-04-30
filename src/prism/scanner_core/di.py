@@ -1,16 +1,36 @@
-"""Hand-crafted Dependency Injection container for scanner orchestrators."""
+"""Hand-crafted Dependency Injection container for scanner orchestrators.
+
+Bootstrap Order & Circular Import Prevention
+--------------------------------------------
+This module uses deferred imports in factory methods to break circular dependencies:
+- TYPE_CHECKING imports provide type hints without runtime loading
+- Factory methods import concrete classes only when first invoked
+- This pattern allows FeatureDetector/VariableDiscovery to import from scanner_extract
+  without creating import-time circular dependencies
+
+DI Access Contract
+------------------
+Code accessing DIContainer attributes should use scanner_core.di_helpers.DIProtocol
+for explicit type checking instead of hasattr/getattr duck typing.
+"""
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable, Mapping
+import threading
+from typing import TYPE_CHECKING, Any, Mapping
 
+from prism.scanner_core.events import EventBus, EventListener, get_default_listeners
 from prism.scanner_data.builders import VariableRowBuilder
 
 if TYPE_CHECKING:
     from prism.scanner_core.feature_detector import FeatureDetector
+    from prism.scanner_core.scan_cache import ScanCacheBackend
     from prism.scanner_core.scanner_context import ScannerContext
     from prism.scanner_core.variable_discovery import VariableDiscovery
-    from prism.scanner_io.output_orchestrator import OutputOrchestrator
+    from prism.scanner_core.protocols_runtime import (
+        BlockerFactBuilder,
+        DIFactoryOverride,
+    )
     from prism.scanner_plugins.interfaces import (
         CommentDrivenDocumentationPlugin,
         JinjaAnalysisPolicyPlugin,
@@ -24,6 +44,29 @@ if TYPE_CHECKING:
         PreparedTaskTraversalPolicy,
         PreparedVariableExtractorPolicy,
     )
+    from prism.scanner_plugins.registry import PluginRegistry
+
+
+def _create_variable_discovery(
+    di: DIContainer,
+    role_path: str,
+    scan_options: dict[str, Any],
+) -> VariableDiscovery:
+    """Import VariableDiscovery only at the DI composition seam."""
+    from prism.scanner_core.variable_discovery import VariableDiscovery
+
+    return VariableDiscovery(di, role_path, scan_options)
+
+
+def _create_feature_detector(
+    di: DIContainer,
+    role_path: str,
+    scan_options: dict[str, Any],
+) -> FeatureDetector:
+    """Import FeatureDetector only at the DI composition seam."""
+    from prism.scanner_core.feature_detector import FeatureDetector
+
+    return FeatureDetector(di, role_path, scan_options)
 
 
 def resolve_platform_key(
@@ -62,7 +105,10 @@ class DIContainer:
         registry: Any | None = None,
         platform_key: str | None = None,
         scanner_context_wiring: dict[str, Any] | None = None,
-        factory_overrides: dict[str, Callable[..., Any]] | None = None,
+        factory_overrides: dict[str, "DIFactoryOverride"] | None = None,
+        event_listeners: list[EventListener] | None = None,
+        cache_backend: ScanCacheBackend | None = None,
+        blocker_fact_builder_fn: "BlockerFactBuilder | None" = None,
     ) -> None:
         """Initialize container with role path and scan options."""
         if not role_path:
@@ -75,22 +121,36 @@ class DIContainer:
         self._registry = registry
         self._platform_key = platform_key
         self._cache: dict[str, Any] = {}
+        self._cache_lock = threading.Lock()
         self._mocks: dict[str, Any] = {}
         self._scanner_context_wiring = scanner_context_wiring or {}
         self._factory_overrides = factory_overrides or {}
+        self.cache_backend: ScanCacheBackend | None = cache_backend
+        self._blocker_fact_builder_fn = blocker_fact_builder_fn
+        effective_listeners = (
+            list(event_listeners)
+            if event_listeners is not None
+            else list(get_default_listeners())
+        )
+        self._event_bus = EventBus(listeners=effective_listeners)
 
     @property
     def scan_options(self) -> dict[str, Any]:
         return self._scan_options
+
+    @property
+    def plugin_registry(self) -> PluginRegistry | None:
+        return self._registry
+
+    def factory_event_bus(self) -> EventBus:
+        """Return the per-container :class:`EventBus`."""
+        return self._event_bus
 
     def factory_scanner_context(self) -> ScannerContext:
         """Create ScannerContext only when runtime seam wiring is provided."""
         scanner_context_cls = self._scanner_context_wiring.get("scanner_context_cls")
         prepare_scan_context_fn = self._scanner_context_wiring.get(
             "prepare_scan_context_fn"
-        )
-        build_run_scan_options_fn = self._scanner_context_wiring.get(
-            "build_run_scan_options_fn"
         )
         if scanner_context_cls is None or prepare_scan_context_fn is None:
             raise RuntimeError(
@@ -105,15 +165,15 @@ class DIContainer:
             "scan_options": self._scan_options,
             "prepare_scan_context_fn": prepare_scan_context_fn,
         }
-        if build_run_scan_options_fn is not None:
-            scanner_context_kwargs["build_run_scan_options_fn"] = (
-                build_run_scan_options_fn
-            )
 
         return scanner_context_cls(**scanner_context_kwargs)
 
     def factory_variable_discovery(self) -> VariableDiscovery:
-        """Create or return cached VariableDiscovery."""
+        """Create or return cached VariableDiscovery.
+
+        Note: Import is deferred to break circular dependency.
+        VariableDiscovery may import from scanner_extract which imports di_helpers.
+        """
         if "variable_discovery" in self._mocks:
             return self._mocks["variable_discovery"]
 
@@ -122,31 +182,22 @@ class DIContainer:
             return override(self, self._role_path, self._scan_options)
 
         key = "variable_discovery"
-        if key not in self._cache:
-            from prism.scanner_core.variable_discovery import VariableDiscovery
-
-            self._cache[key] = VariableDiscovery(
-                self, self._role_path, self._scan_options
-            )
+        with self._cache_lock:
+            if key not in self._cache:
+                self._cache[key] = _create_variable_discovery(
+                    self,
+                    self._role_path,
+                    self._scan_options,
+                )
 
         return self._cache[key]
 
-    def factory_output_orchestrator(self, output_path: str) -> OutputOrchestrator:
-        """Create OutputOrchestrator for a specific output path."""
-        cache_key = f"output_orchestrator:{output_path}"
-        if cache_key not in self._cache:
-            from prism.scanner_io.output_orchestrator import OutputOrchestrator
-
-            self._cache[cache_key] = OutputOrchestrator(
-                di=self,
-                output_path=output_path,
-                options=self._scan_options,
-            )
-
-        return self._cache[cache_key]
-
     def factory_feature_detector(self) -> FeatureDetector:
-        """Create or return cached FeatureDetector."""
+        """Create or return cached FeatureDetector.
+
+        Note: Import is deferred to break circular dependency.
+        FeatureDetector imports collect_task_handler_catalog from scanner_extract.
+        """
         key = "feature_detector"
         if "feature_detector" in self._mocks:
             return self._mocks["feature_detector"]
@@ -155,34 +206,41 @@ class DIContainer:
         if override is not None:
             return override(self, self._role_path, self._scan_options)
 
-        if key not in self._cache:
-            from prism.scanner_core.feature_detector import FeatureDetector
-
-            self._cache[key] = FeatureDetector(
-                self, self._role_path, self._scan_options
-            )
+        with self._cache_lock:
+            if key not in self._cache:
+                self._cache[key] = _create_feature_detector(
+                    self,
+                    self._role_path,
+                    self._scan_options,
+                )
 
         return self._cache[key]
 
     def factory_variable_row_builder(self) -> VariableRowBuilder:
         """Create cached VariableRowBuilder for row construction helpers."""
         key = "variable_row_builder"
-        if key not in self._cache:
-            self._cache[key] = VariableRowBuilder()
+        with self._cache_lock:
+            if key not in self._cache:
+                self._cache[key] = VariableRowBuilder()
         return self._cache[key]
 
-    def factory_blocker_fact_builder(self) -> Callable[..., Any]:
+    def factory_blocker_fact_builder(self) -> "BlockerFactBuilder":
         """Return the blocker-fact builder callable (plugin-layer owned)."""
         key = "blocker_fact_builder"
-        if key not in self._cache:
-            from prism.scanner_plugins.audit.blocker_fact_evaluator import (
-                build_scan_policy_blocker_facts,
-            )
+        with self._cache_lock:
+            if key not in self._cache:
+                if self._blocker_fact_builder_fn is not None:
+                    fn = self._blocker_fact_builder_fn
+                else:
+                    from prism.scanner_plugins.defaults import (
+                        resolve_blocker_fact_builder,
+                    )
 
-            self._cache[key] = build_scan_policy_blocker_facts
+                    fn = resolve_blocker_fact_builder()
+                self._cache[key] = fn
         return self._cache[key]
 
-    def _get_registry(self) -> Any:
+    def _get_registry(self) -> "PluginRegistry":
         """Return the injected plugin registry or raise."""
         if self._registry is None:
             raise ValueError("No plugin registry provided to DIContainer")
@@ -211,7 +269,7 @@ class DIContainer:
                 f"No variable_discovery plugin registered under '{platform_key}'. "
                 "Ensure scanner_plugins bootstrap has run."
             )
-        return plugin_cls(di=self)
+        return plugin_cls(di=self)  # type: ignore[call-arg]
 
     def factory_feature_detection_plugin(self) -> FeatureDetectionPlugin:
         """Resolve feature-detection plugin via registry; fail-closed if unregistered."""
@@ -230,7 +288,7 @@ class DIContainer:
                 f"No feature_detection plugin registered under '{platform_key}'. "
                 "Ensure scanner_plugins bootstrap has run."
             )
-        return plugin_cls(di=self)
+        return plugin_cls(di=self)  # type: ignore[call-arg]
 
     def factory_comment_driven_doc_plugin(
         self,
@@ -320,39 +378,6 @@ class DIContainer:
         """Inject a mock for testing. Name must match a factory key."""
         self._mocks[name] = mock
 
-    def inject_mock_variable_discovery(self, mock: Any) -> None:
-        self.inject_mock("variable_discovery", mock)
-
-    def inject_mock_feature_detector(self, mock: Any) -> None:
-        self.inject_mock("feature_detector", mock)
-
-    def inject_mock_variable_discovery_plugin(self, mock: Any) -> None:
-        self.inject_mock("variable_discovery_plugin", mock)
-
-    def inject_mock_feature_detection_plugin(self, mock: Any) -> None:
-        self.inject_mock("feature_detection_plugin", mock)
-
-    def inject_mock_comment_driven_doc_plugin(self, mock: Any) -> None:
-        self.inject_mock("comment_driven_doc_plugin", mock)
-
-    def inject_mock_task_annotation_policy_plugin(self, mock: Any) -> None:
-        self.inject_mock("task_annotation_policy_plugin", mock)
-
-    def inject_mock_task_line_parsing_policy_plugin(self, mock: Any) -> None:
-        self.inject_mock("task_line_parsing_policy_plugin", mock)
-
-    def inject_mock_task_traversal_policy_plugin(self, mock: Any) -> None:
-        self.inject_mock("task_traversal_policy_plugin", mock)
-
-    def inject_mock_variable_extractor_policy_plugin(self, mock: Any) -> None:
-        self.inject_mock("variable_extractor_policy_plugin", mock)
-
-    def inject_mock_yaml_parsing_policy_plugin(self, mock: Any) -> None:
-        self.inject_mock("yaml_parsing_policy_plugin", mock)
-
-    def inject_mock_jinja_analysis_policy_plugin(self, mock: Any) -> None:
-        self.inject_mock("jinja_analysis_policy_plugin", mock)
-
     def factory_audit_plugin(self) -> Any | None:
         """Return the injected audit plugin, or None if audit is not configured (opt-in)."""
         if "audit_plugin" in self._mocks:
@@ -362,9 +387,6 @@ class DIContainer:
         if override is not None:
             return override(self, self._role_path, self._scan_options)
         return None
-
-    def inject_mock_audit_plugin(self, mock: Any) -> None:
-        self.inject_mock("audit_plugin", mock)
 
     def clear_mocks(self) -> None:
         """Clear all injected mocks."""
