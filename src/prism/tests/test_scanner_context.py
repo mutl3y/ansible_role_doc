@@ -967,7 +967,12 @@ def test_fsrc_scanner_core_builds_non_collection_execution_request() -> None:
                 exclude_paths: list[str] | None = None,
             ) -> dict[str, list[str]]:
                 del exclude_paths
-                return {"notes": [f"notes-for:{role_path}"], "warnings": [], "deprecations": [], "additionals": []}
+                return {
+                    "notes": [f"notes-for:{role_path}"],
+                    "warnings": [],
+                    "deprecations": [],
+                    "additionals": [],
+                }
 
         class _Registry:
             @staticmethod
