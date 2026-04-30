@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib
+import logging
 import sys
 from contextlib import contextmanager
 from pathlib import Path
@@ -552,6 +553,9 @@ def test_runtime_blockers_preserve_strict_failures(
                     return _RuntimeFailingPlugin
                 return None
 
+            def __getattr__(self, name: str):
+                return getattr(_real, name)
+
             get_default_platform_key = _real.get_default_platform_key
             get_variable_discovery_plugin = _real.get_variable_discovery_plugin
             get_feature_detection_plugin = _real.get_feature_detection_plugin
@@ -575,3 +579,332 @@ def test_runtime_blockers_preserve_strict_failures(
             }
         }
     }
+
+
+def test_g30_cf003_pattern_load_yaml_logs_corrupt_yaml_warning(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """CF003: _load_yaml logs warning for corrupt YAML instead of silent empty dict."""
+    from prism.scanner_config.patterns import _load_yaml
+
+    corrupt_file = tmp_path / "corrupt.yml"
+    corrupt_file.write_text("key: [unclosed", encoding="utf-8")
+
+    caplog.set_level(logging.WARNING, logger="prism.scanner_config.patterns")
+    result = _load_yaml(corrupt_file)
+
+    assert result == {}
+    assert any(
+        "Pattern file YAML parse error" in record.message
+        and str(corrupt_file) in record.message
+        for record in caplog.records
+    )
+
+
+def test_g30_cf003_pattern_load_yaml_logs_missing_file_warning(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """CF003: _load_yaml logs warning for missing file."""
+    from prism.scanner_config.patterns import _load_yaml
+
+    missing_file = tmp_path / "missing.yml"
+
+    caplog.set_level(logging.WARNING, logger="prism.scanner_config.patterns")
+    result = _load_yaml(missing_file)
+
+    assert result == {}
+    assert any(
+        "Pattern file IO error" in record.message
+        and str(missing_file) in record.message
+        for record in caplog.records
+    )
+
+
+def test_g30_cf003_pattern_load_yaml_logs_encoding_error_warning(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """CF003: _load_yaml logs warning for encoding error."""
+    from prism.scanner_config.patterns import _load_yaml
+
+    bad_encoding_file = tmp_path / "bad_encoding.yml"
+    bad_encoding_file.write_bytes(b"key: \xff\xfe value")
+
+    caplog.set_level(logging.WARNING, logger="prism.scanner_config.patterns")
+    result = _load_yaml(bad_encoding_file)
+
+    assert result == {}
+    assert any(
+        "Pattern file encoding error" in record.message
+        and str(bad_encoding_file) in record.message
+        for record in caplog.records
+    )
+
+
+def test_g30_cf003_pattern_load_yaml_returns_empty_for_valid_empty(
+    tmp_path: Path,
+) -> None:
+    """CF003: _load_yaml returns empty dict for valid empty YAML (not an error)."""
+    from prism.scanner_config.patterns import _load_yaml
+
+    empty_file = tmp_path / "empty.yml"
+    empty_file.write_text("", encoding="utf-8")
+
+    result = _load_yaml(empty_file)
+
+    assert result == {}
+
+
+def test_g30_cf002_seed_variables_handles_corrupt_yaml_gracefully(
+    tmp_path: Path,
+) -> None:
+    """CF002: load_seed_variables returns empty for corrupt seed file (graceful degradation)."""
+    from prism.scanner_extract.variable_extractor import load_seed_variables
+
+    corrupt_seed = tmp_path / "corrupt_seed.yml"
+    corrupt_seed.write_text("key: [unclosed", encoding="utf-8")
+
+    seed_values, _, _ = load_seed_variables([str(corrupt_seed)])
+
+    # Corrupt seed files are optional inputs - should return empty, not crash
+    assert seed_values == {}
+
+
+def test_g30_cf002_seed_variables_handles_missing_file_gracefully(
+    tmp_path: Path,
+) -> None:
+    """CF002: load_seed_variables returns empty for missing seed file (graceful degradation)."""
+    from prism.scanner_extract.variable_extractor import load_seed_variables
+
+    missing_seed = tmp_path / "missing_seed.yml"
+
+    seed_values, _, _ = load_seed_variables([str(missing_seed)])
+
+    # Missing seed files are skipped silently (not an error)
+    assert seed_values == {}
+
+
+def test_g30_cf004_remote_policy_logs_http_error(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """CF004: fetch_remote_policy logs warning for HTTP error."""
+    from prism.scanner_config.patterns import fetch_remote_policy
+
+    bad_url = "https://raw.githubusercontent.com/nonexistent/repo/main/missing.yml"
+    cache_file = tmp_path / "cache.yml"
+
+    caplog.set_level(logging.WARNING, logger="prism.scanner_config.patterns")
+    with pytest.raises(RuntimeError, match="Failed to fetch remote patterns"):
+        fetch_remote_policy(url=bad_url, cache_path=str(cache_file), timeout=2)
+
+    assert any(
+        "Remote policy" in record.message and bad_url in record.message
+        for record in caplog.records
+    )
+
+
+def test_g30_cf006_discovery_load_meta_logs_yaml_parse_failure(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """CF006: load_meta logs warning for YAML parsing failures in non-strict mode."""
+    from prism.scanner_extract.discovery import load_meta
+
+    role_path = tmp_path / "role"
+    role_path.mkdir()
+    meta_dir = role_path / "meta"
+    meta_dir.mkdir()
+    meta_file = meta_dir / "main.yml"
+    meta_file.write_text("invalid: yaml: [unclosed", encoding="utf-8")
+
+    caplog.set_level(logging.WARNING, logger="prism.scanner_extract.discovery")
+    result = load_meta(str(role_path), strict=False)
+
+    assert result == {}
+    assert any(
+        "YAML parsing failed" in record.message and "non-strict mode" in record.message
+        for record in caplog.records
+    )
+
+
+def test_g30_cf006_discovery_load_meta_logs_io_error(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """CF006: load_meta logs warning for IO errors in non-strict mode."""
+    from prism.scanner_extract.discovery import load_meta
+
+    role_path = tmp_path / "role"
+    role_path.mkdir()
+    meta_dir = role_path / "meta"
+    meta_dir.mkdir()
+    meta_file = meta_dir / "main.yml"
+    meta_file.write_text("---\nvalid: yaml\n", encoding="utf-8")
+
+    def _failing_load_yaml_file(path, di=None):
+        raise OSError("Simulated IO error")
+
+    monkeypatch.setattr(
+        "prism.scanner_extract.discovery.load_yaml_file", _failing_load_yaml_file
+    )
+
+    caplog.set_level(logging.WARNING, logger="prism.scanner_extract.discovery")
+    result = load_meta(str(role_path), strict=False)
+
+    assert result == {}
+    assert any(
+        "Failed to load" in record.message
+        and "non-strict mode" in record.message
+        and "OSError" in record.message
+        for record in caplog.records
+    )
+
+
+def test_g30_cf006_discovery_load_requirements_logs_io_error(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """CF006: load_requirements logs warning for IO errors in non-strict mode."""
+    from prism.scanner_extract.discovery import load_requirements
+
+    role_path = tmp_path / "role"
+    role_path.mkdir()
+    meta_dir = role_path / "meta"
+    meta_dir.mkdir()
+    req_file = meta_dir / "requirements.yml"
+    req_file.write_text("---\n- name: sample\n", encoding="utf-8")
+
+    def _failing_load_yaml_file(path, di=None):
+        raise OSError("Simulated IO error")
+
+    monkeypatch.setattr(
+        "prism.scanner_extract.discovery.load_yaml_file", _failing_load_yaml_file
+    )
+
+    caplog.set_level(logging.WARNING, logger="prism.scanner_extract.discovery")
+    result = load_requirements(str(role_path), strict=False)
+
+    assert result == []
+    assert any(
+        "Failed to load requirements" in record.message
+        and "non-strict mode" in record.message
+        and "OSError" in record.message
+        for record in caplog.records
+    )
+
+
+def test_g30_cf006_discovery_load_variables_logs_io_error(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """CF006: load_variables logs warning for IO errors in non-strict mode."""
+    from prism.scanner_extract.discovery import load_variables
+
+    role_path = tmp_path / "role"
+    role_path.mkdir()
+    defaults_dir = role_path / "defaults"
+    defaults_dir.mkdir()
+    main_yml = defaults_dir / "main.yml"
+    main_yml.write_text("---\nvar: value\n", encoding="utf-8")
+
+    def _failing_load_yaml_file(path, di=None):
+        raise OSError("Simulated IO error")
+
+    monkeypatch.setattr(
+        "prism.scanner_extract.discovery.load_yaml_file", _failing_load_yaml_file
+    )
+
+    caplog.set_level(logging.WARNING, logger="prism.scanner_extract.discovery")
+    result = load_variables(
+        str(role_path),
+        include_vars_main=False,
+        collect_include_vars_files=lambda role, excl: [],
+        strict=False,
+    )
+
+    assert result == {}
+    assert any(
+        "Failed to load variable file" in record.message
+        and "non-strict mode" in record.message
+        and "OSError" in record.message
+        for record in caplog.records
+    )
+
+
+def test_g30_cf007_defaults_plugin_fallback_logs_diagnostic(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """CF007: plugin construction fallback logs warning in non-strict mode."""
+    from prism.scanner_plugins.defaults import (
+        resolve_task_line_parsing_policy_plugin,
+    )
+    from prism.scanner_plugins.registry import PluginRegistry
+
+    class _FailingPlugin:
+        PLUGIN_API_VERSION = 1
+        PLUGIN_IS_STATELESS = True
+
+        def __init__(self):
+            raise ValueError("Simulated plugin construction failure")
+
+    registry = PluginRegistry()
+    registry.register_extract_policy_plugin(
+        name="task_line_parsing", plugin_class=_FailingPlugin
+    )
+
+    caplog.set_level(logging.WARNING, logger="prism.scanner_plugins.defaults")
+    plugin = resolve_task_line_parsing_policy_plugin(
+        di=None, strict_mode=False, registry=registry
+    )
+
+    assert plugin is not None
+    assert any(
+        "Failed to construct" in record.message and "falling back" in record.message
+        for record in caplog.records
+    )
+
+
+def test_g30_cf008_guide_warns_on_missing_platform_key(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """CF008: guide.py warns when platform_key is missing."""
+    from prism.scanner_readme.guide import render_guide_section_body
+
+    caplog.set_level(logging.WARNING, logger="prism.scanner_readme.guide")
+    result = render_guide_section_body(
+        section_id="identity",
+        role_name="test",
+        description="test",
+        variables={},
+        requirements=[],
+        default_filters=[],
+        metadata={},
+    )
+
+    assert result is not None
+    assert any(
+        "platform_key missing or empty" in record.message
+        and "defaulting to 'ansible'" in record.message
+        for record in caplog.records
+    )
+
+
+def test_g30_cf008_guide_warns_on_empty_platform_key(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """CF008: guide.py warns when platform_key is empty string."""
+    from prism.scanner_readme.guide import render_guide_section_body
+
+    caplog.set_level(logging.WARNING, logger="prism.scanner_readme.guide")
+    result = render_guide_section_body(
+        section_id="identity",
+        role_name="test",
+        description="test",
+        variables={},
+        requirements=[],
+        default_filters=[],
+        metadata={"platform_key": ""},
+    )
+
+    assert result is not None
+    assert any(
+        "platform_key missing or empty" in record.message
+        and "value=''" in record.message
+        and "defaulting to 'ansible'" in record.message
+        for record in caplog.records
+    )

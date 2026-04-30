@@ -396,7 +396,12 @@ class PluginRegistry:
                     return next(iter(source.keys()))
             return None
 
-    def load_plugin_from_module(self, module_name: str, class_name: str) -> Any:
+    def load_plugin_from_module(self, module_name: str, class_name: str) -> type[Any]:
+        """Load a plugin class from module_name.class_name (dynamic import).
+
+        Returns the class itself (not an instance). Runtime type is uncertain
+        due to dynamic loading; callers should validate plugin shape after load.
+        """
         cache_key = (module_name, class_name)
         cached = self._loaded_plugins.get(cache_key)
         if cached is not None:

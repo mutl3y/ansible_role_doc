@@ -1,18 +1,11 @@
-"""Plugin name resolution, route carrier building, and preflight invocation helpers."""
+"""Plugin name resolution and preflight invocation helpers."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any
 
 from prism.errors import PrismRuntimeError
-from prism.scanner_kernel.scan_payload_helpers import (
-    _build_routing_metadata,
-    _merge_routing_metadata,
-)
-
-
-_ROUTING_MODE_PLUGIN = "scan_pipeline_plugin"
 
 
 @dataclass(frozen=True, slots=True)
@@ -92,18 +85,6 @@ def _resolve_policy_context_scan_pipeline_plugin_name(
     return plugin_name.strip()
 
 
-def _is_explicitly_selected_plugin_name(scan_options: dict[str, Any]) -> bool:
-    configured = scan_options.get("scan_pipeline_plugin")
-    if isinstance(configured, str) and configured.strip():
-        return True
-    if _resolve_policy_context_scan_pipeline_plugin_name(scan_options) is not None:
-        return True
-    platform = scan_options.get("platform")
-    if isinstance(platform, str) and platform.strip():
-        return True
-    return False
-
-
 def resolve_scan_pipeline_plugin_name(
     *,
     scan_options: dict[str, Any],
@@ -127,40 +108,3 @@ def resolve_scan_pipeline_plugin_name(
     if registry is None:
         raise ValueError("registry must be provided for plugin name resolution")
     return _resolve_default_scan_pipeline_plugin_name(registry)
-
-
-def _build_route_preflight_runtime_carrier(
-    *,
-    plugin_name: str,
-    plugin_context: dict[str, Any] | None,
-) -> RoutePreflightRuntimeCarrier:
-    preflight_context = dict(plugin_context) if isinstance(plugin_context, dict) else {}
-    preflight_context.setdefault("plugin_name", plugin_name)
-    routing = _merge_routing_metadata(
-        preflight_context.get("routing"),
-        _build_routing_metadata(
-            mode=_ROUTING_MODE_PLUGIN,
-            selected_plugin=plugin_name,
-            include_selection_order=True,
-        ),
-    )
-    preflight_context["routing"] = routing
-    return RoutePreflightRuntimeCarrier(
-        plugin_name=plugin_name,
-        preflight_context=preflight_context,
-        routing=routing,
-    )
-
-
-def _invoke_kernel_orchestrator(
-    *,
-    kernel_orchestrator_fn: Callable[..., dict[str, Any]],
-    role_path: str,
-    scan_options: dict[str, Any],
-    route_preflight_runtime: RoutePreflightRuntimeCarrier,
-) -> dict[str, Any]:
-    return kernel_orchestrator_fn(
-        role_path=role_path,
-        scan_options=scan_options,
-        route_preflight_runtime=route_preflight_runtime,
-    )

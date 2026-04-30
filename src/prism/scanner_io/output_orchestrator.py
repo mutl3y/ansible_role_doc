@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import copy
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, cast
 
 from prism.scanner_data.contracts_output import (
     RunScanOutputPayload,
+    ScanMetadata,
     validate_output_orchestrator_inputs,
     validate_run_scan_output_payload,
     validate_runbook_sidecar_inputs,
@@ -69,8 +70,8 @@ class OutputOrchestrator:
             args=emission_args,
             render_and_write=render_and_write,
             render_scanner_report=render_scanner_report,
-            render_runbook=render_runbook,
-            render_runbook_csv=render_runbook_csv,
+            render_runbook=cast(Callable[[str, ScanMetadata], str], render_runbook),
+            render_runbook_csv=cast(Callable[[ScanMetadata], str], render_runbook_csv),
         )
 
     def render_and_emit_with_events(

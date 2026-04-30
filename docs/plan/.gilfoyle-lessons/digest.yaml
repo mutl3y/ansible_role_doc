@@ -1,6 +1,9 @@
 # Gilfoyle review-loop digest — index for next cycle's Phase 0 sweep
 # Last updated: g18 close (2026-04-26)
 
+model_usage_history_path: docs/plan/.gilfoyle-lessons/model-usage-history.yaml
+model_usage_rollup_path: docs/plan/.gilfoyle-lessons/model-usage-rollup.yaml
+
 closed_findings_count: 76  # g1=7 + g2=5 + g3=1 + g4=1 + g5=2 + g6=5 + g7b=1 + g8=6 + g9=5 + g10=2 + g11=1 + g12=2 + g13=3 + g14=8 + g15=7(+1 false positive) + g16=9 + g17=5 + g18=5
 deferred_findings_count: 11  # prior 10 + g18 deferred process finding FIND-G18-D01 (missing import-graph.json artifact)
 
@@ -66,6 +69,10 @@ active_lessons:
   - LESSON-06
   - LESSON-07
   - LESSON-08
+  - LESSON-09  # subagent artifact-existence gate — MUST be enforced in every dispatch prompt
+  - LESSON-10  # ledger write after every dispatch, not batched at cycle end
+  - LESSON-11  # builder must run tests from ALL layers above changed callsite, not just owned files
+  - LESSON-12  # test mocks must match Protocol return types exactly — silent mismatches survive until normalization is added
 
 do_not_re_flag:
   - find_id: FIND-G3-02-typecheck-import

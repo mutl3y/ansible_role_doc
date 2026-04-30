@@ -2,15 +2,20 @@
 
 from __future__ import annotations
 
-from copy import deepcopy
+import copy
 import logging
-from typing import Any, Callable, cast
+from typing import Any, Callable, TypeGuard
 
 from prism.errors import PrismRuntimeError
 from prism.scanner_core.di import DIContainer
 from prism.scanner_core.metadata_merger import merge_policy_warning_entries
-from prism.scanner_data.contracts_request import ScanContextPayload, ScanOptionsDict
 from prism.scanner_data.contracts_request import (
+    DisplayVariables,
+    FeaturesContext,
+    ScanContextPayload,
+    ScanErrorEntry,
+    ScanMetadata,
+    ScanOptionsDict,
     ScanPolicyBlockerFacts,
     PreparedPolicyBundle,
 )
@@ -50,11 +55,37 @@ _REQUIRED_SCAN_OPTION_KEYS: frozenset[str] = frozenset(
 _RECOVERABLE_PHASE_ERRORS: tuple[type[Exception], ...] = (PrismRuntimeError,)
 
 
+def _is_scan_metadata(value: object) -> TypeGuard[ScanMetadata]:
+    return isinstance(value, dict)
+
+
+def _copy_scan_metadata(metadata: object) -> ScanMetadata:
+    """Preserve the ScanMetadata TypedDict contract across shallow copies."""
+    if _is_scan_metadata(metadata):
+        return ScanMetadata(**metadata)
+    return ScanMetadata()
+
+
+def _copy_features_metadata(features: FeaturesContext) -> dict[str, object]:
+    """Project feature facts into metadata without mutating detector-owned state."""
+    return {key: value for key, value in features.items()}
+
+
+def _copy_display_variables(display_variables: object) -> DisplayVariables:
+    if isinstance(display_variables, dict):
+        return copy.copy(display_variables)
+    return {}
+
+
+def _is_prepared_policy_bundle(value: object) -> TypeGuard[PreparedPolicyBundle]:
+    return isinstance(value, dict)
+
+
 def _require_prepared_policy_bundle(
     scan_options: ScanOptionsDict,
 ) -> PreparedPolicyBundle:
     prepared_policy_bundle = scan_options.get("prepared_policy_bundle")
-    if not isinstance(prepared_policy_bundle, dict):
+    if not _is_prepared_policy_bundle(prepared_policy_bundle):
         raise ValueError(
             "scan_options must include a prepared_policy_bundle before "
             "ScannerContext orchestration"
@@ -74,7 +105,28 @@ def _require_prepared_policy_bundle(
             "ScannerContext orchestration"
         )
 
-    return cast(PreparedPolicyBundle, prepared_policy_bundle)
+    return prepared_policy_bundle
+
+
+def _build_empty_features_context() -> FeaturesContext:
+    """Initialize an empty FeaturesContext with all required keys."""
+    return FeaturesContext(
+        task_files_scanned=0,
+        tasks_scanned=0,
+        recursive_task_includes=0,
+        unique_modules="",
+        external_collections="",
+        handlers_notified="",
+        privileged_tasks=0,
+        conditional_tasks=0,
+        tagged_tasks=0,
+        included_role_calls=0,
+        included_roles="",
+        dynamic_included_role_calls=0,
+        dynamic_included_roles="",
+        disabled_task_annotations=0,
+        yaml_like_task_annotations=0,
+    )
 
 
 __all__ = [
@@ -93,7 +145,6 @@ class ScannerContext:
         di: DIContainer,
         role_path: str,
         scan_options: ScanOptionsDict,
-        build_run_scan_options_fn: Callable[..., ScanOptionsDict] | None = None,
         prepare_scan_context_fn: (
             Callable[[ScanOptionsDict], ScanContextPayload] | None
         ) = None,
@@ -114,14 +165,14 @@ class ScannerContext:
         )
 
         self._discovered_variables: tuple[Any, ...] = ()
-        self._detected_features: dict[str, Any] = {}
-        self._scan_metadata: dict[str, Any] = {}
-        self._scan_errors: list[dict[str, str]] = []
+        self._detected_features: FeaturesContext = _build_empty_features_context()
+        self._scan_metadata: ScanMetadata = ScanMetadata()
+        self._scan_errors: list[ScanErrorEntry] = []
 
     def orchestrate_scan(self) -> dict[str, Any]:
         self._discovered_variables = ()
-        self._detected_features = {}
-        self._scan_metadata = {}
+        self._detected_features = _build_empty_features_context()
+        self._scan_metadata = ScanMetadata()
         self._scan_errors = []
 
         _require_prepared_policy_bundle(self._scan_options)
@@ -131,17 +182,17 @@ class ScannerContext:
 
         return self._build_output_payload()
 
-    def _record_phase_error(self, phase: str, error: Exception) -> dict[str, str]:
-        entry = {
+    def _record_phase_error(self, phase: str, error: Exception) -> ScanErrorEntry:
+        entry: ScanErrorEntry = {
             "phase": phase,
             "error_type": error.__class__.__name__,
             "message": str(error),
         }
         self._scan_errors.append(entry)
-        self._scan_metadata = {
-            "scan_errors": list(self._scan_errors),
-            "scan_degraded": True,
-        }
+        self._scan_metadata = ScanMetadata(
+            scan_errors=list(self._scan_errors),
+            scan_degraded=True,
+        )
         return entry
 
     def _discover_variables(self) -> tuple[Any, ...]:
@@ -163,10 +214,10 @@ class ScannerContext:
             )
             return ()
 
-    def _detect_features(self) -> dict[str, Any]:
+    def _detect_features(self) -> FeaturesContext:
         try:
             detector = self._di.factory_feature_detector()
-            return cast(dict[str, Any], detector.detect())
+            return detector.detect()
         except Exception as error:
             logger = logging.getLogger(__name__)
             if self._strict_phase_failures or not isinstance(
@@ -180,18 +231,20 @@ class ScannerContext:
                 "Feature detection failed; continuing in best-effort mode",
                 extra={"scan_error": entry},
             )
-            return {"task_files_scanned": 0, "tasks_scanned": 0}
+            return _build_empty_features_context()
 
-    def _build_output_payload(self) -> dict[str, Any]:
+    def _build_output_payload(self) -> dict[str, object]:
         self._validate_required_scan_option_keys()
         context_payload = self._build_context_payload()
-        metadata = dict(context_payload.get("metadata") or {})
+        metadata = _copy_scan_metadata(context_payload.get("metadata"))
         self._merge_features_into_metadata(metadata)
         self._merge_policy_warnings_into_metadata(metadata)
         display_variables = self._apply_underscore_reference_policy(
             scan_options=self._scan_options,
             metadata=metadata,
-            display_variables=dict(context_payload.get("display_variables") or {}),
+            display_variables=_copy_display_variables(
+                context_payload.get("display_variables")
+            ),
         )
         metadata["scan_policy_blocker_facts"] = self._build_scan_policy_blocker_facts(
             scan_options=self._scan_options,
@@ -229,11 +282,11 @@ class ScannerContext:
             )
         return self._prepare_scan_context_fn(self._scan_options)
 
-    def _merge_features_into_metadata(self, metadata: dict[str, Any]) -> None:
+    def _merge_features_into_metadata(self, metadata: ScanMetadata) -> None:
         if "features" not in metadata and self._detected_features:
-            metadata["features"] = dict(self._detected_features)
+            metadata["features"] = _copy_features_metadata(self._detected_features)
 
-    def _merge_policy_warnings_into_metadata(self, metadata: dict[str, Any]) -> None:
+    def _merge_policy_warnings_into_metadata(self, metadata: ScanMetadata) -> None:
         policy_warning_list = merge_policy_warning_entries(
             self._scan_options.get("scan_policy_warnings"),
             metadata.get("scan_policy_warnings"),
@@ -241,7 +294,7 @@ class ScannerContext:
         if policy_warning_list:
             metadata["scan_policy_warnings"] = policy_warning_list
 
-    def _record_scan_errors_into_metadata(self, metadata: dict[str, Any]) -> None:
+    def _record_scan_errors_into_metadata(self, metadata: ScanMetadata) -> None:
         if self._scan_errors:
             metadata["scan_errors"] = list(self._scan_errors)
             metadata["scan_degraded"] = True
@@ -250,7 +303,7 @@ class ScannerContext:
         self,
         *,
         scan_options: ScanOptionsDict,
-        metadata: dict[str, Any],
+        metadata: ScanMetadata,
     ) -> ScanPolicyBlockerFacts:
         builder_fn = self._di.factory_blocker_fact_builder()
         return builder_fn(
@@ -263,9 +316,9 @@ class ScannerContext:
         self,
         *,
         scan_options: ScanOptionsDict,
-        metadata: dict[str, Any],
-        display_variables: dict[str, Any],
-    ) -> dict[str, Any]:
+        metadata: ScanMetadata,
+        display_variables: DisplayVariables,
+    ) -> DisplayVariables:
         return apply_underscore_reference_filter(
             display_variables=display_variables,
             metadata=metadata,
@@ -279,9 +332,9 @@ class ScannerContext:
         return self._discovered_variables
 
     @property
-    def detected_features(self) -> dict[str, Any]:
-        return deepcopy(self._detected_features)
+    def detected_features(self) -> FeaturesContext:
+        return copy.deepcopy(self._detected_features)
 
     @property
-    def scan_metadata(self) -> dict[str, Any]:
-        return deepcopy(self._scan_metadata)
+    def scan_metadata(self) -> ScanMetadata:
+        return copy.deepcopy(self._scan_metadata)

@@ -17,18 +17,24 @@ from __future__ import annotations
 
 from prism.scanner_core.di import DIContainer
 from prism.scanner_core.feature_detector import FeatureDetector
+from prism.scanner_core.scan_request import build_run_scan_options_canonical
 from prism.scanner_core.scanner_context import (
     NonCollectionRunScanExecutionRequest,
     ScannerContext,
     build_non_collection_run_scan_execution_request,
 )
+from prism.scanner_core.variable_discovery import VariableDiscovery
+from prism.scanner_core.scan_cache import ScanCacheBackend
 
 __all__ = [
     "DIContainer",
     "FeatureDetector",
     "NonCollectionRunScanExecutionRequest",
+    "ScanCacheBackend",
     "ScannerContext",
+    "VariableDiscovery",
     "build_non_collection_run_scan_execution_request",
+    "build_run_scan_options_canonical",
 ]
 
 

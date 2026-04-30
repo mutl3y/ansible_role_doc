@@ -5,7 +5,7 @@ from __future__ import annotations
 import pathlib
 from typing import Any
 
-from prism.scanner_extract.requirements import normalize_requirements
+from prism.scanner_plugins.ansible.extract_utils import normalize_requirements
 
 _DEFAULT_SECTION_SPECS: tuple[tuple[str, str], ...] = (
     ("galaxy_info", "Galaxy Info"),

@@ -11,6 +11,7 @@ from prism.scanner_data.contracts_request import (
     PreparedJinjaAnalysisPolicy,
     PreparedPolicyBundle,
     PreparedTaskLineParsingPolicy,
+    YamlParseFailure,
 )
 
 
@@ -83,9 +84,11 @@ class ScanPipelinePlugin(Protocol):
 
     def orchestrate_scan_payload(
         self,
+        *,
+        payload: dict[str, Any],
         scan_options: dict[str, Any],
-        scan_context: dict[str, Any],
-        metadata: dict[str, Any],
+        strict_mode: bool,
+        preflight_context: dict[str, Any] | None = None,
     ) -> dict[str, Any]: ...
 
 
@@ -112,13 +115,13 @@ class ExtractPolicyPlugin(Protocol):
 class YAMLParsingPolicyPlugin(Protocol):
     """Protocol for YAML parsing/loading policy implementations."""
 
-    def load_yaml_file(self, path: str | Any) -> object: ...
+    def load_yaml_file(self, path: str | pathlib.Path) -> object: ...
 
     def parse_yaml_candidate(
         self,
-        candidate: str | Any,
-        role_root: str | Any,
-    ) -> dict[str, object] | None: ...
+        candidate: str | pathlib.Path,
+        role_root: str | pathlib.Path,
+    ) -> YamlParseFailure | None: ...
 
 
 class JinjaAnalysisPolicyPlugin(Protocol):

@@ -149,7 +149,14 @@ def get_marker_line_re(marker_prefix, *, di: object | None = None):
 
 
 class _PolicyBackedMarkerLineRegexProxy:
-    """Proxy that resolves marker-line regex from annotation policy at call time."""
+    """
+    Proxy that resolves marker-line regex from annotation policy at call time.
+
+    The match/search/fullmatch methods proxy to the current re.Pattern[str] instance
+    returned by the annotation policy. These methods accept the same arguments as
+    re.Pattern[str] and return the same types. This proxy is needed because the
+    underlying regex may change at runtime depending on policy configuration.
+    """
 
     def _current_regex(self) -> re.Pattern[str]:
         policy = require_prepared_policy(
@@ -163,14 +170,20 @@ class _PolicyBackedMarkerLineRegexProxy:
             "must return a compiled re.Pattern"
         )
 
-    def match(self, *args: Any, **kwargs: Any):
-        return self._current_regex().match(*args, **kwargs)
+    def match(
+        self, string: str, pos: int = 0, endpos: int = ...
+    ) -> re.Match[str] | None:
+        return self._current_regex().match(string, pos, endpos)
 
-    def search(self, *args: Any, **kwargs: Any):
-        return self._current_regex().search(*args, **kwargs)
+    def search(
+        self, string: str, pos: int = 0, endpos: int = ...
+    ) -> re.Match[str] | None:
+        return self._current_regex().search(string, pos, endpos)
 
-    def fullmatch(self, *args: Any, **kwargs: Any):
-        return self._current_regex().fullmatch(*args, **kwargs)
+    def fullmatch(
+        self, string: str, pos: int = 0, endpos: int = ...
+    ) -> re.Match[str] | None:
+        return self._current_regex().fullmatch(string, pos, endpos)
 
     def __getattr__(self, name: str) -> object:
         return getattr(self._current_regex(), name)
@@ -199,14 +212,20 @@ class _PolicyBackedAnnotationRegexProxy:
             f"must be a compiled regex pattern"
         )
 
-    def match(self, *args: Any, **kwargs: Any):
-        return self._current_regex().match(*args, **kwargs)
+    def match(
+        self, string: str, pos: int = 0, endpos: int = ...
+    ) -> re.Match[str] | None:
+        return self._current_regex().match(string, pos, endpos)
 
-    def search(self, *args: Any, **kwargs: Any):
-        return self._current_regex().search(*args, **kwargs)
+    def search(
+        self, string: str, pos: int = 0, endpos: int = ...
+    ) -> re.Match[str] | None:
+        return self._current_regex().search(string, pos, endpos)
 
-    def fullmatch(self, *args: Any, **kwargs: Any):
-        return self._current_regex().fullmatch(*args, **kwargs)
+    def fullmatch(
+        self, string: str, pos: int = 0, endpos: int = ...
+    ) -> re.Match[str] | None:
+        return self._current_regex().fullmatch(string, pos, endpos)
 
     def __getattr__(self, name: str) -> object:
         return getattr(self._current_regex(), name)

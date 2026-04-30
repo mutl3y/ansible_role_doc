@@ -2,15 +2,15 @@
 
 from __future__ import annotations
 
-from typing import Any
+from prism.scanner_data.contracts_request import DisplayVariables, ScanMetadata
 
 
 def apply_underscore_reference_filter(
     *,
-    display_variables: dict[str, Any],
-    metadata: dict[str, Any],
+    display_variables: DisplayVariables,
+    metadata: ScanMetadata,
     ignore_flag: bool,
-) -> dict[str, Any]:
+) -> DisplayVariables:
     """Filter unresolved underscore-prefixed variables from display output.
 
     Mutates *metadata* in-place to record filtering provenance.

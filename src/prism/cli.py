@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 from collections.abc import Sequence
 import json
+import logging
 import sys
 from urllib.error import HTTPError, URLError
 
@@ -25,6 +26,8 @@ CLI_PUBLIC_ENTRYPOINTS: tuple[str, ...] = ("main", "build_parser")
 CLI_RETAINED_COMPATIBILITY_SEAMS: tuple[str, ...] = ("_handle_repo_command",)
 
 __all__ = ["main", "build_parser"]
+
+_logger = logging.getLogger(__name__)
 
 _EXIT_CODE_GENERIC_ERROR = 2
 _EXIT_CODE_NOT_FOUND = 3
@@ -318,8 +321,8 @@ def _maybe_run_audit(args: argparse.Namespace, payload: dict) -> int:
     if not rules_path:
         return 0
 
-    from prism.scanner_plugins.audit.loader import load_audit_rules_from_file
-    from prism.scanner_plugins.audit.runner import run_audit
+    from prism.scanner_plugins.audit import load_audit_rules_from_file
+    from prism.scanner_plugins.audit import run_audit
 
     rules = load_audit_rules_from_file(rules_path)
     report = run_audit(payload, rules)
@@ -572,6 +575,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     except KeyboardInterrupt:
         return _EXIT_CODE_INTERRUPTED
     except Exception as exc:
+        _logger.exception(
+            "CLI command %r failed with %s",
+            getattr(args, "command", None),
+            type(exc).__name__,
+        )
         print(_format_top_level_exception(exc), file=sys.stderr)
         return _map_top_level_exception_to_exit_code(exc)
 

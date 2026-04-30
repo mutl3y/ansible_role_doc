@@ -157,7 +157,6 @@ def test_fsrc_scanner_context_orchestrates_payload_shape_parity() -> None:
             di=container,
             role_path=options["role_path"],
             scan_options=options,
-            build_run_scan_options_fn=recorder,
             prepare_scan_context_fn=lambda _scan_options: _context_payload(),
         )
         result = context.orchestrate_scan()
@@ -213,7 +212,6 @@ def test_fsrc_scanner_context_consumes_existing_canonical_options_without_rebuil
             di=container,
             role_path=options["role_path"],
             scan_options=options,
-            build_run_scan_options_fn=recorder,
             prepare_scan_context_fn=lambda scan_options: (
                 observed_scan_options.append(scan_options),
                 _context_payload(),
@@ -259,7 +257,6 @@ def test_fsrc_scanner_context_dedupes_canonical_policy_warnings() -> None:
             di=container,
             role_path=options["role_path"],
             scan_options=options,
-            build_run_scan_options_fn=recorder,
             prepare_scan_context_fn=lambda _scan_options: {
                 **_context_payload(),
                 "metadata": {
@@ -304,7 +301,6 @@ def test_fsrc_scanner_context_underscore_filter_uses_canonical_ingress_state() -
             di=container,
             role_path=options["role_path"],
             scan_options=options,
-            build_run_scan_options_fn=recorder,
             prepare_scan_context_fn=lambda _scan_options: {
                 **_context_payload(),
                 "display_variables": {
@@ -341,6 +337,111 @@ def test_fsrc_scanner_context_underscore_filter_uses_canonical_ingress_state() -
     ]
 
 
+def test_fsrc_scanner_context_copies_metadata_without_mutating_context_payload() -> (
+    None
+):
+    with _prefer_fsrc_prism_on_sys_path():
+        core_module = importlib.import_module("prism.scanner_core")
+        di_module = importlib.import_module("prism.scanner_core.di")
+
+        options = _canonical_scan_options()
+        original_metadata = {
+            "scan_policy_warnings": [
+                {
+                    "code": "prepare_scan_context_warning",
+                    "message": "warning from prepared payload",
+                    "detail": {"scope": "prepare_scan_context"},
+                }
+            ],
+            "variable_insights": [
+                {"name": "_internal_value", "is_unresolved": True},
+                {"name": "public_value", "is_unresolved": True},
+            ],
+        }
+        container = di_module.DIContainer(
+            role_path=options["role_path"],
+            scan_options=options,
+        )
+        container.inject_mock("variable_discovery", _DiscoveryStub(tuple()))
+        container.inject_mock(
+            "feature_detector",
+            _FeatureStub({"task_files_scanned": 1, "tasks_scanned": 2}),
+        )
+
+        context = core_module.ScannerContext(
+            di=container,
+            role_path=options["role_path"],
+            scan_options=options,
+            prepare_scan_context_fn=lambda _scan_options: {
+                **_context_payload(),
+                "metadata": original_metadata,
+            },
+        )
+        result = context.orchestrate_scan()
+
+    assert "features" not in original_metadata
+    assert "scan_policy_blocker_facts" not in original_metadata
+    assert "scan_degraded" not in original_metadata
+    assert original_metadata["variable_insights"] == [
+        {"name": "_internal_value", "is_unresolved": True},
+        {"name": "public_value", "is_unresolved": True},
+    ]
+    assert result["metadata"]["features"] == {
+        "task_files_scanned": 1,
+        "tasks_scanned": 2,
+    }
+
+
+def test_fsrc_scanner_context_copies_display_variables_without_mutating_context_payload() -> (
+    None
+):
+    with _prefer_fsrc_prism_on_sys_path():
+        core_module = importlib.import_module("prism.scanner_core")
+        di_module = importlib.import_module("prism.scanner_core.di")
+
+        options = _canonical_scan_options()
+        options["ignore_unresolved_internal_underscore_references"] = True
+        original_display_variables = {
+            "_internal_value": {
+                "is_unresolved": True,
+                "source": "tasks/main.yml",
+            },
+            "public_value": {
+                "is_unresolved": True,
+                "source": "tasks/main.yml",
+            },
+        }
+        container = di_module.DIContainer(
+            role_path=options["role_path"],
+            scan_options=options,
+        )
+        container.inject_mock("variable_discovery", _DiscoveryStub(tuple()))
+        container.inject_mock(
+            "feature_detector",
+            _FeatureStub({"task_files_scanned": 1, "tasks_scanned": 2}),
+        )
+
+        context = core_module.ScannerContext(
+            di=container,
+            role_path=options["role_path"],
+            scan_options=options,
+            prepare_scan_context_fn=lambda _scan_options: {
+                **_context_payload(),
+                "display_variables": original_display_variables,
+                "metadata": {
+                    "variable_insights": [
+                        {"name": "_internal_value", "is_unresolved": True},
+                        {"name": "public_value", "is_unresolved": True},
+                    ]
+                },
+            },
+        )
+        result = context.orchestrate_scan()
+
+    assert "_internal_value" in original_display_variables
+    assert set(result["display_variables"]) == {"public_value"}
+
+
 def test_fsrc_scanner_context_best_effort_records_error_envelope() -> None:
     with _prefer_fsrc_prism_on_sys_path():
         core_module = importlib.import_module("prism.scanner_core")
@@ -349,7 +450,6 @@ def test_fsrc_scanner_context_best_effort_records_error_envelope() -> None:
 
         options = _canonical_scan_options()
         options["strict_phase_failures"] = False
-        recorder = _BuildOptionsRecorder(options)
         container = di_module.DIContainer(
             role_path=options["role_path"], scan_options=options
         )
@@ -371,7 +471,6 @@ def test_fsrc_scanner_context_best_effort_records_error_envelope() -> None:
             di=container,
             role_path=options["role_path"],
             scan_options=options,
-            build_run_scan_options_fn=recorder,
             prepare_scan_context_fn=lambda _scan_options: _context_payload(),
         )
         result = context.orchestrate_scan()
@@ -393,7 +492,6 @@ def test_fsrc_scanner_context_strict_mode_reraises_recoverable_phase_error() -> 
         errors_module = importlib.import_module("prism.errors")
 
         options = _canonical_scan_options()
-        recorder = _BuildOptionsRecorder(options)
         container = di_module.DIContainer(
             role_path=options["role_path"], scan_options=options
         )
@@ -415,7 +513,6 @@ def test_fsrc_scanner_context_strict_mode_reraises_recoverable_phase_error() -> 
             di=container,
             role_path=options["role_path"],
             scan_options=options,
-            build_run_scan_options_fn=recorder,
             prepare_scan_context_fn=lambda _scan_options: _context_payload(),
         )
 
@@ -430,7 +527,6 @@ def test_fsrc_scanner_context_missing_required_keys_raises_shape_error() -> None
 
         options = _canonical_scan_options()
         options.pop("style_readme_path")
-        recorder = _BuildOptionsRecorder(options)
         container = di_module.DIContainer(role_path="/tmp/role", scan_options=options)
         container.inject_mock("variable_discovery", _DiscoveryStub(tuple()))
         container.inject_mock(
@@ -441,7 +537,6 @@ def test_fsrc_scanner_context_missing_required_keys_raises_shape_error() -> None
             di=container,
             role_path="/tmp/role",
             scan_options=options,
-            build_run_scan_options_fn=recorder,
             prepare_scan_context_fn=lambda _scan_options: _context_payload(),
         )
 
@@ -523,7 +618,6 @@ def test_fsrc_scanner_context_requires_prepared_policy_bundle_without_mutating_i
             di=container,
             role_path=options["role_path"],
             scan_options=options,
-            build_run_scan_options_fn=recorder,
             prepare_scan_context_fn=lambda _scan_options: _context_payload(),
         )
 
@@ -559,7 +653,6 @@ def test_fsrc_scanner_context_prepared_policy_bundle_rejects_invalid_bundle() ->
             di=container,
             role_path=options["role_path"],
             scan_options=options,
-            build_run_scan_options_fn=recorder,
             prepare_scan_context_fn=lambda _scan_options: _context_payload(),
         )
 
@@ -612,7 +705,6 @@ def test_fsrc_scanner_context_emits_dynamic_include_blocker_facts_with_contract_
         options = _canonical_scan_options()
         options["fail_on_unconstrained_dynamic_includes"] = True
         options["exclude_path_patterns"] = ["tasks/generated/**"]
-        recorder = _BuildOptionsRecorder(options)
         container = di_module.DIContainer(
             role_path=options["role_path"],
             scan_options=options,
@@ -646,7 +738,6 @@ def test_fsrc_scanner_context_emits_dynamic_include_blocker_facts_with_contract_
             di=container,
             role_path=options["role_path"],
             scan_options=options,
-            build_run_scan_options_fn=recorder,
             prepare_scan_context_fn=lambda _scan_options: {
                 **_context_payload(),
                 "metadata": {
@@ -693,7 +784,6 @@ def test_fsrc_scanner_context_emits_yaml_like_blocker_facts_with_contract_counts
 
         options = _canonical_scan_options()
         options["fail_on_yaml_like_task_annotations"] = True
-        recorder = _BuildOptionsRecorder(options)
         container = di_module.DIContainer(
             role_path=options["role_path"],
             scan_options=options,
@@ -708,7 +798,6 @@ def test_fsrc_scanner_context_emits_yaml_like_blocker_facts_with_contract_counts
             di=container,
             role_path=options["role_path"],
             scan_options=options,
-            build_run_scan_options_fn=recorder,
             prepare_scan_context_fn=lambda _scan_options: {
                 **_context_payload(),
                 "metadata": {
@@ -760,7 +849,6 @@ def test_fsrc_scanner_context_does_not_translate_blocker_outcomes_locally(
         options["strict_phase_failures"] = True
         options["fail_on_unconstrained_dynamic_includes"] = True
         options["fail_on_yaml_like_task_annotations"] = True
-        recorder = _BuildOptionsRecorder(options)
         container = di_module.DIContainer(
             role_path=options["role_path"],
             scan_options=options,
@@ -790,7 +878,6 @@ def test_fsrc_scanner_context_does_not_translate_blocker_outcomes_locally(
             di=container,
             role_path=options["role_path"],
             scan_options=options,
-            build_run_scan_options_fn=recorder,
             prepare_scan_context_fn=lambda _scan_options: {
                 **_context_payload(),
                 "metadata": {
@@ -878,9 +965,9 @@ def test_fsrc_scanner_core_builds_non_collection_execution_request() -> None:
                 role_path: str,
                 *,
                 exclude_paths: list[str] | None = None,
-            ) -> list[str]:
+            ) -> dict[str, list[str]]:
                 del exclude_paths
-                return [f"notes-for:{role_path}"]
+                return {"notes": [f"notes-for:{role_path}"], "warnings": [], "deprecations": [], "additionals": []}
 
         class _Registry:
             @staticmethod
@@ -985,5 +1072,29 @@ def test_fsrc_scanner_core_builds_non_collection_execution_request() -> None:
     assert payload["role_name"] == "demo-role"
     assert payload["description"] == "desc:demo-role"
     assert payload["display_variables"]["demo_var"]["default"] == "value"
-    assert payload["metadata"]["role_notes"] == ["notes-for:/tmp/demo-role"]
+    assert payload["metadata"]["role_notes"]["notes"] == ["notes-for:/tmp/demo-role"]
     assert payload["metadata"]["features"]["task_files_scanned"] == 1
+
+
+def test_fsrc_di_plugin_registry_property_returns_injected_registry() -> None:
+    with _prefer_fsrc_prism_on_sys_path():
+        di_module = importlib.import_module("prism.scanner_core.di")
+
+        class _CustomRegistry:
+            def get_default_platform_key(self) -> str:
+                return "custom"
+
+        custom_registry = _CustomRegistry()
+        container = di_module.DIContainer(
+            role_path="/tmp/role",
+            scan_options={"role_path": "/tmp/role"},
+            registry=custom_registry,
+        )
+
+        assert container.plugin_registry is custom_registry
+
+        no_registry_container = di_module.DIContainer(
+            role_path="/tmp/role",
+            scan_options={"role_path": "/tmp/role"},
+        )
+        assert no_registry_container.plugin_registry is None

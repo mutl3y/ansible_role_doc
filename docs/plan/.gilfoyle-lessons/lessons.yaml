@@ -125,3 +125,75 @@
   false_positive_signature: >
     Constants that are only consumed inside the same eager-load tree (no cross-layer
     consumers). Those don't trigger the cycle and may stay where they are.
+
+- id: LESSON-09
+  cycle: g34
+  category: subagent_dispatch
+  lesson: >
+    Subagents frequently report "success" without writing their artifact to disk. Any dispatch
+    that produces a file output MUST include an explicit artifact-existence gate in the prompt:
+    the subagent must verify the file exists on disk before declaring success, and the foreman
+    must check artifact presence at the phase barrier before proceeding. Without this gate, a
+    silent no-write failure is indistinguishable from success. The recovery pattern is:
+    re-dispatch with a stricter prompt that names the exact output path and requires a
+    `tail -3 <artifact>` confirmation as the final step.
+  pattern: "subagent dispatch producing a YAML/JSON artifact without explicit `artifact_exists` verification in the prompt"
+  false_positive_signature: >
+    Dispatches whose only output is a terminal command result (no file artifact produced) —
+    those do not need a disk-existence check, only an exit-code check.
+
+- id: LESSON-10
+  cycle: g34
+  category: metrics_tracking
+  lesson: >
+    Model-usage-ledger.yaml must be updated immediately after each dispatch is resolved, not
+    batched at cycle end. When a context handoff or recovery event occurs mid-cycle, any
+    dispatches after the last ledger write become unrecorded, requiring a manual backfill that
+    may miss failure details. The discipline: after every runSubagent call returns (success OR
+    failure), the archivist appends one ledger row before the next dispatch is issued.
+    Batching ledger updates to "end of wave" is acceptable only when all dispatches in that
+    wave share one atomic barrier step.
+  pattern: "ledger write deferred past a wave barrier or context-handoff boundary"
+  false_positive_signature: >
+    Single-dispatch cycles or cycles where the entire wave is within one uninterrupted
+    foreman session — the risk is low in that case, but the discipline still applies.
+
+- id: LESSON-11
+  cycle: g34
+  category: subagent_dispatch
+  lesson: >
+    When a builder wraps or normalizes a plugin callsite (e.g. adds `_normalize_foo(plugin.get_foo(...))`)
+    it must run tests from ALL layers above the changed callsite, not just tests for its own
+    owned files. The integration failure pattern is: builder adds normalization to
+    `module_A.py`, the correct test lives in `test_module_B.py` (which exercises A through B),
+    and B's test file belongs to a different slice's owned-file scope. The builder's focused
+    test suite never runs it. Prevention: builder prompts must include the instruction
+    "after making changes, run the full test suite for any module that imports your changed
+    files, not just tests for your owned files". The wave barrier catches this, but the
+    foreman should not have to fix it — the builder should.
+  pattern: >
+    Builder adds a transformation wrapper around a plugin callsite; the test exercising
+    that callsite lives in a different slice's owned file scope and uses a mock whose
+    return type was silently compatible with the pre-wrapper code but breaks with the wrapper.
+  false_positive_signature: >
+    Changes that are purely additive (new functions, new imports) and do not wrap or
+    transform any pre-existing callsite — those cannot introduce this cross-slice failure.
+
+- id: LESSON-12
+  cycle: g34
+  category: typing
+  lesson: >
+    Test mocks that stub Protocol methods must match the Protocol's declared return type
+    exactly. A mock returning `list[str]` for a method declared `-> dict[str, list[str]]`
+    is a latent bug that survives until something normalizes the return value. Builder
+    prompts should include: "verify that any mock in existing tests that stubs a method
+    you are adding normalization for has a return type consistent with the Protocol
+    declared in `scanner_plugins/interfaces.py`". Silent type mismatches in mocks are
+    not caught by ruff, black, or even mypy if the mock is untyped.
+  pattern: >
+    Mock class defines a method with wrong return type; pre-existing code passed the
+    value through unmodified so tests passed; new normalization code calls `.get()`
+    or similar on the value and fails at runtime with AttributeError.
+  false_positive_signature: >
+    Mocks that are fully typed and validated by mypy — those will fail at type-check
+    time before reaching the barrier.

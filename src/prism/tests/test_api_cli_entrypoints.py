@@ -43,6 +43,9 @@ def _make_test_registry(real_registry, scan_pipeline_fn):
         def get_scan_pipeline_plugin(self, name):
             return scan_pipeline_fn(name)
 
+        def __getattr__(self, name):
+            return getattr(real_registry, name)
+
         def get_default_platform_key(self):
             return real_registry.get_default_platform_key()
 

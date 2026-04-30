@@ -195,17 +195,28 @@ def test_fsrc_default_plugin_bootstrap_is_idempotent_for_required_keys() -> None
     assert before_second_bootstrap == after_second_bootstrap
     assert {"default"}.issubset(after_second_bootstrap["comment_doc"])
     assert {"default", "ansible"}.issubset(after_second_bootstrap["scan_pipeline"])
+
+    registered_comment_doc = registry.get_comment_driven_doc_plugin("default")
+    registered_default_pipeline = registry.get_scan_pipeline_plugin("default")
+    registered_ansible_pipeline = registry.get_scan_pipeline_plugin("ansible")
+
+    assert registered_comment_doc is not None
+    assert registered_default_pipeline is not None
+    assert registered_ansible_pipeline is not None
+    assert registered_comment_doc.__module__ == comment_doc_module.__name__
     assert (
-        registry.get_comment_driven_doc_plugin("default")
-        is comment_doc_module.CommentDrivenDocumentationParser
+        registered_comment_doc.__name__
+        == comment_doc_module.CommentDrivenDocumentationParser.__name__
     )
+    assert registered_default_pipeline.__module__ == default_pipeline_module.__name__
     assert (
-        registry.get_scan_pipeline_plugin("default")
-        is default_pipeline_module.DefaultScanPipelinePlugin
+        registered_default_pipeline.__name__
+        == default_pipeline_module.DefaultScanPipelinePlugin.__name__
     )
+    assert registered_ansible_pipeline.__module__ == ansible_plugins.__name__
     assert (
-        registry.get_scan_pipeline_plugin("ansible")
-        is ansible_plugins.AnsibleScanPipelinePlugin
+        registered_ansible_pipeline.__name__
+        == ansible_plugins.AnsibleScanPipelinePlugin.__name__
     )
 
 
@@ -615,6 +626,30 @@ def test_fsrc_scanner_plugins_package_does_not_import_readme_or_reporting() -> N
             violations.append(f"{relative}: {line}")
 
     assert not violations, "\n".join(violations)
+
+
+def test_fsrc_scanner_plugins_package_does_not_import_scanner_core() -> None:
+    """g34-M-006: scanner_plugins must not import scanner_core directly.
+
+    Plugin layer depends only on scanner_data for shared type contracts.
+    Cross-layer wiring must flow through DI, not direct imports.
+    """
+    plugin_root = FSRC_SOURCE_ROOT / "prism" / "scanner_plugins"
+    violations: list[str] = []
+    for plugin_file in sorted(plugin_root.rglob("*.py")):
+        for line in plugin_file.read_text(encoding="utf-8").splitlines():
+            stripped = line.strip()
+            if not (stripped.startswith("from ") or stripped.startswith("import ")):
+                continue
+            if "prism.scanner_core" in stripped:
+                relative = plugin_file.relative_to(FSRC_SOURCE_ROOT).as_posix()
+                violations.append(f"{relative}: {stripped}")
+
+    assert not violations, (
+        "scanner_plugins must not import scanner_core (g34-M-006); "
+        "use scanner_data contracts or DI injection instead:\n"
+        + "\n".join(violations)
+    )
 
 
 def test_fsrc_kernel_route_orchestration_uses_scan_pipeline_plugin_selector() -> None:

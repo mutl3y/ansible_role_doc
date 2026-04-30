@@ -2,19 +2,28 @@
 
 from __future__ import annotations
 
+import logging
 import threading
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from prism.scanner_core.di import DIContainer
-from prism.scanner_core.di_helpers import get_event_bus_or_none
+from prism.scanner_core.di_helpers import (
+    HasVariableDiscoveryPluginFactory,
+    get_event_bus_or_none,
+)
 from prism.scanner_core.events import PHASE_VARIABLE_DISCOVERY
 from prism.scanner_data.contracts_request import validate_variable_discovery_inputs
 from prism.scanner_data.contracts_variables import VariableRow
 from prism.scanner_plugins.interfaces import VariableDiscoveryPlugin
 
+if TYPE_CHECKING:
+    from prism.scanner_core.di import DIContainer
+
 __all__ = [
     "VariableDiscovery",
 ]
+
+
+logger = logging.getLogger(__name__)
 
 
 class VariableDiscovery:
@@ -34,62 +43,81 @@ class VariableDiscovery:
         self._plugin_resolved = False
         self._plugin_lock = threading.Lock()
 
-    def _resolve_plugin(self) -> VariableDiscoveryPlugin | None:
+    def _resolve_plugin(self) -> VariableDiscoveryPlugin:
         if self._plugin_resolved:
+            if self._plugin is None:
+                raise ValueError(
+                    "VariableDiscovery requires a plugin via DI "
+                    "factory_variable_discovery_plugin"
+                )
             return self._plugin
         with self._plugin_lock:
             if not self._plugin_resolved:
-                factory = getattr(self._di, "factory_variable_discovery_plugin", None)
-                if callable(factory):
-                    self._plugin = factory()
+                if not isinstance(self._di, HasVariableDiscoveryPluginFactory):
+                    raise ValueError(
+                        "VariableDiscovery requires a plugin via DI "
+                        "factory_variable_discovery_plugin"
+                    )
+                factory = self._di.factory_variable_discovery_plugin
+                if not callable(factory):
+                    raise ValueError(
+                        "VariableDiscovery requires a plugin via DI "
+                        "factory_variable_discovery_plugin (must be callable)"
+                    )
+                logger.debug(
+                    "VariableDiscovery resolving plugin via DI "
+                    "factory_variable_discovery_plugin"
+                )
+                plugin = factory()
+                if plugin is None:
+                    raise ValueError(
+                        "VariableDiscovery requires a plugin via DI "
+                        "factory_variable_discovery_plugin (factory returned None)"
+                    )
+                self._plugin = plugin
                 self._plugin_resolved = True
+        if self._plugin is None:
+            raise ValueError(
+                "VariableDiscovery requires a plugin via DI "
+                "factory_variable_discovery_plugin"
+            )
         return self._plugin
 
     def discover_static(self) -> tuple[VariableRow, ...]:
         """Discover static variables from defaults/vars/argument_specs/set_fact."""
         plugin = self._resolve_plugin()
-        if plugin is not None:
-            event_bus = get_event_bus_or_none(self._di)
-            ctx = {"role_path": self._role_path, "step": "static"}
-            if event_bus is not None:
-                with event_bus.phase(PHASE_VARIABLE_DISCOVERY, context=ctx):
-                    discovered = plugin.discover_static_variables(
-                        self._role_path,
-                        self._options,
-                    )
-            else:
+        event_bus = get_event_bus_or_none(self._di)
+        ctx = {"role_path": self._role_path, "step": "static"}
+        if event_bus is not None:
+            with event_bus.phase(PHASE_VARIABLE_DISCOVERY, context=ctx):
                 discovered = plugin.discover_static_variables(
                     self._role_path,
                     self._options,
                 )
-            return tuple(discovered)
-
-        raise ValueError(
-            "VariableDiscovery requires a plugin via DI factory_variable_discovery_plugin"
-        )
+        else:
+            discovered = plugin.discover_static_variables(
+                self._role_path,
+                self._options,
+            )
+        return tuple(discovered)
 
     def discover_referenced(self) -> frozenset[str]:
         """Discover referenced variable names from tasks/templates/handlers/README."""
         plugin = self._resolve_plugin()
-        if plugin is not None:
-            event_bus = get_event_bus_or_none(self._di)
-            ctx = {"role_path": self._role_path, "step": "referenced"}
-            if event_bus is not None:
-                with event_bus.phase(PHASE_VARIABLE_DISCOVERY, context=ctx):
-                    discovered = plugin.discover_referenced_variables(
-                        self._role_path,
-                        self._options,
-                    )
-            else:
+        event_bus = get_event_bus_or_none(self._di)
+        ctx = {"role_path": self._role_path, "step": "referenced"}
+        if event_bus is not None:
+            with event_bus.phase(PHASE_VARIABLE_DISCOVERY, context=ctx):
                 discovered = plugin.discover_referenced_variables(
                     self._role_path,
                     self._options,
                 )
-            return frozenset(discovered)
-
-        raise ValueError(
-            "VariableDiscovery requires a plugin via DI factory_variable_discovery_plugin"
-        )
+        else:
+            discovered = plugin.discover_referenced_variables(
+                self._role_path,
+                self._options,
+            )
+        return frozenset(discovered)
 
     def resolve_unresolved(
         self,
@@ -106,17 +134,12 @@ class VariableDiscovery:
         effective_referenced = referenced or self.discover_referenced()
 
         plugin = self._resolve_plugin()
-        if plugin is not None:
-            resolved = plugin.resolve_unresolved_variables(
-                effective_static_names,
-                effective_referenced,
-                self._options,
-            )
-            return dict(resolved)
-
-        raise ValueError(
-            "VariableDiscovery requires a plugin via DI factory_variable_discovery_plugin"
+        resolved = plugin.resolve_unresolved_variables(
+            effective_static_names,
+            effective_referenced,
+            self._options,
         )
+        return dict(resolved)
 
     def discover(self) -> tuple[VariableRow, ...]:
         """Discover static rows and append unresolved referenced placeholders."""

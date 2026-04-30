@@ -7,7 +7,8 @@ from typing import ClassVar
 
 import yaml
 
-from prism.scanner_io.loader import _format_candidate_failure_path
+from prism.scanner_data.contracts_request import YamlParseFailure
+from prism.scanner_io.loader import format_candidate_failure_path
 
 
 class DefaultYAMLParsingPolicyPlugin:
@@ -28,7 +29,7 @@ class DefaultYAMLParsingPolicyPlugin:
     def parse_yaml_candidate(
         candidate: str | Path,
         role_root: str | Path,
-    ) -> dict[str, object] | None:
+    ) -> YamlParseFailure | None:
         candidate_path = Path(candidate)
         role_root_path = Path(role_root)
         try:
@@ -37,7 +38,7 @@ class DefaultYAMLParsingPolicyPlugin:
             return None
         except (OSError, UnicodeDecodeError) as exc:
             return {
-                "file": _format_candidate_failure_path(candidate_path, role_root_path),
+                "file": format_candidate_failure_path(candidate_path, role_root_path),
                 "line": None,
                 "column": None,
                 "error": f"read_error: {exc}",
@@ -50,7 +51,7 @@ class DefaultYAMLParsingPolicyPlugin:
             if not problem:
                 problem = str(exc).splitlines()[0].strip()
             return {
-                "file": _format_candidate_failure_path(candidate_path, role_root_path),
+                "file": format_candidate_failure_path(candidate_path, role_root_path),
                 "line": line,
                 "column": column,
                 "error": problem,

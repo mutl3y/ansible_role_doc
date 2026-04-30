@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import traceback
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping, cast
 
 import yaml
 
@@ -20,6 +20,14 @@ from prism.errors import (
     ROLE_CONTENT_YAML_INVALID,
     ROLE_SCAN_RUNTIME_ERROR,
     to_failure_detail,
+)
+from prism.scanner_data import (
+    CollectionDependencies,
+    CollectionFailureRecord,
+    CollectionIdentity,
+    CollectionPluginCatalog,
+    CollectionRoleEntry,
+    CollectionScanResult,
 )
 
 
@@ -37,7 +45,7 @@ _COLLECTION_ROLE_FAILURE_CODES: tuple[tuple[type[Exception], str, str], ...] = (
 )
 
 
-def normalize_collection_role_payload(payload: dict[str, Any]) -> dict[str, Any]:
+def normalize_collection_role_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
     normalized = dict(payload)
     if "variables" not in normalized and "display_variables" in normalized:
         normalized["variables"] = normalized["display_variables"]
@@ -115,7 +123,7 @@ def empty_plugin_catalog() -> dict[str, Any]:
 def build_collection_role_entry(
     *,
     role_dir: Path,
-    payload: dict[str, Any],
+    payload: Mapping[str, Any],
     rendered_readme: str | None,
 ) -> dict[str, Any]:
     normalized_payload = normalize_collection_role_payload(payload)
@@ -131,7 +139,7 @@ def build_collection_role_entry(
 def render_collection_role_readme(
     *,
     role_name: str,
-    payload: dict[str, Any],
+    payload: Mapping[str, Any],
     render_readme_fn,
 ) -> str:
     normalized_payload = normalize_collection_role_payload(payload)
@@ -204,25 +212,34 @@ def build_collection_scan_result(
     plugin_catalog: dict[str, Any] | None = None,
     roles: list[dict[str, Any]],
     failures: list[dict[str, Any]],
-) -> dict[str, Any]:
+) -> CollectionScanResult:
     return {
-        "collection": (
-            dict(collection_identity)
-            if isinstance(collection_identity, dict)
-            else build_collection_identity(collection_root)
+        "collection": cast(
+            CollectionIdentity,
+            (
+                dict(collection_identity)
+                if isinstance(collection_identity, dict)
+                else build_collection_identity(collection_root)
+            ),
         ),
-        "dependencies": (
-            dict(dependencies)
-            if isinstance(dependencies, dict)
-            else empty_collection_dependencies()
+        "dependencies": cast(
+            CollectionDependencies,
+            (
+                dict(dependencies)
+                if isinstance(dependencies, dict)
+                else empty_collection_dependencies()
+            ),
         ),
-        "plugin_catalog": (
-            dict(plugin_catalog)
-            if isinstance(plugin_catalog, dict)
-            else empty_plugin_catalog()
+        "plugin_catalog": cast(
+            CollectionPluginCatalog,
+            (
+                dict(plugin_catalog)
+                if isinstance(plugin_catalog, dict)
+                else empty_plugin_catalog()
+            ),
         ),
-        "roles": roles,
-        "failures": failures,
+        "roles": cast(list[CollectionRoleEntry], roles),
+        "failures": cast(list[CollectionFailureRecord], failures),
         "summary": {
             "total_roles": len(roles) + len(failures),
             "scanned_roles": len(roles),

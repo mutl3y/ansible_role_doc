@@ -45,6 +45,7 @@ class ScanTelemetry(TypedDict, total=False):
 
 
 _TELEMETRY_LOG_ENV = "PRISM_TELEMETRY_JSON_LOG"
+_logger = logging.getLogger(__name__)
 
 
 class TelemetryCollector:
@@ -90,8 +91,12 @@ class TelemetryCollector:
         try:
             self._log_stream.write(json.dumps(record) + "\n")
             self._log_stream.flush()
-        except Exception:  # pragma: no cover - defensive
-            logging.getLogger(__name__).exception("telemetry json log write failed")
+        except Exception as exc:  # pragma: no cover - caller-provided IO boundary
+            _logger.exception(
+                "telemetry json log write failed for %s (%s)",
+                type(self._log_stream).__name__,
+                type(exc).__name__,
+            )
 
     def snapshot(self, *, plugin_key: str | None = None) -> ScanTelemetry:
         """Return the aggregated :class:`ScanTelemetry` so far."""

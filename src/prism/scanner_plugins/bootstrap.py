@@ -1,48 +1,70 @@
-"""Scanner plugin package ownership for the fsrc lane.
+"""Plugin bootstrap coordination and registry access facade.
 
-Importing this module bootstraps required defaults onto the canonical plugin
-registry singleton and exposes that same singleton via DEFAULT_PLUGIN_REGISTRY.
+Centralizes plugin registry initialization, entry-point discovery, and provides
+a facade for accessing the canonical plugin registry singleton without direct
+imports of the registry module from composition-root layers (di.py).
 
-Bootstrap logic is now centralized in scanner_plugins.bootstrap to resolve
-O001/O008/O010/O015 (DI/plugin bootstrap coupling and ordering risks).
+Resolves O001 (DI composition root coupling), O008 (bootstrap ordering risk),
+O010 (defaults conditional import authority), O015 (core/plugin interface coupling).
 """
 
 from __future__ import annotations
 
-from prism.scanner_plugins.bootstrap import initialize_default_registry
-from prism.scanner_plugins.registry import (
-    PRISM_PLUGIN_API_VERSION,
-    PluginAPIVersionMismatch,
-    validate_plugin_api_version,
-)
-from prism.scanner_plugins.discovery import (
-    PRISM_PLUGIN_ENTRY_POINT_GROUP,
-    EntryPointPluginLoadError,
-    discover_entry_point_plugins,
-)
-from prism.scanner_plugins.interfaces import ScanPipelinePlugin
+import logging
+from typing import TYPE_CHECKING, cast
+
+if TYPE_CHECKING:
+    from prism.scanner_plugins.registry import PluginRegistry
+
+logger = logging.getLogger(__name__)
 
 
-def bootstrap_default_plugins(registry=None):
-    """Deprecated wrapper for backward compatibility.
+# Module-level singleton registry reference, populated by initialize_default_registry()
+_DEFAULT_REGISTRY: PluginRegistry | None = None
 
-    New code should call scanner_plugins.bootstrap.initialize_default_registry()
-    directly. This wrapper delegates to the centralized bootstrap module.
 
-    When registry=None, returns the canonical singleton. When registry is provided,
-    performs a one-time bootstrap on that custom registry (does not update singleton).
+def get_default_plugin_registry() -> PluginRegistry:
+    """Return the canonical plugin registry singleton.
 
-    Args:
-        registry: Optional registry override (bootstrapped independently)
+    This is the single authorized facade for accessing the registry from
+    outside the scanner_plugins package (e.g., from di.py, defaults.py).
+
+    Raises:
+        RuntimeError: If registry has not been initialized via initialize_default_registry()
+    """
+    if _DEFAULT_REGISTRY is None:
+        raise RuntimeError(
+            "Plugin registry not initialized. "
+            "Call scanner_plugins.bootstrap.initialize_default_registry() first."
+        )
+    return _DEFAULT_REGISTRY
+
+
+def is_registry_initialized() -> bool:
+    """Check whether the default plugin registry has been initialized."""
+    return _DEFAULT_REGISTRY is not None
+
+
+def initialize_default_registry() -> PluginRegistry:
+    """Initialize and return the canonical plugin registry singleton.
+
+    Populates the registry with built-in plugins and discovers entry-point
+    plugins. Safe to call multiple times (idempotent); returns the existing
+    registry if already initialized.
+
+    This function must be called before any code attempts to resolve plugins
+    via get_default_plugin_registry(). Typically invoked at scanner_plugins
+    package import time.
 
     Returns:
-        The initialized PluginRegistry (singleton or custom)
+        The initialized PluginRegistry singleton.
     """
-    if registry is None:
-        return initialize_default_registry()
+    global _DEFAULT_REGISTRY
 
-    # Custom registry bootstrap (test/migration path only)
-    # Apply bootstrap logic to custom registry instead of singleton
+    if _DEFAULT_REGISTRY is not None:
+        return _DEFAULT_REGISTRY
+
+    from prism.scanner_plugins.registry import plugin_registry as canonical_registry
     from prism.scanner_plugins.default_scan_pipeline import DefaultScanPipelinePlugin
     from prism.scanner_plugins.ansible import (
         AnsibleScanPipelinePlugin,
@@ -59,9 +81,10 @@ def bootstrap_default_plugins(registry=None):
     from prism.scanner_plugins.parsers.comment_doc.role_notes_parser import (
         CommentDrivenDocumentationParser,
     )
-    from typing import cast
+    from prism.scanner_plugins.discovery import discover_entry_point_plugins
 
-    _DIRECT_REGISTRATIONS = (
+    # Built-in plugin registration tables (extracted from __init__.py)
+    _DIRECT_REGISTRATIONS: tuple[tuple[str, str, type], ...] = (
         ("comment_driven_doc", "default", CommentDrivenDocumentationParser),
         ("readme_renderer", "ansible", AnsibleReadmeRendererPlugin),
         ("scan_pipeline", "default", cast(type, DefaultScanPipelinePlugin)),
@@ -86,7 +109,7 @@ def bootstrap_default_plugins(registry=None):
         ("jinja_analysis_policy", "jinja_analysis", DefaultJinjaAnalysisPolicyPlugin),
     )
 
-    _DEFERRED_REGISTRATIONS = (
+    _DEFERRED_REGISTRATIONS: tuple[tuple[str, str, str, str], ...] = (
         (
             "variable_discovery",
             "ansible",
@@ -113,9 +136,9 @@ def bootstrap_default_plugins(registry=None):
         ),
     )
 
-    _RESERVED_UNSUPPORTED_PLATFORMS = ("kubernetes", "terraform")
+    _RESERVED_UNSUPPORTED_PLATFORMS: tuple[str, ...] = ("kubernetes", "terraform")
 
-    _DIRECT_SLOT_DISPATCH = {
+    _DIRECT_SLOT_DISPATCH: dict[str, tuple[str, str]] = {
         "comment_driven_doc": (
             "list_comment_driven_doc_plugins",
             "register_comment_driven_doc_plugin",
@@ -142,7 +165,7 @@ def bootstrap_default_plugins(registry=None):
         ),
     }
 
-    _DEFERRED_SLOT_DISPATCH = {
+    _DEFERRED_SLOT_DISPATCH: dict[str, tuple[str, str]] = {
         "variable_discovery": (
             "list_variable_discovery_plugins",
             "register_deferred_variable_discovery_plugin",
@@ -153,50 +176,41 @@ def bootstrap_default_plugins(registry=None):
         ),
     }
 
+    # Register built-in plugins
     for slot, name, plugin_cls in _DIRECT_REGISTRATIONS:
         list_method, register_method = _DIRECT_SLOT_DISPATCH[slot]
-        if name not in getattr(registry, list_method)():
-            getattr(registry, register_method)(name, plugin_cls)
+        if name not in getattr(canonical_registry, list_method)():
+            getattr(canonical_registry, register_method)(name, plugin_cls)
 
     for slot, name, module_path, class_name in _DEFERRED_REGISTRATIONS:
         list_method, register_method = _DEFERRED_SLOT_DISPATCH[slot]
-        if name not in getattr(registry, list_method)():
-            getattr(registry, register_method)(name, module_path, class_name)
+        if name not in getattr(canonical_registry, list_method)():
+            getattr(canonical_registry, register_method)(name, module_path, class_name)
 
     for platform_name in _RESERVED_UNSUPPORTED_PLATFORMS:
-        if not registry.is_reserved_unsupported_platform(platform_name):
-            registry.register_reserved_unsupported_platform(platform_name)
+        if not canonical_registry.is_reserved_unsupported_platform(platform_name):
+            canonical_registry.register_reserved_unsupported_platform(platform_name)
 
-    discover_entry_point_plugins(registry=registry)
+    # Auto-discover externally distributed plugins via entry points
+    discover_entry_point_plugins(registry=canonical_registry)
 
-    return registry
+    # Validate fallback singleton invariants after registry is populated
+    # (deferred from defaults.py import-time to explicit bootstrap phase)
+    from prism.scanner_plugins.defaults import _validate_singleton_invariants
+
+    _validate_singleton_invariants()
+
+    _DEFAULT_REGISTRY = canonical_registry
+    logger.debug(
+        "Plugin registry initialized with %d scan_pipeline plugins",
+        len(canonical_registry.list_scan_pipeline_plugins()),
+    )
+
+    return _DEFAULT_REGISTRY
 
 
 __all__ = [
-    "DEFAULT_PLUGIN_REGISTRY",
-    "EntryPointPluginLoadError",
-    "PRISM_PLUGIN_API_VERSION",
-    "PRISM_PLUGIN_ENTRY_POINT_GROUP",
-    "PluginAPIVersionMismatch",
-    "ScanPipelinePlugin",
-    "bootstrap_default_plugins",
-    "discover_entry_point_plugins",
-    "interfaces",
-    "registry",
-    "validate_plugin_api_version",
+    "get_default_plugin_registry",
+    "initialize_default_registry",
+    "is_registry_initialized",
 ]
-
-
-# NOTE (FIND-G19-01 / O001-O015 remediation): This module-level call delegates to
-# scanner_plugins.bootstrap.initialize_default_registry(), which runs built-in
-# plugin registration and entry-point discovery at import time. That is an
-# intentional side effect: the canonical plugin registry singleton must be
-# populated before any resolver can call get_default_plugin_registry().
-#
-# Bootstrap logic is now centralized in scanner_plugins/bootstrap.py instead of
-# scattered across __init__.py, di.py, and defaults.py, which resolves:
-# - O001: DI composition root coupling (di.py no longer imports registry directly)
-# - O008: bootstrap/defaults inter-dependencies (defaults now uses bootstrap facade)
-# - O010: defaults conditional runtime import authority (explicit phases)
-# - O015: core/plugin interface coupling at DI layer (facade seam)
-DEFAULT_PLUGIN_REGISTRY = initialize_default_registry()

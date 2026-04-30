@@ -6,6 +6,7 @@ from fnmatch import fnmatch
 from pathlib import Path
 import re
 
+from prism.scanner_data.contracts_request import YamlParseFailure
 
 from prism.scanner_core.di_helpers import require_prepared_policy
 from prism.scanner_io.loader import parse_yaml_candidate
@@ -67,7 +68,7 @@ def _stat_yaml_file(file_path: Path) -> tuple[str, int, int] | None:
 def _load_yaml_file(
     file_path: Path,
     *,
-    yaml_failure_collector: list[dict[str, object]] | None = None,
+    yaml_failure_collector: list[YamlParseFailure] | None = None,
     role_root: Path | None = None,
     di: object | None = None,
 ) -> object | None:
@@ -93,7 +94,7 @@ def _derive_role_root_from_task_file(file_path: Path) -> Path | None:
 def _load_yaml_file_with_metadata(
     file_path: Path,
     *,
-    yaml_failure_collector: list[dict[str, object]] | None = None,
+    yaml_failure_collector: list[YamlParseFailure] | None = None,
     role_root: Path | None = None,
     di: object | None = None,
 ) -> object | None:
@@ -104,7 +105,7 @@ def _load_yaml_file_with_metadata(
             if collector_root is None:
                 collector_root = file_path.resolve().parent
             failure = parse_yaml_candidate(file_path, collector_root, di=di)
-            if isinstance(failure, dict):
+            if failure is not None:
                 yaml_failure_collector.append(failure)
         return None
     parsed = require_prepared_policy(di, "yaml_parsing", "yaml_parsing").load_yaml_file(
@@ -115,7 +116,7 @@ def _load_yaml_file_with_metadata(
         if collector_root is None:
             collector_root = file_path.resolve().parent
         failure = parse_yaml_candidate(file_path, collector_root, di=di)
-        if isinstance(failure, dict):
+        if failure is not None:
             yaml_failure_collector.append(failure)
     return parsed
 
@@ -369,7 +370,7 @@ def is_path_excluded(
 def load_yaml_file(
     path: Path,
     *,
-    yaml_failure_collector: list[dict[str, object]] | None = None,
+    yaml_failure_collector: list[YamlParseFailure] | None = None,
     role_root: Path | None = None,
     di: object | None = None,
 ) -> object:

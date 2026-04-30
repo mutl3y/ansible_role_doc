@@ -3,17 +3,37 @@
 from __future__ import annotations
 
 import threading
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from prism.scanner_core.di import DIContainer
-from prism.scanner_core.di_helpers import get_event_bus_or_none
+from prism.scanner_core.di_helpers import (
+    HasFeatureDetectionPluginFactory,
+    get_event_bus_or_none,
+)
 from prism.scanner_core.events import PHASE_FEATURE_DETECTION
 from prism.scanner_data.contracts_request import (
     FeaturesContext,
     validate_feature_detector_inputs,
 )
-from prism.scanner_core.task_extract_adapters import collect_task_handler_catalog
 from prism.scanner_plugins.interfaces import FeatureDetectionPlugin
+
+if TYPE_CHECKING:
+    from prism.scanner_core.di import DIContainer
+
+
+def _collect_task_handler_catalog(
+    role_path: str,
+    exclude_paths: list[str] | None = None,
+    *,
+    di: object | None = None,
+) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
+    """Import task-catalog adapters lazily to keep detector bootstrap acyclic."""
+    from prism.scanner_core.task_extract_adapters import collect_task_handler_catalog
+
+    return collect_task_handler_catalog(
+        role_path,
+        exclude_paths=exclude_paths,
+        di=di,
+    )
 
 
 class FeatureDetector:
@@ -42,9 +62,18 @@ class FeatureDetector:
             return self._plugin
         with self._plugin_lock:
             if not self._plugin_resolved:
-                factory = getattr(self._di, "factory_feature_detection_plugin", None)
-                if callable(factory):
-                    self._plugin = factory()
+                if not isinstance(self._di, HasFeatureDetectionPluginFactory):
+                    raise ValueError(
+                        "FeatureDetector requires a plugin via DI "
+                        "factory_feature_detection_plugin"
+                    )
+                factory = self._di.factory_feature_detection_plugin
+                if not callable(factory):
+                    raise ValueError(
+                        "FeatureDetector requires a plugin via DI "
+                        "factory_feature_detection_plugin (must be callable)"
+                    )
+                self._plugin = factory()
                 self._plugin_resolved = True
         return self._plugin
 
@@ -74,7 +103,7 @@ class FeatureDetector:
     def collect_task_handler_catalog(
         self,
     ) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
-        return collect_task_handler_catalog(
+        return _collect_task_handler_catalog(
             self._role_path,
             exclude_paths=self._options.get("exclude_path_patterns"),
             di=self._di,

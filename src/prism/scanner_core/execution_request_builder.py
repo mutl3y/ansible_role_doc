@@ -2,19 +2,82 @@
 
 from __future__ import annotations
 
+import copy
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, cast
+from typing import TYPE_CHECKING, Callable, Protocol, cast
 
 from prism.scanner_core.di import resolve_platform_key
-from prism.scanner_data.contracts_request import ScanContextPayload, ScanOptionsDict
+from prism.scanner_data import VariableRow
+from prism.scanner_data.contracts_request import (
+    DisplayVariableEntry,
+    FeaturesContext,
+    RoleNotes,
+    ScanContextPayload,
+    ScanOptionsDict,
+    VariableInsight,
+)
 
 if TYPE_CHECKING:
+    from prism.scanner_core.di import DIContainer
     from prism.scanner_core.scanner_context import ScannerContext
-    from prism.scanner_core.protocols_runtime import (
-        ScanPayloadBuilderFn,
-        EnsurePreparedPolicyBundleFn,
-    )
+    from prism.scanner_core.protocols_runtime import ScanPayloadBuilderFn
+    from prism.scanner_plugins.interfaces import CommentDrivenDocumentationPlugin
+
+
+class _VariableDiscoveryRunner(Protocol):
+    """Minimal variable-discovery surface needed during request assembly."""
+
+    def discover(self) -> tuple[VariableRow, ...]: ...
+
+
+class _FeatureDetectorRunner(Protocol):
+    """Minimal feature-detection surface needed during request assembly."""
+
+    def detect(self) -> FeaturesContext: ...
+
+
+class _VariableDiscoveryFactory(Protocol):
+    """Factory contract for building the variable-discovery participant."""
+
+    def __call__(
+        self,
+        di: "DIContainer",
+        role_path: str,
+        scan_options: ScanOptionsDict,
+    ) -> _VariableDiscoveryRunner: ...
+
+
+class _FeatureDetectorFactory(Protocol):
+    """Factory contract for building the feature-detector participant."""
+
+    def __call__(
+        self,
+        di: "DIContainer",
+        role_path: str,
+        scan_options: ScanOptionsDict,
+    ) -> _FeatureDetectorRunner: ...
+
+
+class _EnsurePreparedPolicyBundleFn(Protocol):
+    """Ingress policy-bundle contract used by request assembly."""
+
+    def __call__(self, *, scan_options: ScanOptionsDict, di: object) -> None: ...
+
+
+class _DIContainerFactory(Protocol):
+    """Factory contract for the execution-request DI container."""
+
+    def __call__(
+        self,
+        role_path: str,
+        scan_options: ScanOptionsDict,
+        *,
+        registry: object,
+        platform_key: str,
+        scanner_context_wiring: dict[str, object],
+        factory_overrides: dict[str, object],
+    ) -> "DIContainer": ...
 
 
 @dataclass(frozen=True)
@@ -24,7 +87,7 @@ class NonCollectionRunScanExecutionRequest:
     role_path: str
     scan_options: ScanOptionsDict
     strict_mode: bool
-    runtime_registry: Any
+    runtime_registry: object
     scanner_context: ScannerContext
     build_payload_fn: ScanPayloadBuilderFn
 
@@ -32,11 +95,15 @@ class NonCollectionRunScanExecutionRequest:
 class _RecordingVariableDiscovery:
     """Records discovered variable rows for use in scan context preparation."""
 
-    def __init__(self, inner: Any, bridge: "_ScanStateBridge") -> None:
+    def __init__(
+        self,
+        inner: _VariableDiscoveryRunner,
+        bridge: "_ScanStateBridge",
+    ) -> None:
         self._inner = inner
         self._bridge = bridge
 
-    def discover(self) -> tuple[dict[str, Any], ...]:
+    def discover(self) -> tuple[VariableRow, ...]:
         rows = tuple(self._inner.discover())
         self._bridge._discovered_rows = rows
         return rows
@@ -45,52 +112,74 @@ class _RecordingVariableDiscovery:
 class _RecordingFeatureDetector:
     """Records detected features for use in scan context preparation."""
 
-    def __init__(self, inner: Any, bridge: "_ScanStateBridge") -> None:
+    def __init__(
+        self,
+        inner: _FeatureDetectorRunner,
+        bridge: "_ScanStateBridge",
+    ) -> None:
         self._inner = inner
         self._bridge = bridge
 
-    def detect(self) -> dict[str, Any]:
-        features = dict(self._inner.detect())
+    def detect(self) -> FeaturesContext:
+        features = copy.copy(self._inner.detect())
         self._bridge._features = features
         return features
 
 
 class _ScanStateBridge:
-    """Bridge mutable scan state between recording wrappers and context preparation."""
+    """Bridge mutable scan state between recording wrappers and context preparation.
+
+    Invariant: Factory callables must produce valid discovery/detection instances.
+    On factory failure, raises ValueError with explicit context to prevent silent corruption.
+    """
 
     def __init__(
         self,
         *,
-        container: Any,
-        variable_discovery_cls: Callable[..., Any],
-        feature_detector_cls: Callable[..., Any],
+        container: object,
+        variable_discovery_cls: _VariableDiscoveryFactory,
+        feature_detector_cls: _FeatureDetectorFactory,
         extract_role_description_fn: Callable[[Path, str], str],
-        resolve_comment_driven_documentation_plugin_fn: Callable[[Any], Any],
+        resolve_comment_driven_documentation_plugin_fn: Callable[
+            [object], "CommentDrivenDocumentationPlugin"
+        ],
     ) -> None:
-        self._discovered_rows: tuple[dict[str, Any], ...] = ()
-        self._features: dict[str, Any] = {}
+        self._discovered_rows: tuple[VariableRow, ...] = ()
+        self._features: FeaturesContext | None = None
         self._variable_discovery_cls = variable_discovery_cls
         self._feature_detector_cls = feature_detector_cls
         self._extract_role_description_fn = extract_role_description_fn
         self._resolve_cdd_plugin_fn = resolve_comment_driven_documentation_plugin_fn
-        self._container: Any = container
+        self._container = container
 
     def variable_discovery_factory(
         self,
-        di: Any,
+        di: DIContainer,
         resolved_role_path: str,
-        options: dict[str, Any],
-    ) -> Any:
-        inner = self._variable_discovery_cls(di, resolved_role_path, options)
+        options: ScanOptionsDict,
+    ) -> _RecordingVariableDiscovery:
+        try:
+            inner = self._variable_discovery_cls(di, resolved_role_path, options)
+        except Exception as exc:
+            raise ValueError(
+                f"Variable discovery factory failed for role_path={resolved_role_path}: "
+                f"{type(exc).__name__}: {exc}"
+            ) from exc
         return _RecordingVariableDiscovery(inner, self)
 
     def feature_detector_factory(
         self,
-        di: Any,
+        di: DIContainer,
         resolved_role_path: str,
-        options: dict[str, Any],
-    ) -> Any:
-        inner = self._feature_detector_cls(di, resolved_role_path, options)
+        options: ScanOptionsDict,
+    ) -> _RecordingFeatureDetector:
+        try:
+            inner = self._feature_detector_cls(di, resolved_role_path, options)
+        except Exception as exc:
+            raise ValueError(
+                f"Feature detector factory failed for role_path={resolved_role_path}: "
+                f"{type(exc).__name__}: {exc}"
+            ) from exc
         return _RecordingFeatureDetector(inner, self)
 
     def prepare_scan_context(
@@ -102,10 +191,10 @@ class _ScanStateBridge:
         role_root = Path(resolved_role_path).resolve()
         role_name = str(scan_options.get("role_name_override") or role_root.name)
         rows = self._discovered_rows
-        features = dict(self._features)
+        features_metadata = self._features_metadata()
 
         display_variables = self._build_display_variables(rows)
-        requirements_display = self._build_requirements_display(features)
+        requirements_display = self._build_requirements_display(features_metadata)
 
         yaml_parse_failures = canonical_options.get("yaml_parse_failures")
         normalized = (
@@ -120,28 +209,73 @@ class _ScanStateBridge:
             "undocumented_default_filters": [],
             "display_variables": display_variables,
             "metadata": {
-                "features": features,
-                "variable_insights": [dict(row) for row in rows],
+                "features": features_metadata,
+                "variable_insights": self._build_variable_insights(rows),
                 "yaml_parse_failures": normalized,
-                "role_notes": self._resolve_cdd_plugin_fn(
-                    self._container
-                ).extract_role_notes_from_comments(
-                    resolved_role_path,
-                    exclude_paths=scan_options.get("exclude_path_patterns"),
+                "role_notes": self._normalize_role_notes(
+                    self._resolve_cdd_plugin_fn(
+                        self._container
+                    ).extract_role_notes_from_comments(
+                        resolved_role_path,
+                        exclude_paths=scan_options.get("exclude_path_patterns"),
+                    )
                 ),
             },
         }
 
+    def _features_metadata(self) -> dict[str, object]:
+        if self._features is None:
+            return {}
+        return cast(dict[str, object], copy.copy(self._features))
+
+    @staticmethod
+    def _normalize_role_notes(raw_role_notes: dict[str, list[str]]) -> RoleNotes:
+        return {
+            "warnings": list(raw_role_notes.get("warnings", [])),
+            "deprecations": list(raw_role_notes.get("deprecations", [])),
+            "notes": list(raw_role_notes.get("notes", [])),
+            "additionals": list(raw_role_notes.get("additionals", [])),
+        }
+
+    @staticmethod
+    def _build_variable_insights(
+        rows: tuple[VariableRow, ...],
+    ) -> list[VariableInsight]:
+        return [
+            {
+                "name": str(row.get("name") or ""),
+                "type": row.get("type"),
+                "default": row.get("default"),
+                "source": row.get("source"),
+                "required": bool(row.get("required", False)),
+                "documented": bool(row.get("documented", False)),
+                "secret": bool(row.get("secret", False)),
+                "is_unresolved": bool(row.get("is_unresolved", False)),
+                "is_ambiguous": bool(row.get("is_ambiguous", False)),
+                "uncertainty_reason": row.get("uncertainty_reason"),
+                "provenance_confidence": float(
+                    row.get("provenance_confidence", 0.0) or 0.0
+                ),
+            }
+            for row in rows
+            if row.get("name")
+        ]
+
     @staticmethod
     def _build_display_variables(
-        rows: tuple[dict[str, Any], ...],
-    ) -> dict[str, dict[str, Any]]:
-        display_variables: dict[str, dict[str, Any]] = {}
+        rows: tuple[VariableRow, ...],
+    ) -> dict[str, DisplayVariableEntry]:
+        """Build display_variables payload from variable rows.
+
+        Invariant: Required field 'name' must be present and non-empty in each row.
+        Rows with missing/empty 'name' are skipped (logged at discovery phase).
+        """
+        display_variables: dict[str, DisplayVariableEntry] = {}
         for row in sorted(rows, key=lambda item: str(item.get("name", ""))):
             row_name = str(row.get("name") or "")
             if not row_name:
                 continue
-            display_variables[row_name] = {
+            entry: DisplayVariableEntry = {
                 "type": row.get("type"),
                 "default": row.get("default"),
                 "source": row.get("source"),
@@ -152,11 +286,12 @@ class _ScanStateBridge:
                 "is_ambiguous": bool(row.get("is_ambiguous", False)),
                 "uncertainty_reason": row.get("uncertainty_reason"),
             }
+            display_variables[row_name] = entry
         return display_variables
 
     @staticmethod
     def _build_requirements_display(
-        features: dict[str, Any],
+        features: dict[str, object],
     ) -> list[dict[str, str]]:
         raw_collections = str(features.get("external_collections") or "none")
         if raw_collections == "none":
@@ -200,13 +335,15 @@ def build_non_collection_run_scan_execution_request(
     validate_role_path_fn: Callable[[str], str],
     extract_role_description_fn: Callable[[Path, str], str],
     build_run_scan_options_canonical_fn: Callable[..., ScanOptionsDict],
-    di_container_cls: Callable[..., Any],
-    feature_detector_cls: Callable[..., Any],
+    di_container_cls: _DIContainerFactory,
+    feature_detector_cls: _FeatureDetectorFactory,
     scanner_context_cls: Callable[..., ScannerContext],
-    variable_discovery_cls: Callable[..., Any],
-    resolve_comment_driven_documentation_plugin_fn: Callable[[Any], Any],
-    default_plugin_registry: Any,
-    ensure_prepared_policy_bundle_fn: EnsurePreparedPolicyBundleFn | None = None,
+    variable_discovery_cls: _VariableDiscoveryFactory,
+    resolve_comment_driven_documentation_plugin_fn: Callable[
+        [object], "CommentDrivenDocumentationPlugin"
+    ],
+    default_plugin_registry: object,
+    ensure_prepared_policy_bundle_fn: _EnsurePreparedPolicyBundleFn | None = None,
 ) -> NonCollectionRunScanExecutionRequest:
     """Build the scanner_core-owned execution request for non-collection run_scan."""
     validated_role_path = validate_role_path_fn(role_path)
@@ -327,19 +464,22 @@ def _build_canonical_options(
 def _assemble_execution_request(
     *,
     canonical_options: ScanOptionsDict,
-    variable_discovery_cls: Callable[..., Any],
-    feature_detector_cls: Callable[..., Any],
+    variable_discovery_cls: _VariableDiscoveryFactory,
+    feature_detector_cls: _FeatureDetectorFactory,
     extract_role_description_fn: Callable[[Path, str], str],
-    resolve_comment_driven_documentation_plugin_fn: Callable[[Any], Any],
-    di_container_cls: Callable[..., Any],
+    resolve_comment_driven_documentation_plugin_fn: Callable[
+        [object], "CommentDrivenDocumentationPlugin"
+    ],
+    di_container_cls: _DIContainerFactory,
     scanner_context_cls: Callable[..., ScannerContext],
     build_run_scan_options_canonical_fn: Callable[..., ScanOptionsDict],
-    default_plugin_registry: Any,
-    ensure_prepared_policy_bundle_fn: Callable[..., Any] | None,
+    default_plugin_registry: object,
+    ensure_prepared_policy_bundle_fn: _EnsurePreparedPolicyBundleFn | None,
 ) -> NonCollectionRunScanExecutionRequest:
-    resolved_platform_key = resolve_platform_key(
-        canonical_options, default_plugin_registry
+    runtime_registry = (
+        canonical_options.get("plugin_registry") or default_plugin_registry
     )
+    resolved_platform_key = resolve_platform_key(canonical_options, runtime_registry)
 
     # _bridge_slot resolves the forward reference: container needs bridge methods
     # as factory overrides, but bridge requires container at construction time.
@@ -348,14 +488,13 @@ def _assemble_execution_request(
     container = di_container_cls(
         role_path=str(canonical_options["role_path"]),
         scan_options=canonical_options,
-        registry=default_plugin_registry,
+        registry=runtime_registry,
         platform_key=resolved_platform_key,
         scanner_context_wiring={
             "scanner_context_cls": scanner_context_cls,
             "prepare_scan_context_fn": lambda opts: _bridge_slot[
                 0
             ].prepare_scan_context(opts, canonical_options),
-            "build_run_scan_options_fn": build_run_scan_options_canonical_fn,
         },
         factory_overrides={
             "variable_discovery_factory": lambda di, rp, opts: _bridge_slot[
@@ -380,15 +519,9 @@ def _assemble_execution_request(
             "ensure_prepared_policy_bundle_fn is required for "
             "non-collection execution request construction"
         )
-    ensure_prepared_policy_bundle_fn(
-        scan_options=cast(dict[str, Any], canonical_options),
-        di=container,
-    )
+    ensure_prepared_policy_bundle_fn(scan_options=canonical_options, di=container)
     scanner_context = container.factory_scanner_context()
     strict_mode = bool(canonical_options.get("strict_phase_failures", True))
-    runtime_registry = (
-        canonical_options.get("plugin_registry") or default_plugin_registry
-    )
 
     return NonCollectionRunScanExecutionRequest(
         role_path=str(canonical_options["role_path"]),

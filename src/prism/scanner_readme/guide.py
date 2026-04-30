@@ -65,11 +65,13 @@ def _render_guide_identity_sections(
     metadata: dict[str, Any],
 ) -> str | None:
     """Render style-guide sections focused on role identity and metadata."""
-    platform_key = str((metadata or {}).get("platform_key") or "ansible")
-    if not (metadata or {}).get("platform_key"):
+    raw_platform_key = (metadata or {}).get("platform_key")
+    if not raw_platform_key:
         logger.warning(
-            "platform_key missing from metadata; defaulting to 'ansible' in render_guide_identity_section"
+            "platform_key missing or empty (value=%r); defaulting to 'ansible' in render_guide_identity_section",
+            raw_platform_key,
         )
+    platform_key = str(raw_platform_key or "ansible")
     return resolve_readme_renderer_plugin(platform_key).render_identity_section(
         section_id,
         role_name,
@@ -90,11 +92,13 @@ def render_guide_section_body(
     metadata: dict[str, Any],
 ) -> str:
     """Render foundational README section body content for known section IDs."""
-    platform_key = str((metadata or {}).get("platform_key") or "ansible")
-    if not (metadata or {}).get("platform_key"):
+    raw_platform_key = (metadata or {}).get("platform_key")
+    if not raw_platform_key:
         logger.warning(
-            "platform_key missing from metadata; defaulting to 'ansible' in render_guide_section_body"
+            "platform_key missing or empty (value=%r); defaulting to 'ansible' in render_guide_section_body",
+            raw_platform_key,
         )
+    platform_key = str(raw_platform_key or "ansible")
     result = resolve_readme_renderer_plugin(platform_key).render_section_body(
         section_id,
         role_name,

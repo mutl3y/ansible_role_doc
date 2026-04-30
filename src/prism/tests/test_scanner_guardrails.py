@@ -5,6 +5,8 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
+import pytest
+
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 FSRC_RUNTIME_DIR = PROJECT_ROOT / "src" / "prism"
 
@@ -181,3 +183,216 @@ def test_fsrc_cross_path_guardrail_detects_src_only_resolution_when_local_module
     )
 
     assert offenders == ["prism.api:prism.scanner_reporting.report"]
+
+
+def test_scanner_reporting_does_not_import_scanner_plugins_internals() -> None:
+    offenders = _iter_forbidden_import_offenders(
+        package_dir=FSRC_RUNTIME_DIR / "scanner_reporting",
+        package_name="prism.scanner_reporting",
+        forbidden_roots=(
+            "prism.scanner_plugins.parsers",
+            "prism.scanner_plugins.ansible",
+        ),
+    )
+
+    assert not offenders, (
+        "scanner_reporting imports scanner_plugins internals directly "
+        "(use scanner_plugins.defaults seam): " + ", ".join(offenders)
+    )
+
+
+def test_api_cli_entrypoints_do_not_import_scanner_plugins_directly() -> None:
+    """Verify entrypoints avoid direct scanner_plugins imports except approved CLI audit seam."""
+    api_py = FSRC_RUNTIME_DIR / "api.py"
+    cli_py = FSRC_RUNTIME_DIR / "cli.py"
+
+    offenders: list[str] = []
+
+    for module_path in [api_py, cli_py]:
+        if not module_path.exists():
+            continue
+
+        module_name = f"prism.{module_path.stem}"
+        tree = ast.parse(module_path.read_text(encoding="utf-8"))
+
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    target = alias.name
+                    if (
+                        module_name == "prism.cli"
+                        and target == "prism.scanner_plugins.audit"
+                    ):
+                        continue
+                    if target == "prism.scanner_plugins" or target.startswith(
+                        "prism.scanner_plugins."
+                    ):
+                        offenders.append(f"{module_name}:{target}")
+
+            if isinstance(node, ast.ImportFrom):
+                resolved_target = _resolve_import_from(module_name, node)
+                if (
+                    module_name == "prism.cli"
+                    and resolved_target == "prism.scanner_plugins.audit"
+                ):
+                    continue
+                if resolved_target and (
+                    resolved_target == "prism.scanner_plugins"
+                    or resolved_target.startswith("prism.scanner_plugins.")
+                ):
+                    offenders.append(f"{module_name}:{resolved_target}")
+
+    assert not offenders, (
+        "entrypoint modules must not import scanner_plugins directly; "
+        "the only allowed exception is prism.cli -> prism.scanner_plugins.audit: "
+        + ", ".join(offenders)
+    )
+
+
+def test_api_layer_non_collection_does_not_import_scanner_plugins_directly() -> None:
+    """Verify api_layer/non_collection.py routes plugin access through plugin_facade."""
+    non_collection_py = FSRC_RUNTIME_DIR / "api_layer" / "non_collection.py"
+
+    if not non_collection_py.exists():
+        pytest.skip("api_layer/non_collection.py does not exist")
+
+    module_name = "prism.api_layer.non_collection"
+    tree = ast.parse(non_collection_py.read_text(encoding="utf-8"))
+
+    offenders: list[str] = []
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                target = alias.name
+                if target == "prism.scanner_plugins" or target.startswith(
+                    "prism.scanner_plugins."
+                ):
+                    offenders.append(f"{module_name}:{target}")
+
+        if isinstance(node, ast.ImportFrom):
+            resolved_target = _resolve_import_from(module_name, node)
+            if resolved_target and (
+                resolved_target == "prism.scanner_plugins"
+                or resolved_target.startswith("prism.scanner_plugins.")
+            ):
+                offenders.append(f"{module_name}:{resolved_target}")
+
+    assert not offenders, (
+        "api_layer/non_collection.py must not import scanner_plugins directly; "
+        "use api_layer.plugin_facade instead: " + ", ".join(offenders)
+    )
+
+
+def test_di_does_not_import_plugin_registry_at_runtime() -> None:
+    """O001: DI composition root must not import PluginRegistry at runtime.
+
+    PluginRegistry may be imported in TYPE_CHECKING blocks for type hints,
+    but must not be imported at runtime. Runtime registry access must go
+    through scanner_plugins.bootstrap.get_default_plugin_registry() facade.
+    """
+    di_py = FSRC_RUNTIME_DIR / "scanner_core" / "di.py"
+
+    if not di_py.exists():
+        pytest.skip("scanner_core/di.py does not exist")
+
+    tree = ast.parse(di_py.read_text(encoding="utf-8"))
+
+    # Find TYPE_CHECKING block
+    type_checking_imports = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.If):
+            if isinstance(node.test, ast.Name) and node.test.id == "TYPE_CHECKING":
+                for stmt in node.body:
+                    if isinstance(stmt, ast.ImportFrom):
+                        if stmt.module and "PluginRegistry" in [
+                            alias.name for alias in stmt.names
+                        ]:
+                            type_checking_imports.add(stmt.module)
+
+    # Check runtime imports
+    runtime_offenders: list[str] = []
+    for node in tree.body:
+        # Skip TYPE_CHECKING blocks
+        if isinstance(node, ast.If):
+            if isinstance(node.test, ast.Name) and node.test.id == "TYPE_CHECKING":
+                continue
+
+        if isinstance(node, ast.ImportFrom):
+            if node.module and "PluginRegistry" in [alias.name for alias in node.names]:
+                if node.module == "prism.scanner_plugins.registry":
+                    runtime_offenders.append(
+                        f"from {node.module} import PluginRegistry"
+                    )
+
+    assert not runtime_offenders, (
+        "scanner_core/di.py imports PluginRegistry at runtime (O001 violation); "
+        "use scanner_plugins.bootstrap facade: " + ", ".join(runtime_offenders)
+    )
+
+
+def test_defaults_does_not_import_plugin_registry_singleton_directly() -> None:
+    """O008/O010: defaults.py must not import plugin_registry singleton directly.
+
+    Plugin registry access must go through bootstrap.get_default_plugin_registry()
+    to maintain explicit bootstrap phase ordering.
+    """
+    defaults_py = FSRC_RUNTIME_DIR / "scanner_plugins" / "defaults.py"
+
+    if not defaults_py.exists():
+        pytest.skip("scanner_plugins/defaults.py does not exist")
+
+    tree = ast.parse(defaults_py.read_text(encoding="utf-8"))
+
+    offenders: list[str] = []
+    for node in tree.body:
+        if isinstance(node, ast.ImportFrom):
+            if node.module == "prism.scanner_plugins.registry":
+                for alias in node.names:
+                    if alias.name == "plugin_registry":
+                        offenders.append(
+                            "from prism.scanner_plugins.registry import plugin_registry"
+                        )
+
+    assert not offenders, (
+        "scanner_plugins/defaults.py imports plugin_registry singleton directly "
+        "(O008/O010 violation); use scanner_plugins.bootstrap.get_default_plugin_registry(): "
+        + ", ".join(offenders)
+    )
+
+
+def test_plugin_registry_bootstrap_initialization_smoke() -> None:
+    """Bootstrap smoke test: verify registry can be initialized and accessed."""
+    from prism.scanner_plugins.bootstrap import (
+        get_default_plugin_registry,
+        is_registry_initialized,
+    )
+
+    # Should already be initialized from package import
+    assert is_registry_initialized(), "Registry should be initialized at import time"
+
+    registry = get_default_plugin_registry()
+
+    # Smoke checks: registry should have baseline plugins
+    assert (
+        len(registry.list_scan_pipeline_plugins()) >= 2
+    ), "Registry should have at least 2 scan_pipeline plugins (default, ansible)"
+    assert "ansible" in registry.list_scan_pipeline_plugins()
+    assert "default" in registry.list_scan_pipeline_plugins()
+
+    # Should have extract policy plugins
+    assert "task_line_parsing" in registry.list_extract_policy_plugins()
+    assert "task_traversal" in registry.list_extract_policy_plugins()
+    assert "variable_extractor" in registry.list_extract_policy_plugins()
+    assert "task_annotation_parsing" in registry.list_extract_policy_plugins()
+
+
+def test_plugin_registry_bootstrap_idempotence() -> None:
+    """Bootstrap initialization is idempotent; safe to call multiple times."""
+    from prism.scanner_plugins.bootstrap import initialize_default_registry
+
+    registry1 = initialize_default_registry()
+    registry2 = initialize_default_registry()
+
+    # Should return the same singleton instance
+    assert registry1 is registry2, "initialize_default_registry() should be idempotent"

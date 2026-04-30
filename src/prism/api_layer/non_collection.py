@@ -2,48 +2,44 @@
 
 from __future__ import annotations
 
-import importlib
 import logging
 from pathlib import Path
 import threading
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Callable, Protocol, cast
 
 if TYPE_CHECKING:
+    from .. import repo_services
     from prism.scanner_core.scan_cache import ScanCacheBackend
+    from prism.scanner_data.contracts_request import PreparedPolicyBundle
 
-from prism.errors import FailurePolicy, PrismRuntimeError
+from . import plugin_facade
 from prism.api_layer.payload_helpers import normalize_scan_role_payload_shape
-from prism.scanner_core.di import DIContainer
-from prism.scanner_core.feature_detector import FeatureDetector
-from prism.scanner_core.scan_request import build_run_scan_options_canonical
-from prism.scanner_core.scanner_context import (
-    ScannerContext,
-    build_non_collection_run_scan_execution_request,
-)
-from prism.scanner_core.variable_discovery import VariableDiscovery
+from prism.errors import FailurePolicy, PrismRuntimeError
 from prism.scanner_data import RepoScanResult, RoleScanResult
-from prism.scanner_kernel.orchestrator import (
-    RoutePreflightRuntimeCarrier,
-    orchestrate_scan_payload_with_selected_plugin,
-    route_scan_payload_orchestration,
-)
-from prism.scanner_plugins import DEFAULT_PLUGIN_REGISTRY
-from prism.scanner_plugins.bundle_resolver import ensure_prepared_policy_bundle
-from prism.scanner_plugins.defaults import resolve_comment_driven_documentation_plugin
+from prism.scanner_kernel.orchestrator import RoutePreflightRuntimeCarrier
 
 _logger = logging.getLogger(__name__)
 
-_repo_scan_facade: Any | None = None
+
+class _EnsurePreparedPolicyBundleFn(Protocol):
+    """Facade-callable protocol for policy bundle preparation."""
+
+    def __call__(
+        self, *, scan_options: dict[str, object], di: object
+    ) -> PreparedPolicyBundle: ...
+
+
+_repo_scan_facade: repo_services.RepoScanFacade | None = None
 _repo_scan_facade_lock = threading.Lock()
 
 
-def _resolve_repo_scan_facade() -> Any:
+def _resolve_repo_scan_facade() -> repo_services.RepoScanFacade:
     global _repo_scan_facade
     with _repo_scan_facade_lock:
         if _repo_scan_facade is None:
-            _repo_scan_facade = importlib.import_module(
-                "prism.repo_services"
-            ).repo_scan_facade
+            from prism import repo_services
+
+            _repo_scan_facade = repo_services.repo_scan_facade
     return _repo_scan_facade
 
 
@@ -126,21 +122,72 @@ def run_scan(
     cache_backend: ScanCacheBackend | None = None,
     validate_role_path_fn=_validate_role_path,
     extract_role_description_fn=_extract_role_description,
-    build_run_scan_options_canonical_fn=build_run_scan_options_canonical,
-    route_scan_payload_orchestration_fn=route_scan_payload_orchestration,
-    orchestrate_scan_payload_with_selected_plugin_fn=(
-        orchestrate_scan_payload_with_selected_plugin
-    ),
-    di_container_cls=DIContainer,
-    feature_detector_cls=FeatureDetector,
-    scanner_context_cls=ScannerContext,
-    variable_discovery_cls=VariableDiscovery,
-    resolve_comment_driven_documentation_plugin_fn=(
-        resolve_comment_driven_documentation_plugin
-    ),
-    default_plugin_registry=DEFAULT_PLUGIN_REGISTRY,
+    build_run_scan_options_canonical_fn=None,
+    route_scan_payload_orchestration_fn=None,
+    orchestrate_scan_payload_with_selected_plugin_fn=None,
+    di_container_cls=None,
+    feature_detector_cls=None,
+    scanner_context_cls=None,
+    variable_discovery_cls=None,
+    resolve_comment_driven_documentation_plugin_fn: (
+        Callable[[object], plugin_facade.CommentDrivenDocumentationPlugin] | None
+    ) = None,
+    default_plugin_registry: plugin_facade.PluginRegistry | None = None,
+    ensure_prepared_policy_bundle_fn: _EnsurePreparedPolicyBundleFn | None = None,
 ) -> dict[str, object]:
     """Run the non-collection scanner orchestration and return a payload."""
+    # Lazy-load scanner_core and scanner_kernel imports to reduce module load time
+    if build_run_scan_options_canonical_fn is None:
+        from prism.scanner_core.scan_request import build_run_scan_options_canonical
+
+        build_run_scan_options_canonical_fn = build_run_scan_options_canonical
+    if route_scan_payload_orchestration_fn is None:
+        from prism.scanner_kernel.orchestrator import route_scan_payload_orchestration
+
+        route_scan_payload_orchestration_fn = route_scan_payload_orchestration
+    if orchestrate_scan_payload_with_selected_plugin_fn is None:
+        from prism.scanner_kernel.orchestrator import (
+            orchestrate_scan_payload_with_selected_plugin,
+        )
+
+        orchestrate_scan_payload_with_selected_plugin_fn = (
+            orchestrate_scan_payload_with_selected_plugin
+        )
+    if di_container_cls is None:
+        from prism.scanner_core.di import DIContainer
+
+        di_container_cls = DIContainer
+    if feature_detector_cls is None:
+        from prism.scanner_core.feature_detector import FeatureDetector
+
+        feature_detector_cls = FeatureDetector
+    if scanner_context_cls is None:
+        from prism.scanner_core.scanner_context import ScannerContext
+
+        scanner_context_cls = ScannerContext
+    if variable_discovery_cls is None:
+        from prism.scanner_core.variable_discovery import VariableDiscovery
+
+        variable_discovery_cls = VariableDiscovery
+
+    from prism.scanner_core.scanner_context import (
+        build_non_collection_run_scan_execution_request,
+    )
+
+    if resolve_comment_driven_documentation_plugin_fn is None:
+        resolve_comment_driven_documentation_plugin_fn = (
+            plugin_facade.resolve_comment_driven_documentation_plugin
+        )
+
+    if default_plugin_registry is None:
+        default_plugin_registry = plugin_facade.get_default_plugin_registry()
+
+    _resolved_ensure_fn: Any
+    if ensure_prepared_policy_bundle_fn is None:
+        _resolved_ensure_fn = plugin_facade.ensure_prepared_policy_bundle
+    else:
+        _resolved_ensure_fn = ensure_prepared_policy_bundle_fn
+
     execution_request = build_non_collection_run_scan_execution_request(
         role_path=role_path,
         role_name_override=role_name_override,
@@ -182,7 +229,7 @@ def run_scan(
             resolve_comment_driven_documentation_plugin_fn
         ),
         default_plugin_registry=default_plugin_registry,
-        ensure_prepared_policy_bundle_fn=ensure_prepared_policy_bundle,
+        ensure_prepared_policy_bundle_fn=_resolved_ensure_fn,
     )
 
     _cache_key: str | None = None
@@ -193,7 +240,9 @@ def run_scan(
         )
 
         _role_content_hash = compute_role_content_hash(execution_request.role_path)
-        _bundle = execution_request.scan_options.get("prepared_policy_bundle") or {}
+        _bundle: PreparedPolicyBundle | dict[str, Any] = (
+            execution_request.scan_options.get("prepared_policy_bundle") or {}
+        )
 
         def _bundle_value_fingerprint(value: object) -> object:
             if isinstance(value, (str, int, float, bool)) or value is None:
@@ -320,6 +369,7 @@ def scan_role(
         ),
         strict_phase_failures=strict_phase_failures,
     )
+    # Safe: normalize_scan_role_payload_shape returns a dict with RoleScanResult shape
     return cast(RoleScanResult, normalize_scan_role_payload_shape(result))
 
 
@@ -404,3 +454,22 @@ def scan_repo(
             failure_policy=failure_policy,
         ),
     )
+
+
+def __getattr__(name: str):
+    """Lazy module attribute access for scanner_core and scanner_kernel re-exports."""
+    if name == "build_run_scan_options_canonical":
+        from prism.scanner_core.scan_request import build_run_scan_options_canonical
+
+        return build_run_scan_options_canonical
+    if name == "route_scan_payload_orchestration":
+        from prism.scanner_kernel.orchestrator import route_scan_payload_orchestration
+
+        return route_scan_payload_orchestration
+    if name == "orchestrate_scan_payload_with_selected_plugin":
+        from prism.scanner_kernel.orchestrator import (
+            orchestrate_scan_payload_with_selected_plugin,
+        )
+
+        return orchestrate_scan_payload_with_selected_plugin
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

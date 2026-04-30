@@ -59,9 +59,12 @@ class EventBus:
     work.
     """
 
-    def __init__(self, listeners: list[EventListener] | None = None) -> None:
+    def __init__(
+        self, listeners: list[EventListener] | None = None, *, strict: bool = False
+    ) -> None:
         self._listeners: list[EventListener] = list(listeners or [])
         self._listeners_lock = threading.RLock()
+        self._strict = strict
 
     def subscribe(self, listener: EventListener) -> None:
         if not callable(listener):
@@ -89,12 +92,16 @@ class EventBus:
             try:
                 listener(event)
             except Exception as exc:  # pragma: no cover - defensive
-                logger.exception(
-                    "EventBus listener raised for phase=%s kind=%s (listener_exc=%s)",
+                logger.error(
+                    "EventBus listener exception: phase=%s kind=%s listener=%r exc_type=%s exc=%r",
                     event.phase_name,
                     event.kind,
+                    listener,
                     type(exc).__name__,
+                    exc,
                 )
+                if self._strict:
+                    raise
 
     @contextmanager
     def phase(
