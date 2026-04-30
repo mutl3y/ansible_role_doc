@@ -647,8 +647,7 @@ def test_fsrc_scanner_plugins_package_does_not_import_scanner_core() -> None:
 
     assert not violations, (
         "scanner_plugins must not import scanner_core (g34-M-006); "
-        "use scanner_data contracts or DI injection instead:\n"
-        + "\n".join(violations)
+        "use scanner_data contracts or DI injection instead:\n" + "\n".join(violations)
     )
 
 
