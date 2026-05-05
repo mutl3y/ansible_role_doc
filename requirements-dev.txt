@@ -3,7 +3,9 @@ Jinja2
 tox
 pytest
 pytest-cov
+pytest-benchmark
 pyfakefs
+hypothesis
 ruff==0.15.6
 black==25.1.0
 markdown
