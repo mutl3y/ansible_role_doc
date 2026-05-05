@@ -49,4 +49,9 @@ package-dir = {"" = "src"}
 where = ["src"]
 
 [tool.setuptools.package-data]
-prism = ["templates/*.j2", "templates/*.md", "data/*.yml"]
+prism = [
+    "templates/*.j2",
+    "templates/*.md",
+    "data/*.yml",
+    "scanner_plugins/parsers/comment_doc/templates/*.j2",
+]

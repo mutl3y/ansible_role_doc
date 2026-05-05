@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Callable
+from typing import Callable, NamedTuple
 
 from prism.scanner_io.loader import (
     collect_yaml_parse_failures,
@@ -19,7 +19,17 @@ __all__ = [
     "parse_yaml_candidate",
     "load_role_variable_maps",
     "iter_role_argument_spec_entries",
+    "RoleVariableMaps",
 ]
+
+
+class RoleVariableMaps(NamedTuple):
+    """Defaults/vars variable maps and their source-file lookup tables."""
+
+    defaults_data: dict
+    vars_data: dict
+    defaults_sources: dict[str, Path]
+    vars_sources: dict[str, Path]
 
 
 def load_role_variable_maps(
@@ -27,7 +37,7 @@ def load_role_variable_maps(
     include_vars_main: bool,
     iter_variable_map_candidates_fn: Callable[[Path, str], list[Path]],
     load_yaml_file_fn: Callable[[Path], object],
-) -> tuple[dict, dict, dict[str, Path], dict[str, Path]]:
+) -> RoleVariableMaps:
     """Load defaults/vars variable maps from conventional role paths."""
     defaults_data: dict = {}
     vars_data: dict = {}
@@ -50,7 +60,7 @@ def load_role_variable_maps(
                     vars_sources[name] = candidate
                 vars_data.update(loaded)
 
-    return defaults_data, vars_data, defaults_sources, vars_sources
+    return RoleVariableMaps(defaults_data, vars_data, defaults_sources, vars_sources)
 
 
 def iter_role_argument_spec_entries(

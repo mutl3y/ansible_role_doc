@@ -6,9 +6,11 @@ marker behavior; scanner_data owns only schema contracts.
 
 from __future__ import annotations
 
+import functools
 import re
 
-DEFAULT_DOC_MARKER_PREFIX = "prism"
+from prism.scanner_config.section import DEFAULT_DOC_MARKER_PREFIX
+
 COMMENT_CONTINUATION_RE = re.compile(r"^\s*#\s?(.*)$")
 
 
@@ -23,6 +25,15 @@ def normalize_marker_prefix(marker_prefix: str | None) -> str:
     return prefix
 
 
+class NormalizesMarkerPrefix:
+    """Mixin that provides the canonical normalize_marker_prefix staticmethod."""
+
+    @staticmethod
+    def normalize_marker_prefix(marker_prefix: str | None) -> str:
+        return normalize_marker_prefix(marker_prefix)
+
+
+@functools.cache
 def get_marker_line_re(marker_prefix: str = DEFAULT_DOC_MARKER_PREFIX):
     escaped_prefix = re.escape(normalize_marker_prefix(marker_prefix))
     return re.compile(
