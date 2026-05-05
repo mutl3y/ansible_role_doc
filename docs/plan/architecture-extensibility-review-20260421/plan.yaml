@@ -260,6 +260,23 @@ tier_3_extensibility:
     acceptance:
       - "Wall-clock scan time on benchmark role drops by >=30%"
       - "No regressions in correctness tests"
+    notes: |
+      Experimental branch snapshot retained at
+      `experiment/t3-02-ordered-yaml-loads-20260505` (tip commit `bc505bd`)
+      for future AAP-scale evaluation.
+
+      2026-05-05 focused benchmark comparison against baseline commit `f2311a7`
+      using `test_bench_single_file_yaml_parse` and
+      `test_bench_large_role_scan`:
+      - large synthetic role scan median: 0.469271s -> 0.467952s (-0.28%)
+      - large synthetic role scan mean: 0.471603s -> 0.467952s (-0.77%)
+      - single-file YAML parse median: 0.001074s -> 0.001156s (+7.71%)
+      - single-file YAML parse mean: 0.001077s -> 0.001170s (+8.63%)
+
+      Decision: keep the ordered ThreadPoolExecutor implementation as an
+      experiment branch only. Do not widen the refactor until benchmark data
+      reflects an AAP-realistic many-repo workload, where orchestration-level
+      concurrency may dominate per-repo inner I/O fan-out.
     estimated_effort: large
     depends_on: [T4-01, T3-01]
 
